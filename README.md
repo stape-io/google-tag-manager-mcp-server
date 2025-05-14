@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/stape-io-google-tag-manager-mcp-server-badge.png)](https://mseep.ai/app/stape-io-google-tag-manager-mcp-server)
+
 # MCP Server for Google Tag Manager
 
 This is a MCP server that provides an interface to the Google Tag Manager API.
