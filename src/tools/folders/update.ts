@@ -4,8 +4,12 @@ import { tagmanager_v2 } from "googleapis";
 import { FolderSchemaFields } from "../../schemas/FolderSchema";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
 import Schema$Folder = tagmanager_v2.Schema$Folder;
+import { McpAgentToolParamsModel } from "../../models/McpAgentModel";
 
-export const update = (server: McpServer): void =>
+export const update = (
+  server: McpServer,
+  { props }: McpAgentToolParamsModel,
+): void => {
   server.tool(
     "tag_manager_update_folder",
     "Updates a GTM Folder",
@@ -23,9 +27,7 @@ export const update = (server: McpServer): void =>
       );
 
       try {
-        const tagmanager = await getTagManagerClient([
-          "https://www.googleapis.com/auth/tagmanager.edit.containers",
-        ]);
+        const tagmanager = await getTagManagerClient(props.accessToken);
         const response =
           await tagmanager.accounts.containers.workspaces.folders.update({
             path: `accounts/${accountId}/containers/${containerId}/workspaces/${workspaceId}/folders/${folderId}`,
@@ -46,3 +48,4 @@ export const update = (server: McpServer): void =>
       }
     },
   );
+};

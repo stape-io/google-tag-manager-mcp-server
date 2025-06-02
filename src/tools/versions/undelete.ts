@@ -2,8 +2,12 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
+import { McpAgentToolParamsModel } from "../../models/McpAgentModel";
 
-export const undelete = (server: McpServer): void =>
+export const undelete = (
+  server: McpServer,
+  { props }: McpAgentToolParamsModel,
+): void => {
   server.tool(
     "tag_manager_undelete_container_version",
     "Undeletes a Container Version",
@@ -30,9 +34,7 @@ export const undelete = (server: McpServer): void =>
       );
 
       try {
-        const tagmanager = await getTagManagerClient([
-          "https://www.googleapis.com/auth/tagmanager.edit.containerversions",
-        ]);
+        const tagmanager = await getTagManagerClient(props.accessToken);
         const response = await tagmanager.accounts.containers.versions.undelete(
           {
             path: `accounts/${accountId}/containers/${containerId}/versions/${containerVersionId}`,
@@ -52,3 +54,4 @@ export const undelete = (server: McpServer): void =>
       }
     },
   );
+};

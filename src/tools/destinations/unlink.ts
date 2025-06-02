@@ -2,8 +2,12 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
+import { McpAgentToolParamsModel } from "../../models/McpAgentModel";
 
-export const unlink = (server: McpServer): void =>
+export const unlink = (
+  server: McpServer,
+  { props }: McpAgentToolParamsModel,
+): void => {
   server.tool(
     "tag_manager_delete_container_destination",
     "Deletes a destination from a container",
@@ -32,9 +36,7 @@ export const unlink = (server: McpServer): void =>
       );
 
       try {
-        const tagmanager = await getTagManagerClient([
-          "ttps://www.googleapis.com/auth/tagmanager.edit.containers",
-        ]);
+        const tagmanager = await getTagManagerClient(props.accessToken);
         await tagmanager.accounts.containers.destinations.link({
           parent: `accounts/${accountId}/containers/${containerId}`,
           destinationId: destinationId,
@@ -63,3 +65,4 @@ export const unlink = (server: McpServer): void =>
       }
     },
   );
+};

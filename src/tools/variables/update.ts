@@ -4,8 +4,12 @@ import { tagmanager_v2 } from "googleapis";
 import { VariableSchemaFields } from "../../schemas/VariableSchema";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
 import Schema$Variable = tagmanager_v2.Schema$Variable;
+import { McpAgentToolParamsModel } from "../../models/McpAgentModel";
 
-export const update = (server: McpServer): void =>
+export const update = (
+  server: McpServer,
+  { props }: McpAgentToolParamsModel,
+): void => {
   server.tool(
     "tag_manager_update_variable",
     "Updates a GTM Variable",
@@ -23,9 +27,7 @@ export const update = (server: McpServer): void =>
       );
 
       try {
-        const tagmanager = await getTagManagerClient([
-          "https://www.googleapis.com/auth/tagmanager.edit.containers",
-        ]);
+        const tagmanager = await getTagManagerClient(props.accessToken);
         const response =
           await tagmanager.accounts.containers.workspaces.variables.update({
             path: `accounts/${accountId}/containers/${containerId}/workspaces/${workspaceId}/variables/${variableId}`,
@@ -46,3 +48,4 @@ export const update = (server: McpServer): void =>
       }
     },
   );
+};

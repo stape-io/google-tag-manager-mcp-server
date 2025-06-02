@@ -3,8 +3,12 @@ import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { FolderSchemaFields } from "../../schemas/FolderSchema";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
+import { McpAgentToolParamsModel } from "../../models/McpAgentModel";
 
-export const moveEntitiesToFolder = (server: McpServer): void =>
+export const moveEntitiesToFolder = (
+  server: McpServer,
+  { props }: McpAgentToolParamsModel,
+): void => {
   server.tool(
     "tag_manager_move_entities_to_folder",
     "Moves entities to a GTM Folder",
@@ -35,9 +39,7 @@ export const moveEntitiesToFolder = (server: McpServer): void =>
       );
 
       try {
-        const tagmanager = await getTagManagerClient([
-          "https://www.googleapis.com/auth/tagmanager.edit.containers",
-        ]);
+        const tagmanager = await getTagManagerClient(props.accessToken);
         await tagmanager.accounts.containers.workspaces.folders.move_entities_to_folder(
           {
             path: `accounts/${accountId}/containers/${containerId}/workspaces/${workspaceId}/folders/${folderId}`,
@@ -71,3 +73,4 @@ export const moveEntitiesToFolder = (server: McpServer): void =>
       }
     },
   );
+};

@@ -4,8 +4,12 @@ import { tagmanager_v2 } from "googleapis";
 import { GtagConfigSchemaFields } from "../../schemas/GtagConfigSchema";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
 import Schema$GtagConfig = tagmanager_v2.Schema$GtagConfig;
+import { McpAgentToolParamsModel } from "../../models/McpAgentModel";
 
-export const create = (server: McpServer): void =>
+export const create = (
+  server: McpServer,
+  { props }: McpAgentToolParamsModel,
+): void => {
   server.tool(
     "tag_manager_create_gtag_config",
     "Creates a Google tag config",
@@ -21,9 +25,7 @@ export const create = (server: McpServer): void =>
       );
 
       try {
-        const tagmanager = await getTagManagerClient([
-          "https://www.googleapis.com/auth/tagmanager.edit.containers",
-        ]);
+        const tagmanager = await getTagManagerClient(props.accessToken);
         const response =
           await tagmanager.accounts.containers.workspaces.gtag_config.create({
             parent: `accounts/${accountId}/containers/${containerId}/workspaces/${workspaceId}`,
@@ -43,3 +45,4 @@ export const create = (server: McpServer): void =>
       }
     },
   );
+};

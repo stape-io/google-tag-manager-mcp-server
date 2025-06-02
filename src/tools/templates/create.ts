@@ -4,8 +4,12 @@ import { tagmanager_v2 } from "googleapis";
 import { CustomTemplateSchemaFields } from "../../schemas/CustomTemplateSchema";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
 import Schema$CustomTemplate = tagmanager_v2.Schema$CustomTemplate;
+import { McpAgentToolParamsModel } from "../../models/McpAgentModel";
 
-export const create = (server: McpServer): void =>
+export const create = (
+  server: McpServer,
+  { props }: McpAgentToolParamsModel,
+): void => {
   server.tool(
     "tag_manager_create_template",
     "Creates a GTM Custom Template",
@@ -21,9 +25,7 @@ export const create = (server: McpServer): void =>
       );
 
       try {
-        const tagmanager = await getTagManagerClient([
-          "https://www.googleapis.com/auth/tagmanager.edit.containers",
-        ]);
+        const tagmanager = await getTagManagerClient(props.accessToken);
         const response =
           await tagmanager.accounts.containers.workspaces.templates.create({
             parent: `accounts/${accountId}/containers/${containerId}/workspaces/${workspaceId}`,
@@ -43,3 +45,4 @@ export const create = (server: McpServer): void =>
       }
     },
   );
+};

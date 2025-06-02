@@ -6,6 +6,7 @@ import { destinationTools } from "./destinations";
 import { environmentTools } from "./environments";
 import { folderTools } from "./folders";
 import { gtagConfigTools } from "./gtag-config";
+import { removeMCPServerData } from "./removeMCPServerData";
 import { tagTools } from "./tags";
 import { templateTools } from "./templates";
 import { transformationTools } from "./transformations";
@@ -36,4 +37,5 @@ export const tools = [
   ...variableTools,
   ...zoneTools,
   ...userPermissionTools,
+  removeMCPServerData,
 ];

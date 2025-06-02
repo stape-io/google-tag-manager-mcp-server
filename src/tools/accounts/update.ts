@@ -1,9 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { McpAgentToolParamsModel } from "../../models/McpAgentModel";
 import { AccountSchemaFields } from "../../schemas/AccountSchema";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
 
-export const update = (server: McpServer): void =>
+export const update = (
+  server: McpServer,
+  { props }: McpAgentToolParamsModel,
+): void => {
   server.tool(
     "tag_manager_update_account",
     "Updates a GTM Account",
@@ -12,9 +16,7 @@ export const update = (server: McpServer): void =>
       log(`Running tool: tag_manager_update_account for account ${accountId}`);
 
       try {
-        const tagmanager = await getTagManagerClient([
-          "https://www.googleapis.com/auth/tagmanager.manage.accounts",
-        ]);
+        const tagmanager = await getTagManagerClient(props.accessToken);
         const response = await tagmanager.accounts.update({
           path: `accounts/${accountId}`,
           fingerprint,
@@ -34,3 +36,4 @@ export const update = (server: McpServer): void =>
       }
     },
   );
+};

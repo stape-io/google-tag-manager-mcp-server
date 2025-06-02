@@ -2,8 +2,12 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
+import { McpAgentToolParamsModel } from "../../models/McpAgentModel";
 
-export const list = (server: McpServer): void =>
+export const list = (
+  server: McpServer,
+  { props }: McpAgentToolParamsModel,
+): void => {
   server.tool(
     "tag_manager_list_user_permissions",
     "Lists all users that have access to the account along with Account and Container user access granted to each of them",
@@ -24,9 +28,7 @@ export const list = (server: McpServer): void =>
       );
 
       try {
-        const tagmanager = await getTagManagerClient([
-          "https://www.googleapis.com/auth/tagmanager.manage.users",
-        ]);
+        const tagmanager = await getTagManagerClient(props.accessToken);
         const response = await tagmanager.accounts.user_permissions.list({
           parent: `accounts/${accountId}`,
           pageToken,
@@ -45,3 +47,4 @@ export const list = (server: McpServer): void =>
       }
     },
   );
+};

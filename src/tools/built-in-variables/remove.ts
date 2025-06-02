@@ -1,9 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
+import { McpAgentToolParamsModel } from "../../models/McpAgentModel";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
 
-export const remove = (server: McpServer): void =>
+export const remove = (
+  server: McpServer,
+  { props }: McpAgentToolParamsModel,
+): void => {
   server.tool(
     "tag_manager_delete_built_in_variables",
     "Deletes one or more GTM Built-In Variables",
@@ -40,9 +44,7 @@ export const remove = (server: McpServer): void =>
       );
 
       try {
-        const tagmanager = await getTagManagerClient([
-          "https://www.googleapis.com/auth/tagmanager.edit.containers",
-        ]);
+        const tagmanager = await getTagManagerClient(props.accessToken);
         await tagmanager.accounts.containers.workspaces.built_in_variables.delete(
           {
             path: `accounts/${accountId}/containers/${containerId}/workspaces/${workspaceId}/built_in_variables`,
@@ -73,3 +75,4 @@ export const remove = (server: McpServer): void =>
       }
     },
   );
+};
