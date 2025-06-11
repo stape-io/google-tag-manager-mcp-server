@@ -1,9 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
+import { McpAgentToolParamsModel } from "../../models/McpAgentModel";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
 
-export const get = (server: McpServer): void =>
+export const get = (
+  server: McpServer,
+  { props }: McpAgentToolParamsModel,
+): void => {
   server.tool(
     "tag_manager_get_container_destination",
     "Gets a specific destination from a container",
@@ -32,10 +36,7 @@ export const get = (server: McpServer): void =>
       );
 
       try {
-        const tagmanager = await getTagManagerClient([
-          "https://www.googleapis.com/auth/tagmanager.edit.containers",
-          "https://www.googleapis.com/auth/tagmanager.readonly",
-        ]);
+        const tagmanager = await getTagManagerClient(props.accessToken);
         const response = await tagmanager.accounts.containers.destinations.get({
           path: `accounts/${accountId}/containers/${containerId}/destinations/${destinationId}`,
         });
@@ -53,3 +54,4 @@ export const get = (server: McpServer): void =>
       }
     },
   );
+};

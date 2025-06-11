@@ -4,8 +4,12 @@ import { tagmanager_v2 } from "googleapis";
 import { WorkspaceSchemaFields } from "../../schemas/WorkspaceSchema";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
 import Schema$Workspace = tagmanager_v2.Schema$Workspace;
+import { McpAgentToolParamsModel } from "../../models/McpAgentModel";
 
-export const create = (server: McpServer): void =>
+export const create = (
+  server: McpServer,
+  { props }: McpAgentToolParamsModel,
+): void => {
   server.tool(
     "tag_manager_create_container_workspace",
     "Creates a Workspace",
@@ -15,9 +19,7 @@ export const create = (server: McpServer): void =>
         `Running tool: tag_manager_create_container_workspace for account ${accountId}, container ${containerId}`,
       );
       try {
-        const tagmanager = await getTagManagerClient([
-          "https://www.googleapis.com/auth/tagmanager.edit.containers",
-        ]);
+        const tagmanager = await getTagManagerClient(props.accessToken);
         const response = await tagmanager.accounts.containers.workspaces.create(
           {
             parent: `accounts/${accountId}/containers/${containerId}`,
@@ -37,3 +39,4 @@ export const create = (server: McpServer): void =>
       }
     },
   );
+};

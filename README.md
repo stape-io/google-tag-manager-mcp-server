@@ -1,23 +1,36 @@
 # MCP Server for Google Tag Manager
 
-This is a MCP server that provides an interface to the Google Tag Manager API.
+This is a server that supports remote MCP connections, with Google OAuth built-in and provides an interface to the Google Tag Manager API.
 
 ## Prerequisites
+- Node.js (v18 or higher)
 
-- Node.js (v16 or higher)
-- Google Cloud Platform account
-- Service account credentials for Google Tag Manager API
+## Access the remote MCP server from Claude Desktop
 
-## Setup
+Open Claude Desktop and navigate to Settings -> Developer -> Edit Config. This opens the configuration file that controls which MCP servers Claude can access.
 
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
+Replace the content with the following configuration. Once you restart Claude Desktop, a browser window will open showing your OAuth login page. Complete the authentication flow to grant Claude access to your MCP server. After you grant access, the tools will become available for you to use.
 
-3. Create a service account in Google Cloud Console and download the JSON key file
-4. Set env file with your service account key path:
-   ```
-   GOOGLE_APPLICATION_CREDENTIALS=./path/to/your/service-account-key.json
-   ```
+```json
+{
+  "mcpServers": {
+    "google-tag-manager-mcp-server": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://gtm-mcp.stape.ai/sse"
+      ]
+    }
+  }
+}
+```
+
+### Troubleshooting
+
+[mcp-remote](https://github.com/geelen/mcp-remote#readme) stores all the credential information inside ~/.mcp-auth (or wherever your MCP_REMOTE_CONFIG_DIR points to). If you're having persistent issues, try running:
+You can run rm -rf ~/.mcp-auth to clear any locally stored state and tokens.
+```
+rm -rf ~/.mcp-auth
+```
+Then restarting your MCP client.

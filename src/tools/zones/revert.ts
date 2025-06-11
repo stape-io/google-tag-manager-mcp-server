@@ -2,8 +2,12 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
+import { McpAgentToolParamsModel } from "../../models/McpAgentModel";
 
-export const revert = (server: McpServer): void =>
+export const revert = (
+  server: McpServer,
+  { props }: McpAgentToolParamsModel,
+): void => {
   server.tool(
     "tag_manager_revert_zone",
     "Reverts changes to a GTM Zone in a GTM Workspace",
@@ -35,9 +39,7 @@ export const revert = (server: McpServer): void =>
       );
 
       try {
-        const tagmanager = await getTagManagerClient([
-          "https://www.googleapis.com/auth/tagmanager.edit.containers",
-        ]);
+        const tagmanager = await getTagManagerClient(props.accessToken);
         const response =
           await tagmanager.accounts.containers.workspaces.zones.revert({
             path: `accounts/${accountId}/containers/${containerId}/workspaces/${workspaceId}/zones/${zoneId}`,
@@ -57,3 +59,4 @@ export const revert = (server: McpServer): void =>
       }
     },
   );
+};

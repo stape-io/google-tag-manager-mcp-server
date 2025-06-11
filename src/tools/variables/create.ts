@@ -4,8 +4,12 @@ import { tagmanager_v2 } from "googleapis";
 import { VariableSchemaFields } from "../../schemas/VariableSchema";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
 import Schema$Variable = tagmanager_v2.Schema$Variable;
+import { McpAgentToolParamsModel } from "../../models/McpAgentModel";
 
-export const create = (server: McpServer): void =>
+export const create = (
+  server: McpServer,
+  { props }: McpAgentToolParamsModel,
+): void => {
   server.tool(
     "tag_manager_create_variable",
     "Creates a GTM Variable",
@@ -21,9 +25,7 @@ export const create = (server: McpServer): void =>
       );
 
       try {
-        const tagmanager = await getTagManagerClient([
-          "https://www.googleapis.com/auth/tagmanager.edit.containers",
-        ]);
+        const tagmanager = await getTagManagerClient(props.accessToken);
         const response =
           await tagmanager.accounts.containers.workspaces.variables.create({
             parent: `accounts/${accountId}/containers/${containerId}/workspaces/${workspaceId}`,
@@ -43,3 +45,4 @@ export const create = (server: McpServer): void =>
       }
     },
   );
+};

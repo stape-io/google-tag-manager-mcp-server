@@ -2,8 +2,12 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
+import { McpAgentToolParamsModel } from "../../models/McpAgentModel";
 
-export const combine = (server: McpServer): void =>
+export const combine = (
+  server: McpServer,
+  { props }: McpAgentToolParamsModel,
+): void => {
   server.tool(
     "tag_manager_combine_containers",
     "Combines two GTM Containers",
@@ -38,9 +42,7 @@ export const combine = (server: McpServer): void =>
       );
 
       try {
-        const tagmanager = await getTagManagerClient([
-          "https://www.googleapis.com/auth/tagmanager.edit.containers",
-        ]);
+        const tagmanager = await getTagManagerClient(props.accessToken);
         const response = await tagmanager.accounts.containers.combine({
           path: `accounts/${accountId}/containers/${fromContainerId}`,
           containerId: toContainerId,
@@ -61,3 +63,4 @@ export const combine = (server: McpServer): void =>
       }
     },
   );
+};

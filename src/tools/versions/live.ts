@@ -2,8 +2,12 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
+import { McpAgentToolParamsModel } from "../../models/McpAgentModel";
 
-export const live = (server: McpServer): void =>
+export const live = (
+  server: McpServer,
+  { props }: McpAgentToolParamsModel,
+): void => {
   server.tool(
     "tag_manager_get_live_container_version",
     "Gets the live Container Version",
@@ -24,10 +28,7 @@ export const live = (server: McpServer): void =>
         `Running tool: tag_manager_get_live_container_version for account ${accountId}, container ${containerId}`,
       );
       try {
-        const tagmanager = await getTagManagerClient([
-          "https://www.googleapis.com/auth/tagmanager.edit.containers",
-          "https://www.googleapis.com/auth/tagmanager.readonly",
-        ]);
+        const tagmanager = await getTagManagerClient(props.accessToken);
         const response = await tagmanager.accounts.containers.versions.live({
           parent: `accounts/${accountId}/containers/${containerId}`,
         });
@@ -44,3 +45,4 @@ export const live = (server: McpServer): void =>
       }
     },
   );
+};

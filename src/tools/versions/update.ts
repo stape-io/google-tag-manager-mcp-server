@@ -4,8 +4,12 @@ import { tagmanager_v2 } from "googleapis";
 import { ContainerVersionSchemaFields } from "../../schemas/ContainerVersionSchema";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
 import Schema$ContainerVersion = tagmanager_v2.Schema$ContainerVersion;
+import { McpAgentToolParamsModel } from "../../models/McpAgentModel";
 
-export const update = (server: McpServer): void =>
+export const update = (
+  server: McpServer,
+  { props }: McpAgentToolParamsModel,
+): void => {
   server.tool(
     "tag_manager_update_container_version",
     "Updates a Container Version.",
@@ -21,9 +25,7 @@ export const update = (server: McpServer): void =>
         `Running tool: tag_manager_update_container_version for account ${accountId}, container ${containerId}, version ${containerVersionId}`,
       );
       try {
-        const tagmanager = await getTagManagerClient([
-          "https://www.googleapis.com/auth/tagmanager.edit.containerversions",
-        ]);
+        const tagmanager = await getTagManagerClient(props.accessToken);
         const response = await tagmanager.accounts.containers.versions.update({
           path: `accounts/${accountId}/containers/${containerId}/versions/${containerVersionId}`,
           fingerprint,
@@ -43,3 +45,4 @@ export const update = (server: McpServer): void =>
       }
     },
   );
+};

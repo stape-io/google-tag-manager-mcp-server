@@ -13,6 +13,7 @@ import { VariableSchemaFields } from "../../schemas/VariableSchema";
 import { ZoneSchemaFields } from "../../schemas/ZoneSchema";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
 import Schema$Entity = tagmanager_v2.Schema$Entity;
+import { McpAgentToolParamsModel } from "../../models/McpAgentModel";
 
 const EntitySchemaFields = z.union([
   z.object({ tag: z.object(TagSchemaFields) }),
@@ -27,7 +28,10 @@ const EntitySchemaFields = z.union([
   z.object({ gtagConfig: z.object(GtagConfigSchemaFields) }),
 ]);
 
-export const resolveConflict = (server: McpServer): void =>
+export const resolveConflict = (
+  server: McpServer,
+  { props }: McpAgentToolParamsModel,
+): void => {
   server.tool(
     "tag_manager_resolve_workspace_conflict",
     "Resolves a merge conflict for a workspace entity",
@@ -70,15 +74,13 @@ export const resolveConflict = (server: McpServer): void =>
       const entityName = Object.keys(entity);
 
       try {
-        const tagmanager = await getTagManagerClient([
-          "https://www.googleapis.com/auth/tagmanager.edit.containers",
-        ]);
+        const tagmanager = await getTagManagerClient(props.accessToken);
         await tagmanager.accounts.containers.workspaces.resolve_conflict({
           path: `accounts/${accountId}/containers/${containerId}/workspaces/${workspaceId}`,
           fingerprint,
           requestBody: {
             changeStatus,
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+
             // @ts-expect-error
             [entityName[0]]: entity[entityName[0]],
           } as Schema$Entity,
@@ -107,3 +109,4 @@ export const resolveConflict = (server: McpServer): void =>
       }
     },
   );
+};

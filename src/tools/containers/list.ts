@@ -2,8 +2,12 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
+import { McpAgentToolParamsModel } from "../../models/McpAgentModel";
 
-export const list = (server: McpServer): void =>
+export const list = (
+  server: McpServer,
+  { props }: McpAgentToolParamsModel,
+): void => {
   server.tool(
     "tag_manager_list_containers",
     "Lists all containers within the specified GTM account",
@@ -18,10 +22,7 @@ export const list = (server: McpServer): void =>
       log(`Running tool: tag_manager_list_containers for account ${accountId}`);
 
       try {
-        const tagmanager = await getTagManagerClient([
-          "https://www.googleapis.com/auth/tagmanager.edit.containers",
-          "https://www.googleapis.com/auth/tagmanager.readonly",
-        ]);
+        const tagmanager = await getTagManagerClient(props.accessToken);
         const response = await tagmanager.accounts.containers.list({
           parent: `accounts/${accountId}`,
         });
@@ -39,3 +40,4 @@ export const list = (server: McpServer): void =>
       }
     },
   );
+};

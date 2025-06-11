@@ -2,8 +2,12 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
+import { McpAgentToolParamsModel } from "../../models/McpAgentModel";
 
-export const list = (server: McpServer): void =>
+export const list = (
+  server: McpServer,
+  { props }: McpAgentToolParamsModel,
+): void => {
   server.tool(
     "tag_manager_list_built_in_variables",
     "Lists all the enabled Built-In Variables of a GTM Container",
@@ -29,10 +33,7 @@ export const list = (server: McpServer): void =>
       );
 
       try {
-        const tagmanager = await getTagManagerClient([
-          "https://www.googleapis.com/auth/tagmanager.edit.containers",
-          "https://www.googleapis.com/auth/tagmanager.readonly",
-        ]);
+        const tagmanager = await getTagManagerClient(props.accessToken);
         const response =
           await tagmanager.accounts.containers.workspaces.built_in_variables.list(
             {
@@ -54,3 +55,4 @@ export const list = (server: McpServer): void =>
       }
     },
   );
+};

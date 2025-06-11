@@ -4,8 +4,12 @@ import { tagmanager_v2 } from "googleapis";
 import { TransformationSchemaFields } from "../../schemas/TransformationSchema";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
 import Schema$Transformation = tagmanager_v2.Schema$Transformation;
+import { McpAgentToolParamsModel } from "../../models/McpAgentModel";
 
-export const create = (server: McpServer): void =>
+export const create = (
+  server: McpServer,
+  { props }: McpAgentToolParamsModel,
+): void => {
   server.tool(
     "tag_manager_create_transformation",
     "Creates a GTM Transformation",
@@ -21,9 +25,7 @@ export const create = (server: McpServer): void =>
       );
 
       try {
-        const tagmanager = await getTagManagerClient([
-          "https://www.googleapis.com/auth/tagmanager.edit.containers",
-        ]);
+        const tagmanager = await getTagManagerClient(props.accessToken);
         const response =
           await tagmanager.accounts.containers.workspaces.transformations.create(
             {
@@ -45,3 +47,4 @@ export const create = (server: McpServer): void =>
       }
     },
   );
+};

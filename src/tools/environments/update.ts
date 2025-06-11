@@ -2,8 +2,12 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { EnvironmentSchemaFields } from "../../schemas/EnvironmentSchema";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
+import { McpAgentToolParamsModel } from "../../models/McpAgentModel";
 
-export const update = (server: McpServer): void =>
+export const update = (
+  server: McpServer,
+  { props }: McpAgentToolParamsModel,
+): void => {
   server.tool(
     "tag_manager_update_container_environment",
     "Updates a GTM Environment",
@@ -19,9 +23,7 @@ export const update = (server: McpServer): void =>
         `Running tool: tag_manager_update_container_environment for account ${accountId}, container ${containerId}, environment ${environmentId}`,
       );
       try {
-        const tagmanager = await getTagManagerClient([
-          "https://www.googleapis.com/auth/tagmanager.edit.containers",
-        ]);
+        const tagmanager = await getTagManagerClient(props.accessToken);
         const response =
           await tagmanager.accounts.containers.environments.update({
             path: `accounts/${accountId}/containers/${containerId}/environments/${environmentId}`,
@@ -41,3 +43,4 @@ export const update = (server: McpServer): void =>
       }
     },
   );
+};

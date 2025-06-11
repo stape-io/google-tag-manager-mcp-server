@@ -9,5 +9,5 @@ export function log(message: string, ...rest: unknown[]): void {
       .replace(/ℹ️/g, "INFO:")
       .replace(/\u2139\ufe0f/g, "INFO:");
   }
-  console.error(message, ...rest);
+  console.log(message, ...rest);
 }

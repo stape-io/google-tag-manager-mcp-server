@@ -2,8 +2,12 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
+import { McpAgentToolParamsModel } from "../../models/McpAgentModel";
 
-export const remove = (server: McpServer): void =>
+export const remove = (
+  server: McpServer,
+  { props }: McpAgentToolParamsModel,
+): void => {
   server.tool(
     "tag_manager_delete_container_version",
     "Deletes a Container Version",
@@ -29,9 +33,7 @@ export const remove = (server: McpServer): void =>
         `Running tool: tag_manager_delete_container_version for account ${accountId}, container ${containerId}, version ${containerVersionId}`,
       );
       try {
-        const tagmanager = await getTagManagerClient([
-          "https://www.googleapis.com/auth/tagmanager.edit.containerversions",
-        ]);
+        const tagmanager = await getTagManagerClient(props.accessToken);
         await tagmanager.accounts.containers.versions.delete({
           path: `accounts/${accountId}/containers/${containerId}/versions/${containerVersionId}`,
         });
@@ -58,3 +60,4 @@ export const remove = (server: McpServer): void =>
       }
     },
   );
+};

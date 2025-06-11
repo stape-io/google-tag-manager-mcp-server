@@ -2,8 +2,12 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
+import { McpAgentToolParamsModel } from "../../models/McpAgentModel";
 
-export const setLatest = (server: McpServer): void =>
+export const setLatest = (
+  server: McpServer,
+  { props }: McpAgentToolParamsModel,
+): void => {
   server.tool(
     "tag_manager_set_latest_container_version",
     "Sets the latest container version used for synchronization of workspaces",
@@ -32,9 +36,7 @@ export const setLatest = (server: McpServer): void =>
       );
 
       try {
-        const tagmanager = await getTagManagerClient([
-          "https://www.googleapis.com/auth/tagmanager.edit.containers",
-        ]);
+        const tagmanager = await getTagManagerClient(props.accessToken);
         const response =
           await tagmanager.accounts.containers.versions.set_latest({
             path: `accounts/${accountId}/containers/${containerId}/versions/${containerVersionId}`,
@@ -53,3 +55,4 @@ export const setLatest = (server: McpServer): void =>
       }
     },
   );
+};

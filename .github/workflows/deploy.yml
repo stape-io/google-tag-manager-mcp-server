@@ -1,0 +1,40 @@
+name: Deploy
+
+on:
+  push:
+    branches: main
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v3
+
+      - name: "Setup node"
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20"
+
+      - name: "Install dependencies"
+        run: npm ci
+
+      - name: "Build"
+        run: npm run build
+
+      - name: "Deploy to Cloudflare"
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          secrets: |
+            GOOGLE_CLIENT_ID
+            GOOGLE_CLIENT_SECRET
+            COOKIE_ENCRYPTION_KEY
+          vars: WORKER_HOST
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          COOKIE_ENCRYPTION_KEY: ${{ secrets.COOKIE_ENCRYPTION_KEY }}
+          WORKER_HOST: ${{ vars.WORKER_HOST }}

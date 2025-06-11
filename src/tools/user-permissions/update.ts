@@ -4,8 +4,12 @@ import { tagmanager_v2 } from "googleapis";
 import { UserPermissionSchemaFields } from "../../schemas/UserPermissionSchema";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
 import Schema$UserPermission = tagmanager_v2.Schema$UserPermission;
+import { McpAgentToolParamsModel } from "../../models/McpAgentModel";
 
-export const update = (server: McpServer): void =>
+export const update = (
+  server: McpServer,
+  { props }: McpAgentToolParamsModel,
+): void => {
   server.tool(
     "tag_manager_update_user_permission",
     "Updates a user's Account & Container access",
@@ -19,9 +23,7 @@ export const update = (server: McpServer): void =>
         `Running tool: tag_manager_update_user_permission for account ${accountId}, userPermission ${userPermissionId}`,
       );
       try {
-        const tagmanager = await getTagManagerClient([
-          "https://www.googleapis.com/auth/tagmanager.manage.users",
-        ]);
+        const tagmanager = await getTagManagerClient(props.accessToken);
         const response = await tagmanager.accounts.user_permissions.update({
           path: `accounts/${accountId}/user_permissions/${userPermissionId}`,
           requestBody: rest as Schema$UserPermission,
@@ -39,3 +41,4 @@ export const update = (server: McpServer): void =>
       }
     },
   );
+};

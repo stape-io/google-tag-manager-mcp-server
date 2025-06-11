@@ -2,8 +2,12 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
+import { McpAgentToolParamsModel } from "../../models/McpAgentModel";
 
-export const publish = (server: McpServer): void =>
+export const publish = (
+  server: McpServer,
+  { props }: McpAgentToolParamsModel,
+): void => {
   server.tool(
     "tag_manager_publish_container_version",
     "Publishes a Container Version",
@@ -34,9 +38,7 @@ export const publish = (server: McpServer): void =>
         `Running tool: tag_manager_publish_container_version for account ${accountId}, container ${containerId}, version ${containerVersionId}`,
       );
       try {
-        const tagmanager = await getTagManagerClient([
-          "https://www.googleapis.com/auth/tagmanager.publish",
-        ]);
+        const tagmanager = await getTagManagerClient(props.accessToken);
         const response = await tagmanager.accounts.containers.versions.publish({
           path: `accounts/${accountId}/containers/${containerId}/versions/${containerVersionId}`,
           fingerprint,
@@ -54,3 +56,4 @@ export const publish = (server: McpServer): void =>
       }
     },
   );
+};

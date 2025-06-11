@@ -2,8 +2,12 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { WorkspaceSchemaFields } from "../../schemas/WorkspaceSchema";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
+import { McpAgentToolParamsModel } from "../../models/McpAgentModel";
 
-export const createVersion = (server: McpServer): void =>
+export const createVersion = (
+  server: McpServer,
+  { props }: McpAgentToolParamsModel,
+): void => {
   server.tool(
     "tag_manager_create_container_version_from_workspace",
     "Creates a Container Version from the entities present in the workspace",
@@ -19,9 +23,7 @@ export const createVersion = (server: McpServer): void =>
       );
 
       try {
-        const tagmanager = await getTagManagerClient([
-          "https://www.googleapis.com/auth/tagmanager.edit.containerversions",
-        ]);
+        const tagmanager = await getTagManagerClient(props.accessToken);
         const response =
           await tagmanager.accounts.containers.workspaces.create_version({
             path: `accounts/${accountId}/containers/${containerId}/workspaces/${workspaceId}`,
@@ -41,3 +43,4 @@ export const createVersion = (server: McpServer): void =>
       }
     },
   );
+};

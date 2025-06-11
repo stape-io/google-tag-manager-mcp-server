@@ -1,30 +1,37 @@
+import { OAuthProvider } from "@cloudflare/workers-oauth-provider";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { getPackageVersion, loadEnv, log } from "./utils";
+import { McpAgent } from "agents/mcp";
+import { McpAgentPropsModel } from "./models/McpAgentModel";
 import { tools } from "./tools";
+import { apisHandler, getPackageVersion } from "./utils";
 
-loadEnv();
+export class GoogleTagManagerMCPServer extends McpAgent<
+  Env,
+  null,
+  McpAgentPropsModel
+> {
+  server = new McpServer({
+    name: "google-tag-manager-mcp-server",
+    version: getPackageVersion(),
+    protocolVersion: "1.0",
+    vendor: "stape-io",
+    homepage: "https://github.com/stape-io/google-tag-manager-mcp-server",
+  });
 
-const server = new McpServer({
-  name: "google-tag-manager",
-  version: getPackageVersion(),
-  protocolVersion: "1.0",
-  vendor: "stape-io",
-  homepage: "https://github.com/stape-io/google-tag-manager-mcp-server",
-});
-
-tools.forEach((register) => register(server));
-
-async function main(): Promise<void> {
-  try {
-    log("Starting MCP server with stdio transport...");
-    const transport = new StdioServerTransport();
-    await server.connect(transport);
-    log("✅ MCP server started");
-  } catch (error) {
-    log(`❌ Error starting server: ${error}`);
-    process.exit(1);
+  async init() {
+    tools.forEach((register) => {
+      register(this.server, { props: this.props, env: this.env });
+    });
   }
 }
 
-main();
+export default new OAuthProvider({
+  apiRoute: "/sse",
+  // @ts-ignore
+  apiHandler: GoogleTagManagerMCPServer.mount("/sse"),
+  // @ts-ignore
+  defaultHandler: apisHandler,
+  authorizeEndpoint: "/authorize",
+  tokenEndpoint: "/token",
+  clientRegistrationEndpoint: "/register",
+});
