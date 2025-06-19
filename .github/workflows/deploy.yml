@@ -2,7 +2,7 @@ name: Deploy
 
 on:
   push:
-    branches: main
+    branches: OPS/trigger-redeploy
   workflow_dispatch:
 
 jobs:
