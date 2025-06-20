@@ -2,7 +2,7 @@ name: Deploy
 
 on:
   push:
-    branches: main
+    branches: 'OPS/deploy-landing'
   workflow_dispatch:
 
 jobs:
