@@ -2,7 +2,7 @@ name: Deploy
 
 on:
   push:
-    branches: main
+    branches: OPS/update-privacy-policy
   workflow_dispatch:
 
 jobs:
