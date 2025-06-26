@@ -2,24 +2,18 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# Copy package.json and package-lock.json
+# Copy package files first
 COPY package*.json ./
+COPY tsconfig.json ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies without running postinstall
+RUN npm ci --ignore-scripts
 
-# Copy the rest of the application
+# Copy source code
 COPY . .
 
-# Build the application
-RUN npm run build
+# Build explicitly with verbose output
+RUN npx tsc --project tsconfig.json --verbose && chmod 755 dist/index.js
 
-# Expose the port the app runs on
-ENV PORT=8080
 EXPOSE 8080
-
-# Set environment variables
-ENV NODE_ENV=production
-
-# Run the application
 CMD ["node", "dist/index.js"]
