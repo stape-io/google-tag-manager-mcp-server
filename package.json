@@ -17,7 +17,7 @@
   ],
   "scripts": {
     "dev": "ts-node-dev --respawn --pretty --transpile-only src/index.ts",
-    "build": "tsc && chmod 755 dist/index.js",
+    "build": "tsc --project tsconfig.json && chmod 755 dist/index.js",
     "postinstall": "npm run build",
     "lint": "eslint --ext .ts src",
     "lint:fix": "eslint --ext .ts src --fix",
