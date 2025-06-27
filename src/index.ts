@@ -17,7 +17,7 @@ if (process.env.GTM_SERVICE_ACCOUNT_KEY_PATH && !process.env.GOOGLE_APPLICATION_
 const server = new McpServer({
   name: "google-tag-manager",
   version: getPackageVersion(),
-  protocolVersion: "1.0",
+  protocolVersion: "2024-11-05",
   vendor: "stape-io",
   homepage: "https://github.com/stape-io/google-tag-manager-mcp-server",
 });
