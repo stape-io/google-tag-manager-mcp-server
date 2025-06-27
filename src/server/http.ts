@@ -14,6 +14,9 @@ export class HttpServerTransport {
   public onmessage?: (message: any) => void;
   public onerror?: (error: Error) => void;
   public onclose?: () => void;
+  
+  // Store pending requests for HTTP responses
+  private pendingRequests: Map<string, express.Response> = new Map();
 
   constructor(port = process.env.PORT ? parseInt(process.env.PORT) : 3000) {
     this.port = port;
@@ -62,12 +65,18 @@ export class HttpServerTransport {
           throw new Error('No message handler registered');
         }
         
+        // Store the response object to send reply later
+        if (message.id) {
+          this.pendingRequests.set(message.id.toString(), res);
+        }
+        
         // Process the message through the onmessage handler
         this.onmessage(message);
         
-        // For now, just acknowledge receipt
-        // The actual response will be sent via the send() method
-        res.status(202).json({ status: 'accepted' });
+        // If no ID, send immediate response
+        if (!message.id) {
+          res.status(200).json({ status: 'ok' });
+        }
       } catch (error) {
         log(`Error processing request: ${error}`);
         if (this.onerror && error instanceof Error) {
@@ -123,9 +132,16 @@ export class HttpServerTransport {
         
         log(`Received SSE message: ${JSON.stringify(message)}`);
         
+        // Store the message ID for response routing via SSE
+        if (message.id) {
+          // Mark this as an SSE request for response routing
+          message._sseRequest = true;
+        }
+        
         // Process the message through the onmessage handler
         this.onmessage(message);
         
+        // For SSE, acknowledge receipt but response will come via SSE stream
         res.status(200).json({ status: 'received' });
       } catch (error) {
         log(`Error processing SSE message: ${error}`);
@@ -178,27 +194,41 @@ export class HttpServerTransport {
    */
   async send(message: any): Promise<void> {
     const messageStr = JSON.stringify(message);
-    const disconnectedClients: string[] = [];
-
-    // Send to SSE clients
-    for (const [clientId, res] of this.clients) {
+    
+    // Handle HTTP responses for requests with IDs
+    if (message.id && this.pendingRequests.has(message.id.toString())) {
+      const res = this.pendingRequests.get(message.id.toString())!;
+      this.pendingRequests.delete(message.id.toString());
+      
       try {
-        res.write(`data: ${messageStr}\n\n`);
+        res.status(200).json(message);
+        log(`Sent HTTP response for request ID: ${message.id}`);
+        return Promise.resolve();
       } catch (error) {
-        log(`Error sending to SSE client ${clientId}: ${error}`);
-        disconnectedClients.push(clientId);
+        log(`Error sending HTTP response: ${error}`);
       }
     }
-
-    // Clean up disconnected clients
-    disconnectedClients.forEach(clientId => {
-      this.clients.delete(clientId);
-    });
-
+    
+    // Send to SSE clients if any are connected
     if (this.clients.size > 0) {
+      const disconnectedClients: string[] = [];
+      for (const [clientId, res] of this.clients) {
+        try {
+          res.write(`data: ${messageStr}\n\n`);
+        } catch (error) {
+          log(`Error sending to SSE client ${clientId}: ${error}`);
+          disconnectedClients.push(clientId);
+        }
+      }
+
+      // Clean up disconnected clients
+      disconnectedClients.forEach(clientId => {
+        this.clients.delete(clientId);
+      });
+
       log(`Sent message to ${this.clients.size} SSE clients`);
-    } else {
-      log(`No SSE clients connected, message: ${messageStr}`);
+    } else if (!message.id || !this.pendingRequests.has(message.id.toString())) {
+      log(`No clients connected, message: ${messageStr}`);
     }
     
     return Promise.resolve();

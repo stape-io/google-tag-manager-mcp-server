@@ -21,3 +21,6 @@ logs/
 
 # Build output
 dist/
+
+# Documentation
+CLAUDE.md
