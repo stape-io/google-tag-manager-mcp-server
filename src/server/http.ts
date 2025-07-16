@@ -1,4 +1,5 @@
 import express from 'express';
+import { google } from 'googleapis';
 import { log } from '../utils';
 
 /**
@@ -43,12 +44,177 @@ export class HttpServerTransport {
     this.app.get('/health', (req, res) => {
       res.status(200).send({ status: 'ok', transports: ['http', 'sse'] });
     });
+
+    // OAuth2 authentication endpoints
+    this.setupOAuth2Routes();
     
     // SSE clients storage
     this.clients = new Map();
   }
 
   private clients: Map<string, express.Response> = new Map();
+
+  /**
+   * Sets up OAuth2 authentication routes for Google Tag Manager API
+   */
+  private setupOAuth2Routes(): void {
+    // OAuth2 scopes for Google Tag Manager API
+    const SCOPES = [
+      'https://www.googleapis.com/auth/tagmanager.readonly',
+      'https://www.googleapis.com/auth/tagmanager.edit.containers',
+      'https://www.googleapis.com/auth/tagmanager.edit.containerversions',
+      'https://www.googleapis.com/auth/tagmanager.manage.accounts',
+      'https://www.googleapis.com/auth/tagmanager.manage.users',
+      'https://www.googleapis.com/auth/tagmanager.publish',
+      'https://www.googleapis.com/auth/tagmanager.delete.containers'
+    ];
+
+    // OAuth2 authorization endpoint
+    this.app.get('/auth', (req, res) => {
+      if (!process.env.GTM_CLIENT_ID || !process.env.GTM_CLIENT_SECRET) {
+        return res.status(400).json({
+          error: 'OAuth2 not configured',
+          message: 'GTM_CLIENT_ID and GTM_CLIENT_SECRET environment variables must be set'
+        });
+      }
+
+      const oauth2Client = new google.auth.OAuth2(
+        process.env.GTM_CLIENT_ID,
+        process.env.GTM_CLIENT_SECRET,
+        process.env.GTM_REDIRECT_URI || `${req.protocol}://${req.get('host')}/auth/callback`
+      );
+
+      const authUrl = oauth2Client.generateAuthUrl({
+        access_type: 'offline',
+        scope: SCOPES,
+        prompt: 'consent'
+      });
+
+      // For API clients, return the auth URL
+      if (req.headers.accept?.includes('application/json')) {
+        res.json({ authUrl });
+      } else {
+        // For browser clients, redirect to Google OAuth
+        res.redirect(authUrl);
+      }
+    });
+
+    // OAuth2 callback endpoint
+    this.app.get('/auth/callback', async (req, res) => {
+      const { code, error } = req.query;
+
+      if (error) {
+        return res.status(400).json({
+          error: 'OAuth2 authorization failed',
+          message: error
+        });
+      }
+
+      if (!code) {
+        return res.status(400).json({
+          error: 'Authorization code missing',
+          message: 'No authorization code received from Google'
+        });
+      }
+
+      try {
+        const oauth2Client = new google.auth.OAuth2(
+          process.env.GTM_CLIENT_ID,
+          process.env.GTM_CLIENT_SECRET,
+          process.env.GTM_REDIRECT_URI || `${req.protocol}://${req.get('host')}/auth/callback`
+        );
+
+        const { tokens } = await oauth2Client.getToken(code as string);
+        
+        res.json({
+          message: 'Authorization successful',
+          tokens: {
+            access_token: tokens.access_token,
+            refresh_token: tokens.refresh_token,
+            scope: tokens.scope,
+            token_type: tokens.token_type,
+            expiry_date: tokens.expiry_date
+          },
+          instructions: {
+            message: 'Save these tokens to your environment variables:',
+            env_vars: {
+              GTM_ACCESS_TOKEN: tokens.access_token,
+              GTM_REFRESH_TOKEN: tokens.refresh_token
+            }
+          }
+        });
+      } catch (error) {
+        log(`OAuth2 token exchange error: ${error}`);
+        res.status(500).json({
+          error: 'Token exchange failed',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    });
+
+    // Token refresh endpoint
+    this.app.post('/auth/refresh', async (req, res) => {
+      if (!process.env.GTM_CLIENT_ID || !process.env.GTM_CLIENT_SECRET || !process.env.GTM_REFRESH_TOKEN) {
+        return res.status(400).json({
+          error: 'OAuth2 not configured',
+          message: 'GTM_CLIENT_ID, GTM_CLIENT_SECRET, and GTM_REFRESH_TOKEN environment variables must be set'
+        });
+      }
+
+      try {
+        const oauth2Client = new google.auth.OAuth2(
+          process.env.GTM_CLIENT_ID,
+          process.env.GTM_CLIENT_SECRET,
+          process.env.GTM_REDIRECT_URI || 'http://localhost:3000/auth/callback'
+        );
+
+        oauth2Client.setCredentials({
+          refresh_token: process.env.GTM_REFRESH_TOKEN
+        });
+
+        const { credentials } = await oauth2Client.refreshAccessToken();
+        
+        res.json({
+          message: 'Token refreshed successfully',
+          tokens: {
+            access_token: credentials.access_token,
+            expiry_date: credentials.expiry_date
+          }
+        });
+      } catch (error) {
+        log(`Token refresh error: ${error}`);
+        res.status(500).json({
+          error: 'Token refresh failed',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    });
+
+    // OAuth2 status endpoint
+    this.app.get('/auth/status', (req, res) => {
+      const hasServiceAccount = !!(process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.GTM_SERVICE_ACCOUNT_KEY_PATH);
+      const hasOAuth2Config = !!(process.env.GTM_CLIENT_ID && process.env.GTM_CLIENT_SECRET);
+      const hasOAuth2Tokens = !!(process.env.GTM_ACCESS_TOKEN || process.env.GTM_REFRESH_TOKEN);
+
+      res.json({
+        authentication: {
+          service_account: {
+            configured: hasServiceAccount,
+            env_var: process.env.GOOGLE_APPLICATION_CREDENTIALS ? 'GOOGLE_APPLICATION_CREDENTIALS' : 
+                    process.env.GTM_SERVICE_ACCOUNT_KEY_PATH ? 'GTM_SERVICE_ACCOUNT_KEY_PATH' : null
+          },
+          oauth2: {
+            configured: hasOAuth2Config,
+            has_tokens: hasOAuth2Tokens,
+            missing_config: !hasOAuth2Config ? ['GTM_CLIENT_ID', 'GTM_CLIENT_SECRET'] : null,
+            missing_tokens: hasOAuth2Config && !hasOAuth2Tokens ? ['GTM_ACCESS_TOKEN or GTM_REFRESH_TOKEN'] : null
+          }
+        },
+        active_method: hasOAuth2Config && hasOAuth2Tokens ? 'oauth2' : 
+                      hasServiceAccount ? 'service_account' : 'none'
+      });
+    });
+  }
 
   /**
    * Starts the HTTP server and begins listening for messages.

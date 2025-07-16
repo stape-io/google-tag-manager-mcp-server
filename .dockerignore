@@ -7,5 +7,6 @@ Dockerfile
 .gitignore
 README.md
 .env
+CLAUDE.md
 *.log
 dist

@@ -6,7 +6,7 @@ This is a MCP server that provides an HTTP interface to the Google Tag Manager A
 
 - Node.js (v16 or higher)
 - Google Cloud Platform account
-- Service account credentials with Google Tag Manager API access
+- Authentication credentials (Service Account OR OAuth2)
 
 ## Local Setup
 
@@ -16,22 +16,53 @@ This is a MCP server that provides an HTTP interface to the Google Tag Manager A
    npm install
    ```
 
-3. Create a service account in Google Cloud Console and download the JSON key file
-4. Create a `.env` file based on `.env.example` and set your service account key path:
+3. Set up authentication (choose one method):
+
+### Option A: Service Account Authentication (Recommended for server-to-server)
+
+1. Create a service account in Google Cloud Console
+2. Download the JSON key file
+3. Create a `.env` file based on `.env.example`:
    ```
    GTM_SERVICE_ACCOUNT_KEY_PATH=./path/to/your/service-account-key.json
-   CLAUDE_API_KEY=your-claude-api-key (if needed)
    PORT=3000
    ```
 
-5. Start the server:
+### Option B: OAuth2 Authentication (Required for n8n/Claude Desktop)
+
+1. Create OAuth2 credentials in Google Cloud Console:
+   - Go to "APIs & Services" > "Credentials"
+   - Click "Create Credentials" > "OAuth 2.0 Client IDs"
+   - Choose "Web application"
+   - Add `http://localhost:3000/auth/callback` to "Authorized redirect URIs"
+
+2. Create a `.env` file with OAuth2 credentials:
+   ```
+   GTM_CLIENT_ID=your-client-id.apps.googleusercontent.com
+   GTM_CLIENT_SECRET=your-client-secret
+   GTM_REDIRECT_URI=http://localhost:3000/auth/callback
+   PORT=3000
+   ```
+
+3. Complete OAuth2 authorization:
+   - Start the server: `npm run dev`
+   - Visit: `http://localhost:3000/auth`
+   - Authorize with Google and copy the tokens
+   - Add tokens to your `.env` file:
+     ```
+     GTM_ACCESS_TOKEN=your-access-token
+     GTM_REFRESH_TOKEN=your-refresh-token
+     ```
+
+4. Start the server:
    ```bash
    npm run dev
    ```
 
-6. The server will be available at:
+5. The server will be available at:
    - Health check: http://localhost:3000/health
    - MCP endpoint: http://localhost:3000/mcp
+   - OAuth2 status: http://localhost:3000/auth/status
 
 ## GCP Deployment
 
