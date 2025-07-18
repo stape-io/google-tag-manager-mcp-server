@@ -3,16 +3,19 @@ import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
 
+const GetAccountSchema = z.object({
+  accountId: z.string().describe("The unique ID of the GTM Account to retrieve."),
+});
+
 export const get = (server: McpServer): void =>
   server.tool(
     "tag_manager_get_account",
     "Gets a GTM Account",
     {
-      accountId: z
-        .string()
-        .describe("The unique ID of the GTM Account to retrieve."),
+      accountId: z.string().describe("The unique ID of the GTM Account to retrieve."),
     },
-    async ({ accountId }): Promise<CallToolResult> => {
+    async (args): Promise<CallToolResult> => {
+      const { accountId } = GetAccountSchema.parse(args);
       log(`Running tool: tag_manager_get_account for account ${accountId}`);
 
       try {

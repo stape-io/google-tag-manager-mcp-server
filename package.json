@@ -24,6 +24,8 @@
     "prepublish": "npm run build"
   },
   "dependencies": {
+    "@google-cloud/iam": "^2.3.0",
+    "@google-cloud/resource-manager": "^6.2.0",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "@types/express": "^5.0.3",
     "docker": "^1.0.0",

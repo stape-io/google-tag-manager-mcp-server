@@ -1,4 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { getPackageVersion, loadEnv, log } from "./utils";
 import { tools } from "./tools";
 import { HttpServerTransport } from "./server/http";
@@ -20,6 +21,13 @@ const server = new McpServer({
   protocolVersion: "2024-11-05",
   vendor: "stape-io",
   homepage: "https://github.com/stape-io/google-tag-manager-mcp-server",
+}, {
+  capabilities: {
+    tools: {},
+    resources: {},
+    prompts: {},
+    logging: {}
+  }
 });
 
 // Register all tools with the server
@@ -27,18 +35,28 @@ tools.forEach((register) => register(server));
 
 async function main(): Promise<void> {
   try {
-    const port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
-    log(`Starting MCP server with combined HTTP and SSE transport on port ${port}...`);
+    // Check if we should use stdio transport (default for MCP Inspector)
+    const useStdio = process.argv.includes('--stdio') || process.env.MCP_TRANSPORT === 'stdio';
     
-    // Use the HTTP transport which now includes SSE endpoints
-    const transport = new HttpServerTransport(port);
-    await server.connect(transport);
-    
-    log(`✅ MCP server started on port ${port}`);
-    log(`Health check: http://localhost:${port}/health`);
-    log(`HTTP MCP endpoint: http://localhost:${port}/mcp`);
-    log(`SSE endpoint: http://localhost:${port}/sse`);
-    log(`SSE message endpoint: http://localhost:${port}/message`);
+    if (useStdio) {
+      log(`Starting MCP server with stdio transport...`);
+      const transport = new StdioServerTransport();
+      await server.connect(transport);
+      log(`✅ MCP server started with stdio transport`);
+    } else {
+      const port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+      log(`Starting MCP server with combined HTTP and SSE transport on port ${port}...`);
+      
+      // Use the HTTP transport which now includes SSE endpoints
+      const transport = new HttpServerTransport(port);
+      await server.connect(transport);
+      
+      log(`✅ MCP server started on port ${port}`);
+      log(`Health check: http://localhost:${port}/health`);
+      log(`HTTP MCP endpoint: http://localhost:${port}/mcp`);
+      log(`SSE endpoint: http://localhost:${port}/sse`);
+      log(`SSE message endpoint: http://localhost:${port}/message`);
+    }
     
   } catch (error) {
     log(`❌ Error starting server: ${error}`);

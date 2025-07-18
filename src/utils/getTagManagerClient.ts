@@ -1,5 +1,7 @@
 import { google } from "googleapis";
 import { log } from "./log";
+import { getAuthContext } from "./authContext";
+import { SessionManager } from "./sessionManager";
 
 type TagManagerClient = ReturnType<typeof google.tagmanager>;
 
@@ -10,14 +12,67 @@ export async function getTagManagerClient(
   try {
     let auth;
 
-    // Check if OAuth2 credentials are provided
-    if (process.env.GTM_CLIENT_ID && process.env.GTM_CLIENT_SECRET) {
-      log("Using OAuth2 authentication for Tag Manager client");
+    // Priority 1: Use MCP authorization header (third-party authorization flow)
+    const authContext = getAuthContext();
+    if (authContext && authContext.accessToken) {
+      log("Using MCP authorization header for Tag Manager client");
+      
+      // Look up session by MCP access token
+      const session = SessionManager.getSessionByMcpToken(authContext.accessToken);
+      if (session && session.thirdPartyAccessToken) {
+        log("Found session with third-party tokens, using Google tokens for API calls");
+        
+        if (!process.env.OAUTH_CLIENT_ID || !process.env.OAUTH_CLIENT_SECRET) {
+          throw new Error(
+            "OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET must be configured to use third-party authorization"
+          );
+        }
+
+        const oauth2Client = new google.auth.OAuth2(
+          process.env.OAUTH_CLIENT_ID,
+          process.env.OAUTH_CLIENT_SECRET,
+          process.env.OAUTH_REDIRECT_URI || 'http://localhost:3000/auth/callback'
+        );
+
+        // Set credentials from third-party tokens (Google)
+        oauth2Client.setCredentials({
+          access_token: session.thirdPartyAccessToken,
+          refresh_token: session.thirdPartyRefreshToken,
+        });
+
+        auth = oauth2Client;
+      } else {
+        // Fallback to direct token usage (for backward compatibility)
+        log("No session found, using MCP token directly");
+        
+        if (!process.env.OAUTH_CLIENT_ID || !process.env.OAUTH_CLIENT_SECRET) {
+          throw new Error(
+            "OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET must be configured to use authorization header"
+          );
+        }
+
+        const oauth2Client = new google.auth.OAuth2(
+          process.env.OAUTH_CLIENT_ID,
+          process.env.OAUTH_CLIENT_SECRET,
+          process.env.OAUTH_REDIRECT_URI || 'http://localhost:3000/auth/callback'
+        );
+
+        // Set credentials from authorization header
+        oauth2Client.setCredentials({
+          access_token: authContext.accessToken,
+        });
+
+        auth = oauth2Client;
+      }
+    }
+    // Priority 2: Use environment OAuth2 credentials (fallback)
+    else if (process.env.OAUTH_CLIENT_ID && process.env.OAUTH_CLIENT_SECRET) {
+      log("Using environment OAuth2 authentication for Tag Manager client");
       
       const oauth2Client = new google.auth.OAuth2(
-        process.env.GTM_CLIENT_ID,
-        process.env.GTM_CLIENT_SECRET,
-        process.env.GTM_REDIRECT_URI || 'http://localhost:3000/auth/callback'
+        process.env.OAUTH_CLIENT_ID,
+        process.env.OAUTH_CLIENT_SECRET,
+        process.env.OAUTH_REDIRECT_URI || 'http://localhost:3000/auth/callback'
       );
 
       // Set credentials if refresh token is available
@@ -37,7 +92,9 @@ export async function getTagManagerClient(
       }
 
       auth = oauth2Client;
-    } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.GTM_SERVICE_ACCOUNT_KEY_PATH) {
+    }
+    // Priority 3: Use service account authentication (last resort)
+    else if (process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.GTM_SERVICE_ACCOUNT_KEY_PATH) {
       log("Using Service Account authentication for Tag Manager client");
       
       auth = new google.auth.GoogleAuth({
@@ -47,8 +104,9 @@ export async function getTagManagerClient(
     } else {
       throw new Error(
         "No authentication method configured. Please provide either:\n" +
-        "1. OAuth2 credentials (GTM_CLIENT_ID, GTM_CLIENT_SECRET, GTM_REFRESH_TOKEN)\n" +
-        "2. Service Account key (GOOGLE_APPLICATION_CREDENTIALS or GTM_SERVICE_ACCOUNT_KEY_PATH)"
+        "1. MCP authorization header (Bearer token)\n" +
+        "2. Environment OAuth2 credentials (OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, GTM_REFRESH_TOKEN)\n" +
+        "3. Service Account key (GOOGLE_APPLICATION_CREDENTIALS or GTM_SERVICE_ACCOUNT_KEY_PATH)"
       );
     }
 
