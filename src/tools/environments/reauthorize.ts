@@ -1,9 +1,12 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  McpServer,
+  RegisteredTool,
+} from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
 
-export const reauthorize = (server: McpServer): void =>
+export const reauthorize = (server: McpServer): RegisteredTool =>
   server.tool(
     "tag_manager_reauthorize_container_environment",
     "Re-generates the authorization code for a GTM Environment",

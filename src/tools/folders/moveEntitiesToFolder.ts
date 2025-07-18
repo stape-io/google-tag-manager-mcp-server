@@ -1,10 +1,13 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  McpServer,
+  RegisteredTool,
+} from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { FolderSchemaFields } from "../../schemas/FolderSchema";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
 
-export const moveEntitiesToFolder = (server: McpServer): void =>
+export const moveEntitiesToFolder = (server: McpServer): RegisteredTool =>
   server.tool(
     "tag_manager_move_entities_to_folder",
     "Moves entities to a GTM Folder",

@@ -1,9 +1,12 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  McpServer,
+  RegisteredTool,
+} from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
 
-export const getStatus = (server: McpServer): void =>
+export const getStatus = (server: McpServer): RegisteredTool =>
   server.tool(
     "tag_manager_get_workspace_status",
     "Finds conflicting and modified entities in the workspace",

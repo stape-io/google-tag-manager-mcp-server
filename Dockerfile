@@ -13,7 +13,7 @@ RUN npm ci --ignore-scripts
 COPY . .
 
 # Build explicitly with verbose output
-RUN npx tsc --project tsconfig.json && chmod 755 dist/index.js
+RUN npx tsc --project tsconfig.json && chmod 755 dist/app.js
 
 EXPOSE 8080
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/app.js"]

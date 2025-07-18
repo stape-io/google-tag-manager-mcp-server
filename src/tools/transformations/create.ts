@@ -1,11 +1,14 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  McpServer,
+  RegisteredTool,
+} from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { tagmanager_v2 } from "googleapis";
 import { TransformationSchemaFields } from "../../schemas/TransformationSchema";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
 import Schema$Transformation = tagmanager_v2.Schema$Transformation;
 
-export const create = (server: McpServer): void =>
+export const create = (server: McpServer): RegisteredTool =>
   server.tool(
     "tag_manager_create_transformation",
     "Creates a GTM Transformation",

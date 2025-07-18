@@ -1,9 +1,12 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  McpServer,
+  RegisteredTool,
+} from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
 
-export const list = (server: McpServer): void =>
+export const list = (server: McpServer): RegisteredTool =>
   server.tool(
     "tag_manager_list_built_in_variables",
     "Lists all the enabled Built-In Variables of a GTM Container",

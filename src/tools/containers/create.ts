@@ -1,9 +1,12 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  McpServer,
+  RegisteredTool,
+} from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { ContainerSchemaFields } from "../../schemas/ContainerSchema";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
 
-export const create = (server: McpServer): void =>
+export const create = (server: McpServer): RegisteredTool =>
   server.tool(
     "tag_manager_create_container",
     "Creates a new container in the specified GTM account",

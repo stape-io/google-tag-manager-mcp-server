@@ -1,11 +1,14 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  McpServer,
+  RegisteredTool,
+} from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { tagmanager_v2 } from "googleapis";
 import { FolderSchemaFields } from "../../schemas/FolderSchema";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
 import Schema$Folder = tagmanager_v2.Schema$Folder;
 
-export const create = (server: McpServer): void =>
+export const create = (server: McpServer): RegisteredTool =>
   server.tool(
     "tag_manager_create_folder",
     "Creates a GTM Folder",

@@ -1,4 +1,7 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  McpServer,
+  RegisteredTool,
+} from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { tagmanager_v2 } from "googleapis";
 import { z } from "zod";
@@ -27,7 +30,7 @@ const EntitySchemaFields = z.union([
   z.object({ gtagConfig: z.object(GtagConfigSchemaFields) }),
 ]);
 
-export const resolveConflict = (server: McpServer): void =>
+export const resolveConflict = (server: McpServer): RegisteredTool =>
   server.tool(
     "tag_manager_resolve_workspace_conflict",
     "Resolves a merge conflict for a workspace entity",

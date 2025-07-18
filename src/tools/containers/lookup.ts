@@ -1,9 +1,12 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  McpServer,
+  RegisteredTool,
+} from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
 
-export const lookup = (server: McpServer): void =>
+export const lookup = (server: McpServer): RegisteredTool =>
   server.tool(
     "tag_manager_lookup_container",
     "Looks up a Container by destination ID",

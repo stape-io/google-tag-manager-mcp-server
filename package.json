@@ -5,9 +5,9 @@
   "license": "Apache-2.0",
   "author": "stape-io",
   "homepage": "https://github.com/stape-io/google-tag-manager-mcp-server",
-  "main": "dist/index.js",
+  "main": "dist/app.js",
   "bin": {
-    "google-tag-manager-mcp-server": "./dist/index.js"
+    "google-tag-manager-mcp-server": "./dist/app.js"
   },
   "keywords": [
     "mcp",
@@ -16,8 +16,8 @@
     "stape"
   ],
   "scripts": {
-    "dev": "ts-node-dev --respawn --pretty --transpile-only src/index.ts",
-    "build": "tsc --project tsconfig.json && chmod 755 dist/index.js",
+    "dev": "ts-node-dev --respawn --pretty --transpile-only src/app.ts",
+    "build": "tsc --project tsconfig.json && chmod 755 dist/app.js",
     "postinstall": "npm run build",
     "lint": "eslint --ext .ts src",
     "lint:fix": "eslint --ext .ts src --fix",

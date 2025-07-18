@@ -1,9 +1,12 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  McpServer,
+  RegisteredTool,
+} from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
 
-export const revert = (server: McpServer): void =>
+export const revert = (server: McpServer): RegisteredTool =>
   server.tool(
     "tag_manager_revert_tag",
     "Reverts changes to a GTM Tag in a GTM Workspace",

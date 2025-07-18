@@ -1,11 +1,14 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  McpServer,
+  RegisteredTool,
+} from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { tagmanager_v2 } from "googleapis";
 import { CustomTemplateSchemaFields } from "../../schemas/CustomTemplateSchema";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
 import Schema$CustomTemplate = tagmanager_v2.Schema$CustomTemplate;
 
-export const update = (server: McpServer): void =>
+export const update = (server: McpServer): RegisteredTool =>
   server.tool(
     "tag_manager_update_template",
     "Updates a GTM Custom Template",

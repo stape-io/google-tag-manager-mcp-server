@@ -1,11 +1,14 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  McpServer,
+  RegisteredTool,
+} from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { tagmanager_v2 } from "googleapis";
 import { TriggerSchemaFields } from "../../schemas/TriggerSchema";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
 import Schema$Trigger = tagmanager_v2.Schema$Trigger;
 
-export const create = (server: McpServer): void =>
+export const create = (server: McpServer): RegisteredTool =>
   server.tool(
     "tag_manager_create_trigger",
     "Creates a GTM Trigger",

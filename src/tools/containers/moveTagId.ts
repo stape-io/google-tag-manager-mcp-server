@@ -1,9 +1,12 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  McpServer,
+  RegisteredTool,
+} from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
 
-export const moveTagId = (server: McpServer): void =>
+export const moveTagId = (server: McpServer): RegisteredTool =>
   server.tool(
     "tag_manager_move_tag_id",
     "Moves a Tag ID out of a Container",

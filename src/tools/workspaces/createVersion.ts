@@ -1,9 +1,12 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  McpServer,
+  RegisteredTool,
+} from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { WorkspaceSchemaFields } from "../../schemas/WorkspaceSchema";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
 
-export const createVersion = (server: McpServer): void =>
+export const createVersion = (server: McpServer): RegisteredTool =>
   server.tool(
     "tag_manager_create_container_version_from_workspace",
     "Creates a Container Version from the entities present in the workspace",

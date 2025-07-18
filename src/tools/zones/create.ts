@@ -1,11 +1,14 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  McpServer,
+  RegisteredTool,
+} from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { tagmanager_v2 } from "googleapis";
 import { ZoneSchemaFields } from "../../schemas/ZoneSchema";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
 import Schema$Zone = tagmanager_v2.Schema$Zone;
 
-export const create = (server: McpServer): void =>
+export const create = (server: McpServer): RegisteredTool =>
   server.tool(
     "tag_manager_create_zone",
     "Creates a GTM Zone",

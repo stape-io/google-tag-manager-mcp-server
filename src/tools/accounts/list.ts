@@ -1,11 +1,14 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  McpServer,
+  RegisteredTool,
+} from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
 import { z } from "zod";
 
 const ListAccountsSchema = z.object({});
 
-export const list = (server: McpServer): void =>
+export const list = (server: McpServer): RegisteredTool =>
   server.tool(
     "tag_manager_list_accounts",
     "Lists all GTM accounts accessible by the authenticated user",

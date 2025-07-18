@@ -1,9 +1,12 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  McpServer,
+  RegisteredTool,
+} from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { createErrorResponse, getTagManagerClient, log } from "../../utils";
 
-export const setLatest = (server: McpServer): void =>
+export const setLatest = (server: McpServer): RegisteredTool =>
   server.tool(
     "tag_manager_set_latest_container_version",
     "Sets the latest container version used for synchronization of workspaces",
