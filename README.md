@@ -1,14 +1,14 @@
 # Google Tag Manager MCP Server
 
-A Model Context Protocol (MCP) server that provides access to the Google Tag Manager API with OAuth 2.0 + PKCE authentication support. Compatible with Claude Desktop, MCP Inspector, and other MCP clients.
+A Model Context Protocol (MCP) server that provides access to the Google Tag Manager API with OAuth 2.1 compatible authentication (OAuth 2.0 + mandatory PKCE). Compatible with Claude Desktop, MCP Inspector, and other MCP clients.
 
 ## Features
 
-- **Complete OAuth 2.0 + PKCE Flow** - Secure per-user authentication
+- **OAuth 2.1 Compatible Flow** - Secure per-user authentication with mandatory PKCE
 - **MCP Protocol Compliance** - Full support for MCP 2024-11-05
 - **Comprehensive GTM API Coverage** - All major GTM operations supported
 - **Remote MCP support** - Support deployment on Cloud Run
-- **Multiple Auth Methods** - OAuth 2.0 (recommended) and Service Account
+- **Multiple Auth Methods** - OAuth 2.1 compatible (recommended) and Service Account
 
 ## Quick Start
 
@@ -27,7 +27,7 @@ gcloud builds submit --config cloudbuild.yaml
 
 ## Authentication
 
-### OAuth 2.0 with PKCE (Recommended)
+### OAuth 2.1 Compatible (Recommended)
 
 1. **Create OAuth 2.0 credentials** in Google Cloud Console:
    - Go to "APIs & Services" > "Credentials"
@@ -74,7 +74,7 @@ The server exposes an MCP endpoint that can be used with any MCP-compatible clie
 - Any client supporting MCP 2024-11-05 protocol
 - Streamable HTTP transport over the `/mcp` endpoint
 - SSE over the `/sse` endpoint
-- OAuth 2.0 + PKCE authentication flow
+- OAuth 2.1 compatible authentication with mandatory PKCE
 
 ### Authentication Flow for MCP Clients
 
@@ -136,7 +136,7 @@ npm run lint:fix          # Fix linting issues
 
 ### Environment Variables
 ```bash
-# OAuth 2.0 (recommended)
+# OAuth 2.1 compatible (recommended)
 OAUTH_CLIENT_ID=your-client-id.apps.googleusercontent.com
 OAUTH_CLIENT_SECRET=your-client-secret
 
@@ -170,7 +170,7 @@ docker run -d -p 3000:3000 --env-file .env gtm-mcp-server
 
 ## Security
 
-- **OAuth 2.0 + PKCE**: Secure authorization code flow with proof key
+- **OAuth 2.1 Compatible**: Secure authorization code flow with mandatory PKCE
 - **Token Validation**: Real-time Google OAuth token verification
 - **Scoped Access**: Required GTM API permissions only
 - **Session Isolation**: Per-session MCP transport management
