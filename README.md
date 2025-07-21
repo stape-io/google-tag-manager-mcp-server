@@ -1,117 +1,198 @@
-# MCP Server for Google Tag Manager
+# Google Tag Manager MCP Server
 
-This is a MCP server that provides an HTTP interface to the Google Tag Manager API. It can be run locally or deployed to Google Cloud Platform.
+A Model Context Protocol (MCP) server that provides access to the Google Tag Manager API with OAuth 2.0 + PKCE authentication support. Compatible with Claude Desktop, MCP Inspector, and other MCP clients.
 
-## Prerequisites
+## Features
 
-- Node.js (v16 or higher)
-- Google Cloud Platform account
-- Authentication credentials (Service Account OR OAuth2)
+- **Complete OAuth 2.0 + PKCE Flow** - Secure per-user authentication
+- **MCP Protocol Compliance** - Full support for MCP 2024-11-05
+- **Comprehensive GTM API Coverage** - All major GTM operations supported
+- **Remote MCP support** - Support deployment on Cloud Run
+- **Multiple Auth Methods** - OAuth 2.0 (recommended) and Service Account
 
-## Local Setup
+## Quick Start
 
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
+### Local Development
+```bash
+npm install
+npm run dev
+# Server runs on http://localhost:3000
+```
 
-3. Set up authentication (choose one method):
+### Production Deployment
+```bash
+npm run build
+gcloud builds submit --config cloudbuild.yaml
+```
 
-### Option A: Service Account Authentication (Recommended for server-to-server)
+## Authentication
 
-1. Create a service account in Google Cloud Console
-2. Download the JSON key file
-3. Create a `.env` file based on `.env.example`:
-   ```
-   GTM_SERVICE_ACCOUNT_KEY_PATH=./path/to/your/service-account-key.json
-   PORT=3000
-   ```
+### OAuth 2.0 with PKCE (Recommended)
 
-### Option B: OAuth2 Authentication (Required for n8n/Claude Desktop)
-
-1. Create OAuth2 credentials in Google Cloud Console:
+1. **Create OAuth 2.0 credentials** in Google Cloud Console:
    - Go to "APIs & Services" > "Credentials"
-   - Click "Create Credentials" > "OAuth 2.0 Client IDs"
-   - Choose "Web application"
-   - Add `http://localhost:3000/auth/callback` to "Authorized redirect URIs"
+   - Create "OAuth 2.0 Client IDs" > "Web application"
+   - Add your redirect URIs (see Integration section)
 
-2. Create a `.env` file with OAuth2 credentials:
-   ```
-   GTM_CLIENT_ID=your-client-id.apps.googleusercontent.com
-   GTM_CLIENT_SECRET=your-client-secret
-   GTM_REDIRECT_URI=http://localhost:3000/auth/callback
-   PORT=3000
-   ```
-
-3. Complete OAuth2 authorization:
-   - Start the server: `npm run dev`
-   - Visit: `http://localhost:3000/auth`
-   - Authorize with Google and copy the tokens
-   - Add tokens to your `.env` file:
-     ```
-     GTM_ACCESS_TOKEN=your-access-token
-     GTM_REFRESH_TOKEN=your-refresh-token
-     ```
-
-4. Start the server:
+2. **Set environment variables**:
    ```bash
-   npm run dev
+   OAUTH_CLIENT_ID=your-client-id.apps.googleusercontent.com
+   OAUTH_CLIENT_SECRET=your-client-secret
    ```
 
-5. The server will be available at:
-   - Health check: http://localhost:3000/health
-   - MCP endpoint: http://localhost:3000/mcp
-   - OAuth2 status: http://localhost:3000/auth/status
+3. **Required Google OAuth Redirect URIs**:
+   - Claude.ai: `https://claude.ai/api/mcp/auth_callback`
+   - MCP Inspector: `http://localhost:6274/oauth/callback`
+   - Local deployment: `http://localhost:3000`
+   - Your remote deployment: `https://your-domain.com/oauth/callback`
 
-## GCP Deployment
+### Service Account (Server-to-Server)
+```bash
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account-key.json
+# OR
+GTM_SERVICE_ACCOUNT_KEY_PATH=./service-account-key.json
+```
 
-### Option 1: Manual Deployment
+## Integration
 
-1. Build the Docker image:
-   ```bash
-   docker build -t gcr.io/[YOUR_PROJECT_ID]/google-tag-manager-mcp-server .
-   ```
+### MCP Connector Approach
+The server exposes an MCP endpoint that can be used with any MCP-compatible client using the connector pattern:
 
-2. Push the image to Google Container Registry:
-   ```bash
-   docker push gcr.io/[YOUR_PROJECT_ID]/google-tag-manager-mcp-server
-   ```
+**MCP Endpoint URL**: `https://your-deployment-url.com/mcp`
 
-3. Deploy to Cloud Run:
-   ```bash
-   gcloud run deploy google-tag-manager-mcp-server \
-     --image gcr.io/[YOUR_PROJECT_ID]/google-tag-manager-mcp-server \
-     --platform managed \
-     --region us-central1 \
-     --allow-unauthenticated
-   ```
+### Supported MCP Clients
 
-### Option 2: Automated Deployment with Cloud Build
+**Claude Desktop**:
+- Use the `@modelcontextprotocol/server-fetch` connector
+- Configure with your deployed server's `/mcp` endpoint
 
-1. Enable the Cloud Build and Cloud Run APIs in your GCP project
+**MCP Inspector**:
+- Connect directly to the `/mcp` endpoint URL
+- Supports full OAuth flow testing and debugging
 
-2. Set up a trigger in Cloud Build to build and deploy from your repository
+**Custom MCP Clients**:
+- Any client supporting MCP 2024-11-05 protocol
+- Streamable HTTP transport over the `/mcp` endpoint
+- SSE over the `/sse` endpoint
+- OAuth 2.0 + PKCE authentication flow
 
-3. The included `cloudbuild.yaml` file will:
-   - Build the Docker image
-   - Push it to Container Registry
-   - Deploy it to Cloud Run
+### Authentication Flow for MCP Clients
 
-### Environment Variables in GCP
-
-When deploying to GCP, you need to set the following environment variables:
-
-1. In Cloud Run console, go to your service and click "Edit & Deploy New Revision"
-2. Under "Container", expand "Variables & Secrets"
-3. Add the following environment variables:
-   - `GOOGLE_APPLICATION_CREDENTIALS`: Set to `/app/key.json` (this will be the path in the container)
-   - `CLAUDE_API_KEY`: Your Claude API key (if needed)
-
-4. Under "Secrets", create a secret containing your service account key JSON
-5. Mount this secret as a volume at `/app/key.json`
+1. **Discovery**: Client fetches OAuth metadata from `/.well-known/oauth-authorization-server`
+2. **Registration**: Client registers via `POST /oauth/register` (dynamic registration)
+3. **Authorization**: Client redirects user to `GET /oauth/authorize` with PKCE
+4. **Token Exchange**: Client exchanges auth code via `POST /oauth/token`
+5. **MCP Requests**: Client uses Bearer token for authenticated `/mcp` requests
 
 ## API Endpoints
 
-- `GET /health`: Health check endpoint
-- `POST /mcp`: MCP protocol endpoint for Google Tag Manager API interactions
+### Core MCP Protocol
+- `POST /mcp` - MCP protocol endpoint (initialization and messages)
+- `GET /mcp` - MCP session requests  
+- `DELETE /mcp` - MCP session cleanup
+- `GET /sse` - Server-Sent Events transport for MCP
+- `POST /messages` - SSE message endpoint
+
+### OAuth Discovery (MCP Compliance)
+- `GET /.well-known/oauth-authorization-server` - OAuth server metadata
+- `GET /.well-known/oauth-protected-resource` - Protected resource metadata
+
+### OAuth Flow
+- `POST /oauth/register` - Dynamic client registration
+- `GET /oauth/authorize` - Authorization endpoint with PKCE
+- `POST /oauth/token` - Token exchange endpoint
+- `GET /oauth/status` - Authentication status
+
+### Utility
+- `GET /health` - Health check endpoint
+
+## Architecture
+
+```
+src/
+├── app.ts                    # Express server setup
+├── container.ts              # Dependency injection
+├── mcp/
+│   └── McpServer.ts         # MCP server implementation
+├── middlewares/
+│   └── McpAuthMiddleware.ts # OAuth token validation
+├── server/
+│   ├── controllers/         # OAuth & MCP request handlers
+│   └── router.ts           # Route definitions
+├── tools/                  # GTM API tools organized by resource
+├── schemas/                # Zod validation schemas
+└── utils/                  # Shared utilities
+```
+
+## Development
+
+### Commands
+```bash
+npm run dev                # Development with hot reload
+npm run build             # Build for production
+npm run lint              # Code style checking
+npm run lint:fix          # Fix linting issues
+```
+
+### Environment Variables
+```bash
+# OAuth 2.0 (recommended)
+OAUTH_CLIENT_ID=your-client-id.apps.googleusercontent.com
+OAUTH_CLIENT_SECRET=your-client-secret
+
+# OR Service Account (fallback)
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account-key.json
+
+# Server configuration
+PORT=3000
+NODE_ENV=production
+```
+
+## Deployment
+
+### Google Cloud Run
+The server is designed for deployment on Google Cloud Run:
+
+1. **Build and deploy**:
+   ```bash
+   gcloud builds submit --config cloudbuild.yaml
+   ```
+
+2. **Set environment variables** in Cloud Run console
+
+3. **Update OAuth redirect URIs** with your deployment URL
+
+### Docker
+```bash
+docker build -t gtm-mcp-server .
+docker run -d -p 3000:3000 --env-file .env gtm-mcp-server
+```
+
+## Security
+
+- **OAuth 2.0 + PKCE**: Secure authorization code flow with proof key
+- **Token Validation**: Real-time Google OAuth token verification
+- **Scoped Access**: Required GTM API permissions only
+- **Session Isolation**: Per-session MCP transport management
+- **CORS Support**: Configurable cross-origin requests
+
+## Troubleshooting
+
+### OAuth Issues
+- Verify redirect URIs match exactly in Google Cloud Console
+- Check OAuth client ID and secret are correct
+- Ensure proper GTM API scopes are granted
+
+### MCP Connection Issues
+- Verify Bearer token in Authorization header
+- Check MCP protocol version is 2024-11-05
+- Ensure Accept header includes `application/json`
+
+### Common Errors
+- `401 Unauthorized` - Invalid or expired OAuth token
+- `403 Forbidden` - Insufficient GTM permissions
+- `invalid_session` - MCP session expired or not found
+
+## License
+
+Apache-2.0
