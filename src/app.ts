@@ -21,7 +21,13 @@ const router = createRouter(container.getMcpServer().getSdkServer());
 app.use(router);
 
 app.listen(PORT, () => {
+  const isProduction = process.env.NODE_ENV === "production" || process.env.GOOGLE_CLOUD_PROJECT;
+  const baseUrl = isProduction 
+    ? "https://google-tag-manager-mcp-server-483488785636.us-central1.run.app"
+    : `http://localhost:${PORT}`;
+  
   log(`✅ MCP server started on port ${PORT}`);
-  log(`Health check: http://localhost:${PORT}/health`);
-  log(`MCP endpoint: http://localhost:${PORT}/mcp`);
+  log(`Health check: ${baseUrl}/health`);
+  log(`MCP endpoint: ${baseUrl}/mcp`);
+  log(`OAuth discovery: ${baseUrl}/.well-known/oauth-authorization-server`);
 });

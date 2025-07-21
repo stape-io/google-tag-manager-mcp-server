@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { randomUUID } from "crypto";
-import { log } from "../../utils";
+import { log, requestContext } from "../../utils";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 export class StreamableController {
@@ -50,7 +50,13 @@ export class StreamableController {
       return;
     }
 
-    await transport.handleRequest(req, res, req.body);
+    // Extract access token from auth header and run in context
+    const accessToken = req.auth?.token;
+    if (accessToken) {
+      await requestContext.run({ accessToken }, () => transport.handleRequest(req, res, req.body));
+    } else {
+      await transport.handleRequest(req, res, req.body);
+    }
   };
 
   // GET /mcp - handles GET requests for existing sessions
@@ -73,6 +79,13 @@ export class StreamableController {
     }
 
     const transport = this.transportsMap.get(sessionId)!;
-    await transport.handleRequest(req, res);
+    
+    // Extract access token from auth header and run in context
+    const accessToken = req.auth?.token;
+    if (accessToken) {
+      await requestContext.run({ accessToken }, () => transport.handleRequest(req, res));
+    } else {
+      await transport.handleRequest(req, res);
+    }
   };
 }

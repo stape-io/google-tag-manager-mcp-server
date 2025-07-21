@@ -25,3 +25,6 @@ dist/
 
 # Documentation
 CLAUDE.md
+
+# Development notes (local machine only)
+context.md

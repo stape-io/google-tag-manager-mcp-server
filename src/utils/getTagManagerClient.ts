@@ -1,7 +1,12 @@
 import { google } from "googleapis";
 import { log } from "./log";
+import { AsyncLocalStorage } from "async_hooks";
+import { OAuthController } from "../server/controllers/OAuthController";
 
 type TagManagerClient = ReturnType<typeof google.tagmanager>;
+
+// AsyncLocalStorage to store request context
+export const requestContext = new AsyncLocalStorage<{ accessToken?: string }>();
 
 // --- Helper function to obtain an authenticated TagManager client ---
 export async function getTagManagerClient(
@@ -10,8 +15,28 @@ export async function getTagManagerClient(
   try {
     let auth;
 
-    // Priority 1: Use environment OAuth2 credentials
-    if (process.env.OAUTH_CLIENT_ID && process.env.OAUTH_CLIENT_SECRET) {
+    // Priority 1: Use stored OAuth2 tokens from request context
+    const context = requestContext.getStore();
+    if (context?.accessToken) {
+      const storedTokens = OAuthController.getStoredTokens(context.accessToken);
+      if (storedTokens) {
+        log("Using stored OAuth2 tokens for Tag Manager client");
+
+        const oauth2Client = new google.auth.OAuth2(
+          process.env.OAUTH_CLIENT_ID,
+          process.env.OAUTH_CLIENT_SECRET,
+        );
+
+        oauth2Client.setCredentials({
+          access_token: storedTokens.access_token,
+          refresh_token: storedTokens.refresh_token,
+        });
+
+        auth = oauth2Client;
+      }
+    }
+    // Priority 2: Use environment OAuth2 credentials
+    else if (process.env.OAUTH_CLIENT_ID && process.env.OAUTH_CLIENT_SECRET) {
       log("Using environment OAuth2 authentication for Tag Manager client");
 
       const oauth2Client = new google.auth.OAuth2(

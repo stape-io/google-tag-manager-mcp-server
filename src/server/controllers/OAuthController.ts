@@ -11,8 +11,16 @@ interface PkceData {
   createdAt: number;
 }
 
+interface TokenData {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+  expiresAt: number;
+}
+
 export class OAuthController {
   private pkceStore = new Map<string, PkceData>();
+  private static tokenStore = new Map<string, TokenData>();
 
   constructor() {
     // Cleanup expired PKCE challenges every 2 minutes
@@ -130,7 +138,12 @@ export class OAuthController {
 
     // Validate resource parameter if provided (MCP spec requirement)
     if (resource) {
-      const expectedResource = `${req.protocol}://${req.get("host")}/mcp`;
+      const host = req.get("host");
+      const baseUrl = host?.includes("run.app") || process.env.NODE_ENV === "production"
+        ? `https://${host}`
+        : `${req.protocol}://${host}`;
+      const expectedResource = `${baseUrl}/mcp`;
+      
       if (resource !== expectedResource) {
         res.status(400).json({ 
           error: "invalid_request", 
@@ -165,7 +178,7 @@ export class OAuthController {
 
     log(`Stored PKCE challenge for state ${stateParam}, expires at ${new Date(expiresAt).toISOString()}`);
 
-    // Redirect to Google OAuth with client's redirect_uri
+    // Redirect to Google OAuth with client's redirect_uri (direct flow)
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
       `client_id=${process.env.OAUTH_CLIENT_ID}&` +
       `redirect_uri=${encodeURIComponent(redirect_uri as string)}&` +
@@ -179,62 +192,9 @@ export class OAuthController {
     res.redirect(authUrl);
   };
 
-  // OAuth callback endpoint
+  // OAuth callback endpoint - now unused in direct flow
   callback = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { code, state } = req.query;
-      
-      if (!code || !state) {
-        res.status(400).json({ error: "Missing authorization code or state" });
-        return;
-      }
-
-      // Retrieve PKCE challenge from state
-      const pkceData = this.pkceStore.get(state as string);
-      if (!pkceData) {
-        res.status(400).json({ error: "Invalid state parameter" });
-        return;
-      }
-
-      // Check if PKCE challenge has expired
-      if (Date.now() > pkceData.expiresAt) {
-        this.pkceStore.delete(state as string);
-        log(`PKCE challenge expired for state ${state}`);
-        res.status(400).json({ error: "Authorization request expired" });
-        return;
-      }
-
-      // Exchange code for tokens with Google
-      const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          client_id: process.env.OAUTH_CLIENT_ID!,
-          client_secret: process.env.OAUTH_CLIENT_SECRET!,
-          code: code as string,
-          grant_type: "authorization_code",
-          redirect_uri: `${req.protocol}://${req.get("host")}/oauth/callback`,
-        }),
-      });
-
-      const tokens = await tokenResponse.json();
-
-      if (!tokenResponse.ok) {
-        log(`Token exchange failed: ${JSON.stringify(tokens)}`);
-        res.status(400).json({ error: "Token exchange failed", details: tokens });
-        return;
-      }
-
-      // Clean up PKCE data
-      this.pkceStore.delete(state as string);
-
-      // Redirect back to client with authorization code
-      const clientRedirectUrl = `${pkceData.redirect_uri}?code=${code}&state=${state}`;
-      res.redirect(clientRedirectUrl);
-    } catch (error) {
-      log(`OAuth callback error: ${error}`);
-      res.status(500).json({ error: "Internal server error" });
-    }
+    res.status(404).json({ error: "Callback endpoint not used in direct OAuth flow" });
   };
 
   // Token endpoint - proxy to Google
@@ -254,8 +214,8 @@ export class OAuthController {
         return;
       }
 
-      // Exchange code for tokens with Google using client's redirect_uri
-      log(`Exchanging code with Google: ${code}, redirect_uri: ${redirect_uri}`);
+      // Exchange code for tokens with Google using client's redirect_uri (must match authorization)
+      log(`Exchanging code with Google: ${code}, client_redirect_uri: ${redirect_uri}`);
       const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -278,6 +238,17 @@ export class OAuthController {
         return;
       }
 
+      // Store tokens for later use by tools
+      const expiresAt = Date.now() + ((tokens.expires_in || 3600) * 1000);
+      OAuthController.tokenStore.set(tokens.access_token, {
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        expires_in: tokens.expires_in,
+        expiresAt,
+      });
+
+      log(`Stored OAuth tokens for access_token: ${tokens.access_token.slice(0, 20)}...`);
+
       res.json({
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token,
@@ -297,4 +268,20 @@ export class OAuthController {
       methods: ["oauth2", "service_account"],
     });
   };
+
+  // Static method to get stored tokens
+  static getStoredTokens(accessToken: string): TokenData | null {
+    const tokenData = OAuthController.tokenStore.get(accessToken);
+    if (!tokenData) {
+      return null;
+    }
+    
+    // Check if token is expired
+    if (Date.now() > tokenData.expiresAt) {
+      OAuthController.tokenStore.delete(accessToken);
+      return null;
+    }
+    
+    return tokenData;
+  }
 }

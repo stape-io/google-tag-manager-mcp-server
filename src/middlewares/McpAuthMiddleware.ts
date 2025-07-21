@@ -2,6 +2,45 @@ import { Request, Response, NextFunction } from "express";
 import { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { log } from "../utils";
 
+interface GoogleTokenInfo {
+  aud: string;
+  scope: string;
+  scopes?: string[];
+  exp: number;
+  email?: string;
+}
+
+async function validateGoogleToken(token: string): Promise<GoogleTokenInfo | null> {
+  try {
+    // Validate token with Google's tokeninfo endpoint
+    const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${token}`);
+    
+    if (!response.ok) {
+      log(`Google token validation failed: ${response.status}`);
+      return null;
+    }
+    
+    const tokenInfo = await response.json() as GoogleTokenInfo;
+    
+    // Check if token is expired
+    const now = Math.floor(Date.now() / 1000);
+    if (tokenInfo.exp && tokenInfo.exp < now) {
+      log("Token is expired");
+      return null;
+    }
+    
+    // Parse scopes from space-separated string
+    if (tokenInfo.scope) {
+      tokenInfo.scopes = tokenInfo.scope.split(' ');
+    }
+    
+    return tokenInfo;
+  } catch (error) {
+    log(`Error validating Google token: ${error}`);
+    return null;
+  }
+}
+
 // Extend Express Request type to include auth
 declare global {
   namespace Express {
@@ -32,7 +71,7 @@ export class McpAuthMiddleware {
     }
   };
 
-  static requireAuth = (req: Request, res: Response, next: NextFunction): void => {
+  static requireAuth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -55,13 +94,39 @@ export class McpAuthMiddleware {
     const token = authHeader.slice(7); // Remove "Bearer " prefix
     
     try {
-      // TODO: Implement proper token validation logic
-      // For MCP compliance, we should validate token audience
+      // Validate Google OAuth token
+      const tokenInfo = await validateGoogleToken(token);
+      
+      if (!tokenInfo) {
+        res.status(401).json({
+          error: "unauthorized",
+          message: "Invalid or expired token",
+        });
+        return;
+      }
+
+      // Check if token has required GTM scopes
+      const requiredScopes = [
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ];
+      
+      const hasRequiredScope = requiredScopes.some(scope => 
+        tokenInfo.scopes?.includes(scope)
+      );
+
+      if (!hasRequiredScope) {
+        res.status(403).json({
+          error: "insufficient_scope",
+          message: "Token missing required Tag Manager scopes",
+        });
+        return;
+      }
+
       const expectedResource = `${req.protocol}://${req.get("host")}/mcp`;
       
       const authInfo: AuthInfo = {
-        clientId: "default-client",
-        scopes: ["read", "write"],
+        clientId: tokenInfo.aud || "google-oauth-client",
+        scopes: tokenInfo.scopes || ["read"],
         token: token,
         resource: new URL(expectedResource),
       };
@@ -72,7 +137,7 @@ export class McpAuthMiddleware {
       log(`Authentication failed: ${error}`);
       res.status(401).json({
         error: "unauthorized",
-        message: "Invalid token",
+        message: "Token validation failed",
       });
     }
   };
