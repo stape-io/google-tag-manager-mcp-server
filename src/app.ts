@@ -23,7 +23,7 @@ app.use(router);
 app.listen(PORT, () => {
   const isProduction = process.env.NODE_ENV === "production" || process.env.GOOGLE_CLOUD_PROJECT;
   const baseUrl = isProduction 
-    ? "https://google-tag-manager-mcp-server-483488785636.us-central1.run.app"
+    ? `https://${process.env.DOMAIN || 'your-deployment-domain.com'}`
     : `http://localhost:${PORT}`;
   
   log(`✅ MCP server started on port ${PORT}`);

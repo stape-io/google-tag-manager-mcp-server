@@ -98,9 +98,18 @@ export class McpAuthMiddleware {
       const tokenInfo = await validateGoogleToken(token);
       
       if (!tokenInfo) {
+        const host = req.get("host");
+        const baseUrl = host?.includes("run.app") || process.env.NODE_ENV === "production"
+          ? `https://${host}`
+          : `${req.protocol}://${host}`;
+        
         res.status(401).json({
-          error: "unauthorized",
-          message: "Invalid or expired token",
+          error: "token_expired",
+          message: "OAuth token has expired or is invalid",
+          auth: {
+            type: "oauth2",
+            authorization_url: `${baseUrl}/.well-known/oauth-authorization-server`
+          }
         });
         return;
       }
