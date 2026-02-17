@@ -175,8 +175,11 @@ export async function handleTokenExchangeCallback(
   const now = Math.floor(Date.now() / 1000);
 
   if (grantType === "authorization_code") {
-    // Regular TTL for the MCP access token
-    return { accessTokenTTL: 1800 };
+    // TTL for the MCP access token (7 days).
+    // The upstream Google token is refreshed automatically via the
+    // refresh_token grant, so a long-lived MCP token is safe and avoids
+    // frequent re-authentication browser pop-ups.
+    return { accessTokenTTL: 604800 };
   }
 
   if (grantType === "refresh_token") {
@@ -189,7 +192,7 @@ export async function handleTokenExchangeCallback(
     // Heartbeat: If token expires in less than 15 minutes, refresh it.
     const REFRESH_THRESHOLD = 900;
     if (expiresAt >= now + REFRESH_THRESHOLD) {
-      return { accessTokenTTL: 1800 };
+      return { accessTokenTTL: 604800 };
     }
 
     const [token, err] = await refreshUpstreamAuthToken({
@@ -210,7 +213,7 @@ export async function handleTokenExchangeCallback(
         expiresAt: now + token.expires_in,
         refreshToken: token.refresh_token || p.refreshToken,
       } satisfies Props,
-      accessTokenTTL: 1800,
+      accessTokenTTL: 604800,
     };
   }
 }

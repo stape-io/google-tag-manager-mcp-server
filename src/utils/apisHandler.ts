@@ -78,6 +78,12 @@ async function redirectToGoogle(
     "https://www.googleapis.com/auth/tagmanager.publish",
     "https://www.googleapis.com/auth/tagmanager.readonly",
   ];
+
+  // Check if the user explicitly wants to force consent (e.g. to obtain a new refresh token)
+  const forceConsent =
+    c.req.query("force_consent") === "true" ||
+    c.req.query("prompt") === "consent";
+
   return new Response(null, {
     status: 302,
     headers: {
@@ -89,7 +95,7 @@ async function redirectToGoogle(
         redirectUri: new URL("/callback", c.req.raw.url).href,
         state: btoa(JSON.stringify(oauthReqInfo)),
         hostedDomain: c.env.HOSTED_DOMAIN,
-        hasRefreshToken: false,
+        hasRefreshToken: !forceConsent,
       }),
     },
   });
