@@ -42,3 +42,8 @@ You can run rm -rf ~/.mcp-auth to clear any locally stored state and tokens.
 rm -rf ~/.mcp-auth
 ```
 Then restarting your MCP client.
+
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/stape-io-google-tag-manager-mcp-server).
+
