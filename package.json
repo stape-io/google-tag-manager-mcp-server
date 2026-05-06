@@ -1,6 +1,6 @@
 {
   "name": "google-tag-manager-mcp-server",
-  "version": "3.0.5",
+  "version": "3.0.6",
   "description": "MCP server for Google Tag Manager",
   "license": "Apache-2.0",
   "author": "stape-io",

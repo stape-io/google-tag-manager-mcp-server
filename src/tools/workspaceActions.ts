@@ -129,7 +129,8 @@ export const workspaceActions = (
       itemsPerPage,
     }): Promise<CallToolResult> => {
       log(
-        `Running tool: gtm_workspace for action '${action}' on account ${accountId}, container ${containerId}${workspaceId ? `, workspace ${workspaceId}` : ""
+        `Running tool: gtm_workspace for action '${action}' on account ${accountId}, container ${containerId}${
+          workspaceId ? `, workspace ${workspaceId}` : ""
         }`,
       );
 
@@ -375,7 +376,8 @@ export const workspaceActions = (
         }
       } catch (error) {
         return createErrorResponse(
-          `Error performing ${action} action on workspace${workspaceId ? ` ${workspaceId}` : ""
+          `Error performing ${action} action on workspace${
+            workspaceId ? ` ${workspaceId}` : ""
           } in container ${containerId} for account ${accountId}`,
           error,
         );

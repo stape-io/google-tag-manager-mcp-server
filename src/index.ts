@@ -23,6 +23,8 @@ export class GoogleTagManagerMCPServer extends McpAgent<
   });
 
   async init() {
+    console.log("[MCP] init() called");
+
     tools.forEach((register) => {
       // @ts-ignore
       register(this.server, { props: this.props, env: this.env });
@@ -32,6 +34,36 @@ export class GoogleTagManagerMCPServer extends McpAgent<
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    const startedAt = Date.now();
+    const url = new URL(request.url);
+    const requestId = crypto.randomUUID();
+
+    const logBase = {
+      requestId,
+      method: request.method,
+      path: url.pathname,
+      hasAuth: request.headers.has("authorization"),
+      sessionId: request.headers.get("mcp-session-id"),
+      accept: request.headers.get("accept"),
+      userAgent: request.headers.get("user-agent"),
+    };
+
+    console.log("[HTTP] Incoming request", logBase);
+
+    const isMcp = url.pathname === "/mcp" && request.method === "GET";
+    const isLegacySse = url.pathname === "/sse" && request.method === "GET";
+
+    if (isMcp || isLegacySse) {
+      console.log("[MCP_STREAM] Connection opening", logBase);
+
+      request.signal.addEventListener("abort", () => {
+        console.log("[MCP_STREAM] Connection aborted", {
+          ...logBase,
+          durationMs: Date.now() - startedAt,
+        });
+      });
+    }
+
     const provider = new OAuthProvider({
       apiRoute: ["/sse", "/mcp"],
       apiHandlers: {
@@ -47,6 +79,44 @@ export default {
         return handleTokenExchangeCallback(options, env);
       },
     });
-    return provider.fetch(request, env, ctx);
+
+    try {
+      const response = await provider.fetch(request, env, ctx);
+
+      const durationMs = Date.now() - startedAt;
+
+      console.log("[HTTP] Response", {
+        requestId,
+        durationMs,
+        status: response.status,
+        path: url.pathname,
+      });
+
+      if (response.status >= 400) {
+        console.error("[HTTP] Error response", {
+          requestId,
+          status: response.status,
+          method: request.method,
+          path: url.pathname,
+        });
+      }
+
+      return response;
+    } catch (err) {
+      console.error("[HTTP] Unhandled exception", {
+        requestId,
+        path: url.pathname,
+        error:
+          err instanceof Error
+            ? {
+                name: err.name,
+                message: err.message,
+                stack: err.stack,
+              }
+            : err,
+      });
+
+      throw err;
+    }
   },
 };

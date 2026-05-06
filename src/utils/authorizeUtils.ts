@@ -180,8 +180,10 @@ export async function handleTokenExchangeCallback(
   }
 
   if (grantType === "refresh_token") {
+    console.log("[TokenExchange] Checking Google token refresh...");
     const p = props as Props;
     if (!p?.refreshToken) {
+      console.error("[TokenExchange] Error: Missing Google refresh token.");
       throw new Error("Missing Google refresh token. Please re-authenticate.");
     }
 
@@ -189,9 +191,13 @@ export async function handleTokenExchangeCallback(
     // Heartbeat: If token expires in less than 15 minutes, refresh it.
     const REFRESH_THRESHOLD = 900;
     if (expiresAt >= now + REFRESH_THRESHOLD) {
+      console.log(
+        `[TokenExchange] Token valid until ${expiresAt}. No refresh needed.`,
+      );
       return { accessTokenTTL: 1800 };
     }
 
+    console.log("[TokenExchange] Refreshing Google auth token...");
     const [token, err] = await refreshUpstreamAuthToken({
       clientId: env.GOOGLE_CLIENT_ID,
       clientSecret: env.GOOGLE_CLIENT_SECRET,
@@ -200,8 +206,11 @@ export async function handleTokenExchangeCallback(
     });
 
     if (!token) {
+      console.error(`[TokenExchange] Google refresh failed: ${err}`);
       throw new Error(`Google refresh failed: ${err}. Please re-authenticate.`);
     }
+
+    console.log("[TokenExchange] Google token refresh successful.");
 
     return {
       newProps: {
