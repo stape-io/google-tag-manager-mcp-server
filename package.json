@@ -22,8 +22,8 @@
     "lint:fix": "eslint --ext .ts src --fix",
     "prepublish": "npm run build",
     "deploy": "wrangler deploy",
-    "dev": "wrangler dev",
-    "start": "wrangler dev",
+    "dev": "wrangler dev --local-upstream localhost:8788",
+    "start": "wrangler dev --local-upstream localhost:8788",
     "cf-typegen": "wrangler types --include-env=false"
   },
   "dependencies": {
