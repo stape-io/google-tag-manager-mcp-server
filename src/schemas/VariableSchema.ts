@@ -77,7 +77,7 @@ export const VariableSchema = z.object({
     .array(z.string())
     .optional()
     .describe(
-      "For mobile containers only: A list of trigger IDs for disabling conditional variables; the variable is enabled if one of the enabling trigger is true while all the disabling trigger are false. Treated as an unordered set.",
+      "For mobile containers only: A list of trigger IDs for disabling conditional variables; the variable is enabled if one of the enabling triggers is true while all the disabling triggers are false. Treated as an unordered set.",
     ),
   scheduleStartMs: z
     .string()
