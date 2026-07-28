@@ -64,7 +64,7 @@ export const VariableSchema = z.object({
     .optional()
     .describe("User notes on how to apply this variable in the container."),
   formatValue: VariableFormatValueSchema.optional().describe(
-    "Option to convert a variable value to other value.",
+    "Options to convert a variable value to another value.",
   ),
   parentFolderId: z.string().optional().describe("Parent folder id."),
   enablingTriggerId: z
