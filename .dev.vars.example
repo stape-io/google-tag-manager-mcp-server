@@ -1,0 +1,5 @@
+GOOGLE_CLIENT_ID="your-oauth-client-id.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="your-oauth-client-secret"
+COOKIE_ENCRYPTION_KEY="use-a-random-secret-key-at-least-32-chars"
+WORKER_HOST="http://localhost:8788"
+HOSTED_DOMAIN=""
