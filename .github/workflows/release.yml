@@ -1,15 +1,17 @@
-name: Deploy to Development
+name: Release to Production
 
-run-name: Deploy to 'dev'
+run-name: Deploy to 'prod'
 
 on:
+  push:
+    branches: main
   workflow_dispatch:
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     environment:
-      name: Development
+      name: Production
     steps:
       - name: "Checkout"
         uses: actions/checkout@v3
@@ -25,15 +27,11 @@ jobs:
       - name: "Build"
         run: npm run build
 
-      # Deploys the "dev" named environment defined in wrangler.jsonc (env.dev),
-      # a separate Worker/KV/route from production, isolated via the
-      # "Development" GitHub Environment's own secrets/vars.
       - name: "Deploy to Cloudflare"
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          environment: dev
           secrets: |
             GOOGLE_CLIENT_ID
             GOOGLE_CLIENT_SECRET

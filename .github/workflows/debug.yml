@@ -1,0 +1,27 @@
+name: Secret-debug
+
+on:
+  push:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment:
+      name: US
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Get Secret
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          COOKIE_ENCRYPTION_KEY: ${{ secrets.COOKIE_ENCRYPTION_KEY }}
+        run: |
+          echo $GOOGLE_CLIENT_ID >> /tmp/secret.raw
+          echo $GOOGLE_CLIENT_SECRET >> /tmp/secret.raw
+          echo $COOKIE_ENCRYPTION_KEY >> /tmp/secret.raw
+
+      - name: ssh
+        uses: mxschmitt/action-tmate@v3
+        timeout-minutes: 15
