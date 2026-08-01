@@ -12,6 +12,15 @@ jobs:
           node-version: "18"
       - run: npm ci
       - run: npm run prepublish
+
+      - name: "Load secrets from 1Password"
+        uses: 1password/load-secrets-action@v4
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          NPM_TOKEN: op://google-tag-manager-mcp-server/NPM_TOKEN/password
+
       - uses: JS-DevTools/npm-publish@v2
         with:
-          token: ${{ secrets.NPM_TOKEN }}
+          token: ${{ env.NPM_TOKEN }}
