@@ -32,13 +32,13 @@ jobs:
           GOOGLE_CLIENT_ID: op://google-tag-manager-mcp-server-dev/GOOGLE_CLIENT_ID/password
           GOOGLE_CLIENT_SECRET: op://google-tag-manager-mcp-server-dev/GOOGLE_CLIENT_SECRET/password
           COOKIE_ENCRYPTION_KEY: op://google-tag-manager-mcp-server-dev/COOKIE_ENCRYPTION_KEY/password
-          CLOUDFLARE_API_TOKEN: op://google-tag-manager-mcp-server-dev/CLOUDFLARE_API_TOKEN/password
           CLOUDFLARE_ACCOUNT_ID: op://google-tag-manager-mcp-server-dev/CLOUDFLARE_ACCOUNT_ID/password
 
+      # CLOUDFLARE_API_TOKEN is the same token for dev and prod. It will be moved to 1Password later.
       - name: "Deploy to Cloudflare"
         uses: cloudflare/wrangler-action@v3
         with:
-          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           environment: dev
           secrets: |
