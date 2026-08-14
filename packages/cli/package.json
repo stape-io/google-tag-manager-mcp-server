@@ -1,0 +1,48 @@
+{
+  "name": "google-tag-manager-mcp-server",
+  "version": "3.0.6",
+  "description": "MCP server for Google Tag Manager",
+  "license": "Apache-2.0",
+  "author": "stape-io",
+  "homepage": "https://github.com/stape-io/google-tag-manager-mcp-server",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stape-io/google-tag-manager-mcp-server.git",
+    "directory": "packages/cli"
+  },
+  "keywords": [
+    "mcp",
+    "modelcontextprotocol",
+    "gtm",
+    "stape"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "google-tag-manager-mcp-server": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "prebuild": "node ../../scripts/generate-version.mjs",
+    "build": "tsc -p tsconfig.json && chmod 755 dist/index.js",
+    "prepublishOnly": "npm run build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "node dist/index.js",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.19.1",
+    "google-tag-manager-mcp-core": "^1.0.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.8.3"
+  }
+}
