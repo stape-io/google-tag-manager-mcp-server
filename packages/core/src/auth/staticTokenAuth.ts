@@ -23,7 +23,7 @@ export function createStaticTokenAuth(
         throw new Error("Missing Google access token.");
       }
 
-      if (expiresAt && nowInSeconds() >= expiresAt) {
+      if (expiresAt !== undefined && nowInSeconds() >= expiresAt) {
         throw new Error(
           "Access token expired. Please refresh your connection or re-authenticate.",
         );

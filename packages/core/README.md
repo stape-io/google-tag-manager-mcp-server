@@ -53,7 +53,11 @@ import { registerGtmTools } from "google-tag-manager-mcp-core";
 registerGtmTools(this.server, { auth });
 ```
 
-Both entry points accept `tools` (replace the default set) and `extraTools` (add your own on top).
+To change which tools get registered: `createGtmMcpServer` takes `tools` (replaces the default set) and `extraTools` (added on top), while `registerGtmTools` takes the registrations to use as its third argument.
+
+```ts
+registerGtmTools(this.server, { auth }, [...tools, myPrivateTool]);
+```
 
 ### Custom auth
 
