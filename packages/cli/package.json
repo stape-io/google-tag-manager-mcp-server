@@ -37,7 +37,7 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.19.1",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "google-tag-manager-mcp-core": "^1.0.0",
     "zod": "^3.22.4"
   },
