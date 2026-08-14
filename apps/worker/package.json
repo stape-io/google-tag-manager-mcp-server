@@ -1,0 +1,30 @@
+{
+  "name": "gtm-mcp-worker",
+  "version": "3.0.6",
+  "private": true,
+  "description": "The hosted Google Tag Manager MCP server at gtm-mcp.stape.ai",
+  "license": "Apache-2.0",
+  "author": "stape-io",
+  "type": "module",
+  "scripts": {
+    "build": "node ../../scripts/generate-version.mjs",
+    "typecheck": "tsc --noEmit",
+    "dev": "wrangler dev --local-upstream localhost:8788",
+    "start": "wrangler dev --local-upstream localhost:8788",
+    "deploy": "wrangler deploy",
+    "cf-typegen": "wrangler types --include-env=false"
+  },
+  "dependencies": {
+    "@cloudflare/workers-oauth-provider": "^0.0.10",
+    "@modelcontextprotocol/sdk": "1.19.1",
+    "agents": "0.2.9",
+    "google-tag-manager-mcp-core": "*",
+    "hono": "^4.9.10",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.8.3",
+    "wrangler": "^4.18.0"
+  }
+}

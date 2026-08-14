@@ -1,54 +1,40 @@
 {
-  "name": "google-tag-manager-mcp-server",
-  "version": "3.0.6",
-  "description": "MCP server for Google Tag Manager",
+  "name": "gtm-mcp-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Google Tag Manager MCP server, CLI and reusable core",
   "license": "Apache-2.0",
   "author": "stape-io",
   "homepage": "https://github.com/stape-io/google-tag-manager-mcp-server",
-  "main": "dist/index.js",
-  "bin": {
-    "google-tag-manager-mcp-server": "./dist/index.js"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stape-io/google-tag-manager-mcp-server.git"
   },
-  "keywords": [
-    "mcp",
-    "modelcontextprotocol",
-    "gtm",
-    "stape"
+  "workspaces": [
+    "apps/*",
+    "packages/*"
   ],
   "scripts": {
-    "build": "tsc && chmod 755 dist/index.js",
-    "postinstall": "npm run build",
-    "lint": "eslint --ext .ts src",
-    "lint:fix": "eslint --ext .ts src --fix",
-    "prepublish": "npm run build",
-    "deploy": "wrangler deploy",
-    "dev": "wrangler dev --local-upstream localhost:8788",
-    "start": "wrangler dev --local-upstream localhost:8788",
-    "cf-typegen": "wrangler types --include-env=false"
-  },
-  "dependencies": {
-    "@cloudflare/workers-oauth-provider": "^0.0.10",
-    "@modelcontextprotocol/sdk": "^1.18.1",
-    "agents": "^0.2.0",
-    "dotenv": "^16.3.1",
-    "google-auth-library": "^9.4.1",
-    "googleapis": "^128.0.0",
-    "hono": "^4.9.8",
-    "zod": "^3.22.4"
+    "build": "npm run build -w google-tag-manager-mcp-core && npm run build -w google-tag-manager-mcp-server && npm run build -w gtm-mcp-worker",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint apps/*/src packages/*/src",
+    "lint:fix": "eslint apps/*/src packages/*/src --fix",
+    "dev": "npm run dev -w gtm-mcp-worker",
+    "deploy": "npm run deploy -w gtm-mcp-worker",
+    "changeset": "changeset",
+    "release": "npm run build && changeset publish",
+    "smoke": "node scripts/smoke-cli.mjs"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.27.0",
     "@eslint/js": "^9.24.0",
-    "@types/node": "^20.11.19",
     "@typescript-eslint/eslint-plugin": "^8.30.1",
     "@typescript-eslint/parser": "^8.30.1",
     "eslint": "^9.24.0",
     "eslint-config-prettier": "^10.1.2",
     "eslint-plugin-prettier": "^5.2.6",
     "prettier": "^3.5.3",
-    "ts-node": "^10.9.2",
-    "ts-node-dev": "^2.0.0",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.30.1",
-    "wrangler": "^4.16.0"
+    "typescript-eslint": "^8.30.1"
   }
 }
