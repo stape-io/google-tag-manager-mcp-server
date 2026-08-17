@@ -1,17 +1,42 @@
+name: Release
+
 on:
   push:
     branches: main
+  workflow_dispatch:
+
+concurrency: release-${{ github.ref }}
+
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
-  publish:
+  release:
+    if: ${{ github.actor != 'stape-releaser[bot]' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v5
         with:
-          node-version: "18"
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+
       - run: npm ci
-      - run: npm run prepublish
+      - run: npm run build
+      - run: npm run typecheck
+      - run: npm run lint
+
+      - name: Create GitHub App token
+        id: gh_app
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.RELEASER_APP_ID }}
+          private-key: ${{ secrets.RELEASER_APP_KEY }}
 
       - name: "Load secrets from 1Password"
         uses: 1password/load-secrets-action@v4
@@ -21,6 +46,12 @@ jobs:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
           NPM_TOKEN: op://google-tag-manager-mcp-server/NPM_TOKEN/password
 
-      - uses: JS-DevTools/npm-publish@v2
+      - uses: changesets/action@v1
         with:
-          token: ${{ env.NPM_TOKEN }}
+          version: npx changeset version
+          publish: npm run release
+          commit: "chore: version packages"
+          title: "chore: version packages"
+        env:
+          GITHUB_TOKEN: ${{ steps.gh_app.outputs.token }}
+          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
