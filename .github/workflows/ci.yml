@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  pull_request:
+    branches: main
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+      - run: npm run typecheck
+      - run: npm run lint
+
+      - name: Smoke test the CLI
+        run: npm run smoke
+
+      # Deploys from main have no other gate, so the bundle is proven here.
+      - name: Bundle the Worker
+        run: npx wrangler deploy --dry-run
+        working-directory: apps/worker
+        env:
+          WRANGLER_SEND_METRICS: "false"
+
+  changeset:
+    runs-on: ubuntu-latest
+    # Advisory: not every pull request needs a changeset. Drop this to enforce.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Changed packages need a changeset
+        # base_ref is empty outside pull_request, leaving a bare "origin/".
+        run: npx changeset status --since=origin/${{ github.base_ref || 'main' }}

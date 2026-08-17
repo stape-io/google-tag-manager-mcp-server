@@ -1,0 +1,57 @@
+{
+  "name": "google-tag-manager-mcp-core",
+  "version": "1.0.0",
+  "description": "Reusable Google Tag Manager MCP tools, schemas and pluggable auth providers",
+  "license": "Apache-2.0",
+  "author": "stape-io",
+  "homepage": "https://github.com/stape-io/google-tag-manager-mcp-server",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stape-io/google-tag-manager-mcp-server.git",
+    "directory": "packages/core"
+  },
+  "keywords": [
+    "mcp",
+    "modelcontextprotocol",
+    "gtm",
+    "stape"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "prebuild": "node ../../scripts/generate-version.mjs",
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@googleapis/tagmanager": "^16.0.0"
+  },
+  "peerDependencies": {
+    "@modelcontextprotocol/sdk": ">=1.18.1 <2",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.8.3",
+    "zod": "^3.22.4"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "sideEffects": false
+}
