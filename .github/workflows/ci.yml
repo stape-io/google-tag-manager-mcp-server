@@ -37,6 +37,8 @@ jobs:
 
   changeset:
     runs-on: ubuntu-latest
+    # The release pull request consumes changesets, so it never carries one.
+    if: github.head_ref != 'changeset-release/main'
     # Advisory: not every pull request needs a changeset. Drop this to enforce.
     continue-on-error: true
     steps:
