@@ -3,6 +3,15 @@ name: Deploy
 on:
   push:
     branches: main
+    # Everything the Worker bundle is built from. A path missing here means the
+    # Worker silently keeps serving the previous build.
+    paths:
+      - "apps/worker/**"
+      - "packages/core/**"
+      - "scripts/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/deploy.yml"
   workflow_dispatch:
 
 jobs:
