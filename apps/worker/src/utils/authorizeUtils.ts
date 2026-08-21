@@ -168,6 +168,59 @@ export type Props = {
 };
 
 /**
+ * Thrown for a grant Google will no longer refresh. The provider does not wrap
+ * `tokenExchangeCallback`, so throwing a plain Error here escapes the Worker as
+ * a 1101 and the client reports a disconnect instead of reauthorizing.
+ */
+export class UpstreamReauthRequiredError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UpstreamReauthRequiredError";
+  }
+}
+
+/**
+ * RFC 6749 §5.2 error for a grant that needs reauthorization. Built outside the
+ * provider, so it repeats the CORS headers the provider adds to `/token` — a
+ * browser client without them sees a CORS failure instead of the error.
+ */
+export function upstreamReauthErrorResponse(
+  err: unknown,
+  request: Request,
+): Response | null {
+  if (!(err instanceof UpstreamReauthRequiredError)) {
+    return null;
+  }
+
+  const headers = new Headers({
+    "content-type": "application/json",
+    "cache-control": "no-store",
+    pragma: "no-cache",
+  });
+
+  const origin = request.headers.get("Origin");
+
+  if (origin) {
+    headers.set("Access-Control-Allow-Origin", origin);
+    headers.set("Access-Control-Allow-Methods", "*");
+    headers.set("Access-Control-Allow-Headers", "Authorization, *");
+    headers.set(
+      "Access-Control-Expose-Headers",
+      "WWW-Authenticate, Retry-After",
+    );
+    headers.set("Vary", "Origin");
+  }
+
+  return new Response(
+    JSON.stringify({
+      error: "invalid_grant",
+      error_description: err.message,
+    }),
+    { status: 400, headers },
+  );
+}
+
+/**
  * Handles the logic for exchanging an OAuth code or refreshing a token.
  */
 export async function handleTokenExchangeCallback(
@@ -186,7 +239,9 @@ export async function handleTokenExchangeCallback(
     const p = props as Props;
     if (!p?.refreshToken) {
       console.error("[TokenExchange] Error: Missing Google refresh token.");
-      throw new Error("Missing Google refresh token. Please re-authenticate.");
+      throw new UpstreamReauthRequiredError(
+        "Missing Google refresh token. Please re-authenticate.",
+      );
     }
 
     const expiresAt = p.expiresAt ?? 0;
@@ -209,7 +264,9 @@ export async function handleTokenExchangeCallback(
 
     if (!token) {
       console.error(`[TokenExchange] Google refresh failed: ${err}`);
-      throw new Error(`Google refresh failed: ${err}. Please re-authenticate.`);
+      throw new UpstreamReauthRequiredError(
+        `Google refresh failed: ${err}. Please re-authenticate.`,
+      );
     }
 
     console.log("[TokenExchange] Google token refresh successful.");
