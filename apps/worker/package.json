@@ -15,12 +15,12 @@
     "cf-typegen": "wrangler types --include-env=false"
   },
   "dependencies": {
-    "@cloudflare/workers-oauth-provider": "^0.0.10",
+    "@cloudflare/workers-oauth-provider": "^0.10.3",
     "@modelcontextprotocol/sdk": "^1.30.0",
-    "agents": "0.2.9",
+    "agents": "^0.21.0",
     "google-tag-manager-mcp-core": "*",
     "hono": "^4.13.2",
-    "zod": "^3.22.4"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

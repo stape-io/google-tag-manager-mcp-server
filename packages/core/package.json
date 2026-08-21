@@ -31,6 +31,7 @@
   "scripts": {
     "prebuild": "node ../../scripts/generate-version.mjs",
     "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "clean": "rm -rf dist",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
@@ -41,13 +42,13 @@
   },
   "peerDependencies": {
     "@modelcontextprotocol/sdk": ">=1.18.1 <2",
-    "zod": "^3.22.4"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@types/node": "^24.0.0",
     "typescript": "^5.8.3",
-    "zod": "^3.22.4"
+    "zod": "^4.4.3"
   },
   "type": "module",
   "engines": {

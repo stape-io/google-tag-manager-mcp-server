@@ -9,7 +9,12 @@ import {
 import { TAG_MANAGER_REMOVE_MCP_SERVER_DATA } from "./constants/tools";
 import { McpAgentPropsModel } from "./models/McpAgentModel";
 import { removeMCPServerData } from "./tools/removeMCPServerData";
-import { apisHandler, handleTokenExchangeCallback } from "./utils";
+import {
+  apisHandler,
+  handleTokenExchangeCallback,
+  upstreamReauthErrorResponse,
+  withSseKeepalive,
+} from "./utils";
 import { PACKAGE_VERSION } from "./version";
 
 setUnauthorizedHint(
@@ -120,8 +125,25 @@ export default {
         });
       }
 
+      if (isMcp || isLegacySse) {
+        return withSseKeepalive(response);
+      }
+
       return response;
     } catch (err) {
+      const reauthResponse = upstreamReauthErrorResponse(err, request);
+
+      if (reauthResponse) {
+        console.warn("[HTTP] Upstream re-authentication required", {
+          requestId,
+          path: url.pathname,
+          durationMs: Date.now() - startedAt,
+          message: (err as Error).message,
+        });
+
+        return reauthResponse;
+      }
+
       console.error("[HTTP] Unhandled exception", {
         requestId,
         path: url.pathname,
