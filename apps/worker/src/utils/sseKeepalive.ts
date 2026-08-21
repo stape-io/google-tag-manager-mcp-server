@@ -7,7 +7,10 @@ const KEEPALIVE_FRAME = ": keepalive\n\n";
  * `agents` heartbeats only the per-request POST stream, so the long-lived GET
  * stream a client listens on would otherwise sit silent until it is dropped.
  */
-export function withSseKeepalive(response: Response): Response {
+export function withSseKeepalive(
+  response: Response,
+  signal: AbortSignal,
+): Response {
   const body = response.body;
   const isEventStream = response.headers
     .get("content-type")
@@ -19,6 +22,7 @@ export function withSseKeepalive(response: Response): Response {
 
   const { readable, writable } = new TransformStream();
   const writer = writable.getWriter();
+  const reader = body.getReader();
   const encoder = new TextEncoder();
 
   // Upstream may split one event across chunks; a frame injected mid-event
@@ -35,9 +39,20 @@ export function withSseKeepalive(response: Response): Response {
     });
   }, KEEPALIVE_INTERVAL_MS);
 
-  void (async (): Promise<void> => {
-    const reader = body.getReader();
+  // A client that drops the stream leaves the timer running until a write
+  // happens to fail, and `reader.read()` parked forever. The runtime counts
+  // both against the invocation and eventually kills them, which is what
+  // "waitUntil() tasks did not complete" in the logs means. Reconnect storms
+  // pile these up, so tear down on the request signal rather than on the next
+  // failed write.
+  const teardown = (): void => {
+    clearInterval(timer);
+    void reader.cancel().catch(() => {});
+  };
 
+  signal.addEventListener("abort", teardown, { once: true });
+
+  void (async (): Promise<void> => {
     try {
       for (;;) {
         const { done, value } = await reader.read();
@@ -57,6 +72,7 @@ export function withSseKeepalive(response: Response): Response {
       // Upstream aborted.
     } finally {
       clearInterval(timer);
+      signal.removeEventListener("abort", teardown);
       await writer.close().catch(() => {});
     }
   })();

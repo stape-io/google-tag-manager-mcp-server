@@ -116,7 +116,13 @@ export default {
         path: url.pathname,
       });
 
-      if (response.status >= 400) {
+      // Every client opens with an unauthenticated probe to discover where to
+      // authorize, so a 401 here is the protocol working. Logging it as an
+      // error buries the failures worth finding.
+      const isAuthChallenge =
+        response.status === 401 && (isMcp || url.pathname === "/mcp");
+
+      if (response.status >= 400 && !isAuthChallenge) {
         console.error("[HTTP] Error response", {
           requestId,
           status: response.status,
@@ -126,7 +132,7 @@ export default {
       }
 
       if (isMcp || isLegacySse) {
-        return withSseKeepalive(response);
+        return withSseKeepalive(response, request.signal);
       }
 
       return response;
