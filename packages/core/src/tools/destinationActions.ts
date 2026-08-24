@@ -1,14 +1,12 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { tagmanager_v2 } from "@googleapis/tagmanager";
-import { z } from "zod";
-import { GtmToolContext } from "../types/index.js";
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { z } from 'zod';
+import { GtmToolContext } from '../types/index.js';
 import {
   createErrorResponse,
   getTagManagerClient,
   log,
   paginateArray,
-} from "../utils/index.js";
-import Schema$Destination = tagmanager_v2.Schema$Destination;
+} from '../utils/index.js';
 
 const ITEMS_PER_PAGE = 50;
 
@@ -17,35 +15,18 @@ export const destinationActions = (
   { auth }: GtmToolContext,
 ): void => {
   server.tool(
-    "gtm_destination",
-    `Performs all destination operations: get, list, link, unlink.  The 'list' action returns up to ${ITEMS_PER_PAGE} items per page.`,
+    'gtag_destination',
+    `Lists the Google Tag destinations listed under https://tagmanager.google.com/#/home#tags. This is not the classic GTM "destination" concept from the tagmanager.google.com UI; passing a regular GTM Container ID here typically returns no results. It only returns data for Google Tag IDs, i.e. the tags listed under tagmanager.google.com/#/home#tags. Returns up to ${ITEMS_PER_PAGE} items per page. Note: this is the only action the underlying Google API still supports; 'get' and 'link' are deprecated by Google.e`,
     {
-      action: z
-        .enum(["get", "list", "link", "unlink"])
-        .describe(
-          "The destination operation to perform. Must be one of: 'get', 'list', 'link', 'unlink'.",
-        ),
       accountId: z
         .string()
         .describe(
-          "The unique ID of the GTM Account containing the destination.",
+          'The unique ID of the GTM Account containing the destination.',
         ),
       containerId: z
         .string()
         .describe(
-          "The unique ID of the GTM Container containing the destination.",
-        ),
-      destinationId: z
-        .string()
-        .optional()
-        .describe(
-          "The unique ID of the GTM Destination. Required for 'get', 'link', and 'unlink' actions.",
-        ),
-      allowUserPermissionFeatureUpdate: z
-        .boolean()
-        .optional()
-        .describe(
-          "If true, allows user permission feature update during linking. Optional for 'link' action.",
+          'The unique ID of the GTM Container (or Google Tag) containing the destination.',
         ),
       page: z
         .number()
@@ -63,105 +44,31 @@ export const destinationActions = (
           `Number of items to return per page (1-${ITEMS_PER_PAGE}). Default: ${ITEMS_PER_PAGE}. Use lower values if experiencing response issues.`,
         ),
     },
-    async ({
-      action,
-      accountId,
-      containerId,
-      destinationId,
-      allowUserPermissionFeatureUpdate,
-      page,
-      itemsPerPage,
-    }) => {
-      log(`Running tool: gtm_destination with action ${action}`);
+    async ({ accountId, containerId, page, itemsPerPage }) => {
+      log(`Running tool: gtm_gtag_destination with action list`);
 
       try {
         const tagmanager = await getTagManagerClient(auth);
 
-        switch (action) {
-          case "get": {
-            if (!destinationId) {
-              throw new Error(`destinationId is required for ${action} action`);
-            }
+        const response = await tagmanager.accounts.containers.destinations.list(
+          {
+            parent: `accounts/${accountId}/containers/${containerId}`,
+          },
+        );
 
-            const response =
-              await tagmanager.accounts.containers.destinations.get({
-                path: `accounts/${accountId}/containers/${containerId}/destinations/${destinationId}`,
-              });
+        // ponytail: the API returns `{}` (no `destination` key) when there are no results,
+        // instead of `{ destination: [] }`.
+        const all = response.data.destination ?? [];
+        const paginatedResult = paginateArray(all, page, itemsPerPage);
 
-            return {
-              content: [
-                { type: "text", text: JSON.stringify(response.data, null, 2) },
-              ],
-            };
-          }
-          case "list": {
-            const response =
-              await tagmanager.accounts.containers.destinations.list({
-                parent: `accounts/${accountId}/containers/${containerId}`,
-              });
-
-            const all = response.data as Schema$Destination[];
-            const paginatedResult = paginateArray(all, page, itemsPerPage);
-
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify(paginatedResult, null, 2),
-                },
-              ],
-            };
-          }
-          case "link": {
-            if (!destinationId) {
-              throw new Error(`destinationId is required for ${action} action`);
-            }
-
-            const response =
-              await tagmanager.accounts.containers.destinations.link({
-                parent: `accounts/${accountId}/containers/${containerId}`,
-                destinationId,
-                allowUserPermissionFeatureUpdate,
-              });
-
-            return {
-              content: [
-                { type: "text", text: JSON.stringify(response.data, null, 2) },
-              ],
-            };
-          }
-          case "unlink": {
-            if (!destinationId) {
-              throw new Error(`destinationId is required for ${action} action`);
-            }
-
-            await tagmanager.accounts.containers.destinations.link({
-              parent: `accounts/${accountId}/containers/${containerId}`,
-              destinationId: destinationId,
-            });
-
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify(
-                    {
-                      success: true,
-                      message: `Destination ${destinationId} was successfully unlinked`,
-                    },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-            };
-          }
-          default:
-            throw new Error(`Unknown action: ${action}`);
-        }
+        return {
+          content: [
+            { type: 'text', text: JSON.stringify(paginatedResult, null, 2) },
+          ],
+        };
       } catch (error) {
         return createErrorResponse(
-          `Error performing ${action} on destination`,
+          'Error performing list on destination',
           error,
         );
       }
