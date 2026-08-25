@@ -1,5 +1,4 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { tagmanager_v2 } from "@googleapis/tagmanager";
 import { z } from "zod";
 import { GtmToolContext } from "../types/index.js";
 import {
@@ -8,7 +7,6 @@ import {
   log,
   paginateArray,
 } from "../utils/index.js";
-import Schema$Destination = tagmanager_v2.Schema$Destination;
 
 const ITEMS_PER_PAGE = 50;
 
@@ -100,7 +98,7 @@ export const destinationActions = (
                 parent: `accounts/${accountId}/containers/${containerId}`,
               });
 
-            const all = response.data as Schema$Destination[];
+            const all = response.data.destination ?? [];
             const paginatedResult = paginateArray(all, page, itemsPerPage);
 
             return {
