@@ -62,7 +62,7 @@ Optionally, `GTM_SCOPES` overrides the requested scopes (space or comma separate
 
 One tool per GTM resource, each taking an `action` parameter (`list`, `get`, `create`, `update`, `remove`, …):
 
-`gtm_account`, `gtm_container`, `gtm_workspace`, `gtm_tag`, `gtm_trigger`, `gtm_variable`, `gtm_built_in_variable`, `gtm_folder`, `gtm_client`, `gtm_template`, `gtm_transformation`, `gtm_zone`, `gtm_environment`, `gtm_version`, `gtm_version_header`, `gtm_gtag_config`, `gtm_destination`, `gtm_user_permission`.
+`gtm_account`, `gtm_container`, `gtm_workspace`, `gtm_tag`, `gtm_trigger`, `gtm_variable`, `gtm_built_in_variable`, `gtm_folder`, `gtm_client`, `gtm_template`, `gtm_transformation`, `gtm_zone`, `gtm_environment`, `gtm_version`, `gtm_version_header`, `gtm_gtag_config`, `gtag_destination`, `gtm_user_permission`.
 
 The tools themselves live in [`google-tag-manager-mcp-core`](https://www.npmjs.com/package/google-tag-manager-mcp-core), which you can reuse to build a server with your own authentication.
 
