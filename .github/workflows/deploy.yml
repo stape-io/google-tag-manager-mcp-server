@@ -1,17 +1,8 @@
-name: Deploy
+name: Deploy to Development
+
+run-name: Deploy to 'dev'
 
 on:
-  push:
-    branches: main
-    # Everything the Worker bundle is built from. A path missing here means the
-    # Worker silently keeps serving the previous build.
-    paths:
-      - "apps/worker/**"
-      - "packages/core/**"
-      - "scripts/**"
-      - "package.json"
-      - "package-lock.json"
-      - ".github/workflows/deploy.yml"
   workflow_dispatch:
 
 jobs:
@@ -19,10 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: "Checkout"
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: "Setup node"
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: "24"
 
@@ -39,19 +30,32 @@ jobs:
       - name: "Lint"
         run: npm run lint
 
+      - name: "Load secrets from 1Password"
+        uses: 1password/load-secrets-action@v5
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          GOOGLE_CLIENT_ID: op://google-tag-manager-mcp-server-dev/GOOGLE_CLIENT_ID/password
+          GOOGLE_CLIENT_SECRET: op://google-tag-manager-mcp-server-dev/GOOGLE_CLIENT_SECRET/password
+          COOKIE_ENCRYPTION_KEY: op://google-tag-manager-mcp-server-dev/COOKIE_ENCRYPTION_KEY/password
+          CLOUDFLARE_ACCOUNT_ID: op://google-tag-manager-mcp-server-dev/CLOUDFLARE_ACCOUNT_ID/password
+
+      # CLOUDFLARE_API_TOKEN is the same token for dev and prod. It will be moved to 1Password later.
       - name: "Deploy to Cloudflare"
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/worker
+          environment: dev
           secrets: |
             GOOGLE_CLIENT_ID
             GOOGLE_CLIENT_SECRET
             COOKIE_ENCRYPTION_KEY
           vars: WORKER_HOST
         env:
-          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          COOKIE_ENCRYPTION_KEY: ${{ secrets.COOKIE_ENCRYPTION_KEY }}
-          WORKER_HOST: ${{ vars.WORKER_HOST }}
+          GOOGLE_CLIENT_ID: ${{ env.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ env.GOOGLE_CLIENT_SECRET }}
+          COOKIE_ENCRYPTION_KEY: ${{ env.COOKIE_ENCRYPTION_KEY }}
+          WORKER_HOST: ${{ vars.WORKER_HOST_DEV }}
