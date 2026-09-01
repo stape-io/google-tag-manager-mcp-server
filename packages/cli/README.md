@@ -2,7 +2,9 @@
 
 A local MCP server for the Google Tag Manager API. It runs on your machine and authenticates with credentials you provide, so no data passes through anyone else's server.
 
-If you would rather not manage credentials, use the hosted server instead — it handles Google OAuth for you, see the [repository README](https://github.com/stape-io/google-tag-manager-mcp-server#readme).
+If you would rather not manage credentials, use the hosted server instead — it handles Google OAuth for you, see the [repository README](../../README.md).
+
+Testing an unreleased fix or contributing to this repo? Don't use `npx` here — see [Test your changes locally](../../README.md#test-your-changes-locally) in the repository README instead, it builds from source so your changes are actually included.
 
 ## Usage
 
@@ -32,26 +34,42 @@ Set one of these in the server's environment.
 2. Create a JSON key for it.
 3. In GTM, add the service account's email (`...@....iam.gserviceaccount.com`) as a user on each account or container it should manage.
 
-```
-GOOGLE_SERVICE_ACCOUNT_KEY={"type":"service_account", ... }
-```
-
-The key can also be split into `GOOGLE_CLIENT_EMAIL` + `GOOGLE_PRIVATE_KEY`. For Google Workspace domain-wide delegation, add `GOOGLE_IMPERSONATED_USER`.
+See it plugged into an MCP client config in [Usage](#usage) above. The key can also be split into `GOOGLE_CLIENT_EMAIL` + `GOOGLE_PRIVATE_KEY`. For Google Workspace domain-wide delegation, add `GOOGLE_IMPERSONATED_USER`.
 
 ### OAuth refresh token
 
 Acts as one specific Google account — useful when GTM access cannot be shared with a service account.
 
-```
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
-GOOGLE_REFRESH_TOKEN=...
+```json
+{
+  "mcpServers": {
+    "gtm-mcp-server": {
+      "command": "npx",
+      "args": ["-y", "google-tag-manager-mcp-server"],
+      "env": {
+        "GOOGLE_CLIENT_ID": "...",
+        "GOOGLE_CLIENT_SECRET": "...",
+        "GOOGLE_REFRESH_TOKEN": "..."
+      }
+    }
+  }
+}
 ```
 
 ### Access token
 
-```
-GOOGLE_ACCESS_TOKEN=...
+```json
+{
+  "mcpServers": {
+    "gtm-mcp-server": {
+      "command": "npx",
+      "args": ["-y", "google-tag-manager-mcp-server"],
+      "env": {
+        "GOOGLE_ACCESS_TOKEN": "..."
+      }
+    }
+  }
+}
 ```
 
 Expires within the hour and is not refreshed — debugging only.
