@@ -50,7 +50,7 @@ export const environmentActions = (
           "The unique ID of the GTM Environment. Required for 'get', 'update', 'remove', and 'reauthorize' actions.",
         ),
       createOrUpdateConfig: PayloadSchema.optional().describe(
-        "Configuration for 'create' and 'update' actions. All fields correspond to the GTM Environment resource, except IDs.",
+        "Configuration for 'create' and 'update' actions. All fields correspond to the GTM Environment resource, except IDs. 'update' replaces the entire environment — any field omitted here is deleted. Always run 'get' first and send back the complete object with your modifications applied.",
       ),
       fingerprint: z
         .string()
