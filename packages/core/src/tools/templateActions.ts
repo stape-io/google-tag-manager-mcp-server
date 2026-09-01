@@ -56,7 +56,7 @@ export const templateActions = (
           "The unique ID of the GTM custom template. Required for 'get', 'update', 'remove', and 'revert' actions.",
         ),
       createOrUpdateConfig: PayloadSchema.optional().describe(
-        "Configuration for 'create' and 'update' actions. All fields correspond to the GTM custom template resource, except IDs.",
+        "Configuration for 'create' and 'update' actions. All fields correspond to the GTM custom template resource, except IDs. 'update' replaces the entire custom template — any field omitted here is deleted. Always run 'get' first and send back the complete object with your modifications applied.",
       ),
       fingerprint: z
         .string()

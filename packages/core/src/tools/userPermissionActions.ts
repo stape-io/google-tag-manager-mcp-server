@@ -39,7 +39,7 @@ export const userPermissionActions = (
           "The unique ID of the user permission. Required for 'get', 'update', and 'remove' actions.",
         ),
       createOrUpdateConfig: UserPermissionSchema.optional().describe(
-        "Configuration for 'create' and 'update' actions. All fields correspond to the GTM user permission resource.",
+        "Configuration for 'create' and 'update' actions. All fields correspond to the GTM user permission resource. 'update' replaces the entire user permission — any field omitted here is deleted. Always run 'get' first and send back the complete object with your modifications applied.",
       ),
       page: z
         .number()

@@ -51,7 +51,7 @@ export const zoneActions = (
           "The unique ID of the GTM Zone. Required for all actions except 'create' and 'list'.",
         ),
       createOrUpdateConfig: PayloadSchema.optional().describe(
-        "Configuration for 'create' and 'update' actions. All fields correspond to the GTM zone resource, except IDs.",
+        "Configuration for 'create' and 'update' actions. All fields correspond to the GTM zone resource, except IDs. 'update' replaces the entire zone — any field omitted here is deleted. Always run 'get' first and send back the complete object with your modifications applied.",
       ),
       fingerprint: z
         .string()
