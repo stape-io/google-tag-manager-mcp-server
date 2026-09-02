@@ -55,7 +55,7 @@ export const versionActions = (
           "The unique ID of the GTM container version. Required for 'get', 'publish', 'remove', 'setLatest', 'undelete', and 'update' actions.",
         ),
       createOrUpdateConfig: PayloadSchema.optional().describe(
-        "Configuration for 'create' and 'update' actions. All fields correspond to the GTM container version resource, except IDs.",
+        "Configuration for 'create' and 'update' actions. All fields correspond to the GTM container version resource, except IDs. 'update' replaces the entire container version — any field omitted here is deleted. Always run 'get' first and send back the complete object with your modifications applied.",
       ),
       fingerprint: z
         .string()

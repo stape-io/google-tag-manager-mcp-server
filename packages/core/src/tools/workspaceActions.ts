@@ -83,7 +83,7 @@ export const workspaceActions = (
           "The unique ID of the GTM Workspace. Required for all actions except 'create' and 'list'.",
         ),
       createOrUpdateConfig: PayloadSchema.optional().describe(
-        "Configuration for 'create' and 'update' actions. All fields correspond to the GTM workspace resource, except IDs.",
+        "Configuration for 'create' and 'update' actions. All fields correspond to the GTM workspace resource, except IDs. 'update' replaces the entire workspace — any field omitted here is deleted. Always run 'get' first and send back the complete object with your modifications applied.",
       ),
       fingerprint: z
         .string()

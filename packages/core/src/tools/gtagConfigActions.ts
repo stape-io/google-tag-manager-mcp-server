@@ -56,7 +56,7 @@ export const gtagConfigActions = (
           "The unique ID of the Google tag config. Required for 'get', 'update', and 'remove' actions.",
         ),
       createOrUpdateConfig: PayloadSchema.optional().describe(
-        "Configuration for 'create' and 'update' actions. All fields correspond to the Google tag config resource, except IDs.",
+        "Configuration for 'create' and 'update' actions. All fields correspond to the Google tag config resource, except IDs. 'update' replaces the entire Google tag config — any field omitted here is deleted. Always run 'get' first and send back the complete object with your modifications applied.",
       ),
       fingerprint: z
         .string()
