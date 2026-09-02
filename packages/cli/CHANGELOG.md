@@ -1,5 +1,14 @@
 # google-tag-manager-mcp-server
 
+## 5.1.1
+
+### Patch Changes
+
+- 4110549: Fix write actions (create/update/delete) returning an empty `Google API Error <code> -` message instead of Google's actual error detail. The shared error formatter only read the legacy `error.errors[]` field from the old Google API client, which modern `@googleapis/tagmanager` errors don't populate; it now falls back to `error.message` so the real cause is surfaced.
+- Updated dependencies [4110549]
+- Updated dependencies [c7ae1fe]
+  - google-tag-manager-mcp-core@2.1.1
+
 ## 5.1.0
 
 ### Minor Changes
