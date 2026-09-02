@@ -21,11 +21,15 @@ export function createErrorResponse(
     if (error.code === 401) {
       detailedMessage = unauthorizedHint;
     } else {
-      const messages = (error?.errors || []).map(
-        (item: { message?: string }) => item?.message,
-      );
+      const legacyMessages = (error?.errors || [])
+        .map((item: { message?: string }) => item?.message)
+        .filter(Boolean);
 
-      detailedMessage = `${message}: Google API Error ${error.code} - ${messages.join(". ")}`;
+      const detail = legacyMessages.length
+        ? legacyMessages.join(". ")
+        : error?.message || "Unknown error";
+
+      detailedMessage = `${message}: Google API Error ${error.code} - ${detail}`;
     }
   } else if (error instanceof Error) {
     detailedMessage = `${message}: ${error.message}`;
