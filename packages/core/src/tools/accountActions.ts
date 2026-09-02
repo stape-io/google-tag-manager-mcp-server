@@ -27,7 +27,7 @@ export const accountActions = (
         ),
       accountId: z.string().describe("The unique ID of the GTM Account."),
       config: PayloadSchema.optional().describe(
-        "Configuration for 'update' action. All fields correspond to the GTM Account resource.",
+        "Configuration for 'update' action. All fields correspond to the GTM Account resource. 'update' replaces the entire account — any field omitted here is deleted. Always run 'get' first and send back the complete object with your modifications applied.",
       ),
     },
     async ({ action, accountId, config }) => {

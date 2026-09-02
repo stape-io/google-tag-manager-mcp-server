@@ -69,7 +69,7 @@ export const containerActions = (
           "The destination ID linked to a GTM Container (e.g., AW-123456789). Required for the 'lookup' action.",
         ),
       createOrUpdateConfig: ContainerPayloadSchema.optional().describe(
-        "Configuration for 'create' and 'update' actions. All fields correspond to the GTM Container resource.",
+        "Configuration for 'create' and 'update' actions. All fields correspond to the GTM Container resource. 'update' replaces the entire container — any field omitted here is deleted. Always run 'get' first and send back the complete object with your modifications applied.",
       ),
       fingerprint: z
         .string()
