@@ -43,5 +43,33 @@
   },
   "dev": {
     "port": 8788
+  },
+
+  // Bindings are not inherited by named environments, so dev restates its own
+  // Durable Object and KV namespace. Everything else falls through from above.
+  "env": {
+    "dev": {
+      "name": "google-tag-manager-mcp-server-dev",
+      "routes": [
+        {
+          "pattern": "gtm-mcp.stape.dev",
+          "custom_domain": true
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "class_name": "GoogleTagManagerMCPServer",
+            "name": "MCP_OBJECT"
+          }
+        ]
+      },
+      "kv_namespaces": [
+        {
+          "binding": "OAUTH_KV",
+          "id": "49a584d999764898b6b2f9b5673013be"
+        }
+      ]
+    }
   }
 }
