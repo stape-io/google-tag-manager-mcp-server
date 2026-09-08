@@ -497,7 +497,7 @@ Both `@modelcontextprotocol/sdk` and `agents` are pinned to exact versions in `a
 
 ## Useful resources
 
-- [Step-by-step guide: MCP Server for Google Ads](https://stape.io/blog/mcp-server-for-google-ads)
+- [Step-by-step guide: MCP Server for Google Tag Manager](https://stape.io/blog/mcp-server-for-google-tag-manager)
 
 ## Open Source
 
