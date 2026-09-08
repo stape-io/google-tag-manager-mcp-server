@@ -28,6 +28,8 @@ An interface to the Google Tag Manager API over MCP, in two flavours: a hosted s
       - [4. Point your MCP client at the local server](#4-point-your-mcp-client-at-the-local-server)
   - [Releasing](#releasing)
   - [Development](#development)
+  - [Useful resources](#useful-resources)
+  - [Open Source](#open-source)
 
 ## Repository layout
 
@@ -492,3 +494,11 @@ npm run smoke      # starts the built CLI and runs an MCP handshake against it
 Pull requests run all of the above plus a Worker bundle check, and flag changes to a published package that arrive without a changeset.
 
 Both `@modelcontextprotocol/sdk` and `agents` are pinned to exact versions in `apps/worker`. The SDK identifies tool schemas with `instanceof`, so the whole workspace has to resolve a single copy, and `agents` releases pin the SDK version they were built against. Bump them together and deploy deliberately.
+
+## Useful resources
+
+- [Step-by-step guide: MCP Server for Google Ads](https://stape.io/blog/mcp-server-for-google-ads)
+
+## Open Source
+
+The **MCP Server for Google Tag Manager** is developed and maintained by [Stape Team](https://stape.io/) under the Apache 2.0 license.
