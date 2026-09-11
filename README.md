@@ -62,26 +62,26 @@ Pick your client below. The hosted server needs the [`mcp-remote`](https://githu
 <details>
 <summary>⬇️ Click to expand ⬇️</summary>
 
-Open Claude Desktop and navigate to Settings -> Developer -> Edit Config. This opens the configuration file that controls which MCP servers Claude can access.
+**Hosted server** — Claude Desktop connects to remote HTTP MCP servers natively, no bridge needed. Go to Settings → Connectors → Add custom connector, set the name to `gtm-mcp-server` and the URL to `https://gtm-mcp.stape.ai/mcp`, then save. Click the new connector to complete the Google OAuth flow in the browser window that opens.
 
-**Hosted server** — restart Claude Desktop after saving; a browser window opens for the Google OAuth flow. Complete it to grant Claude access:
+> `mcp-remote` is also possible for the hosted server, for anyone who'd rather configure it through the JSON config file (Settings -> Developer -> Edit Config) instead of the Connectors UI — less recommended, but still supported:
+>
+> ```json
+> {
+>   "mcpServers": {
+>     "gtm-mcp-server": {
+>       "command": "npx",
+>       "args": [
+>         "-y",
+>         "mcp-remote",
+>         "https://gtm-mcp.stape.ai/mcp"
+>       ]
+>     }
+>   }
+> }
+> ```
 
-```json
-{
-  "mcpServers": {
-    "gtm-mcp-server": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "mcp-remote",
-        "https://gtm-mcp.stape.ai/mcp"
-      ]
-    }
-  }
-}
-```
-
-**Local CLI** — no OAuth flow, no data through anyone else's server, you supply a service account key or a refresh token:
+**Local CLI** — no OAuth flow, no data through anyone else's server, you supply a service account key or a refresh token. Open Settings -> Developer -> Edit Config and add:
 
 ```json
 {
@@ -258,7 +258,7 @@ A browser window opens for the Google OAuth flow the first time a tool is used.
 <details>
 <summary>⬇️ Click to expand ⬇️</summary>
 
-Antigravity's own OAuth support for remote HTTP servers doesn't reliably reach a token to the server yet ([antigravity-cli#25](https://github.com/google-antigravity/antigravity-cli/issues/25)), so use `mcp-remote` for the hosted server here too, the same way Claude Desktop does. Add this to `~/.gemini/config/mcp_config.json` (global) or `.agents/mcp_config.json` (workspace-local) — accessible from the editor's agent panel via **… → MCP Servers → Manage MCP Servers → View raw config**:
+Antigravity's own OAuth support for remote HTTP servers doesn't reliably reach a token to the server yet ([antigravity-cli#25](https://github.com/google-antigravity/antigravity-cli/issues/25)), so use `mcp-remote` for the hosted server here too. Add this to `~/.gemini/config/mcp_config.json` (global) or `.agents/mcp_config.json` (workspace-local) — accessible from the editor's agent panel via **… → MCP Servers → Manage MCP Servers → View raw config**:
 
 **Hosted server**:
 
@@ -359,7 +359,7 @@ To avoid this issue:
 
 **Clearing MCP Cache**
 
-If you're connecting through `mcp-remote` (Claude Desktop, Antigravity), it stores all the credential information inside `~/.mcp-auth` (or wherever your `MCP_REMOTE_CONFIG_DIR` points to). If you're having persistent issues, try running:
+If you're connecting through `mcp-remote` (Antigravity, or Claude Desktop configured that way), it stores all the credential information inside `~/.mcp-auth` (or wherever your `MCP_REMOTE_CONFIG_DIR` points to). If you're having persistent issues, try running:
 ```bash
 rm -rf ~/.mcp-auth
 ```
@@ -451,7 +451,7 @@ npm run dev
 
 #### 4. Point your MCP client at the local server
 
-Same as the [Hosted server config above](#claude-desktop), but pointing at `localhost` instead of the hosted URL:
+Claude Desktop's Custom Connectors need a publicly reachable URL, so `mcp-remote` is the only option for pointing at `localhost`:
 
 ```json
 {
