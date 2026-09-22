@@ -67,7 +67,8 @@ export async function createHarness({
       { versionNegotiation: { mode: { pin: MODERN_PROTOCOL_VERSION } } },
     );
     const transport = new StreamableHTTPClientTransport(IN_PROCESS_URL, {
-      fetch: (input, init) => handler.fetch(new Request(input, init)),
+      fetch: (input, init): Promise<Response> =>
+        handler.fetch(new Request(input, init)),
     });
 
     await client.connect(transport);

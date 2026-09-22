@@ -70,6 +70,13 @@ it("registers the v2 tool set on a v1 McpServer, as /sse does", async () => {
     arguments: { action: "get" },
   });
   expect(result.isError).toBe(true);
+  // isError alone doesn't discriminate schema-validation rejection from a
+  // handler-thrown error (both land in the same broad try/catch) — assert
+  // the actual validation message so this only passes when v1 genuinely
+  // rejected the missing `accountId` before any handler logic ran.
+  expect((result.content as { text: string }[])[0].text).toContain(
+    "Input validation error",
+  );
 
   await client.close();
   await server.close();
