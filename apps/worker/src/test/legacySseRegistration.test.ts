@@ -63,6 +63,14 @@ it("registers the v2 tool set on a v1 McpServer, as /sse does", async () => {
     "action",
   );
 
+  // Same failure mode, at dispatch: a missing required argument must be
+  // rejected by zod validation before any real network call is attempted.
+  const result = await client.callTool({
+    name: "gtm_account",
+    arguments: { action: "get" },
+  });
+  expect(result.isError).toBe(true);
+
   await client.close();
   await server.close();
 });

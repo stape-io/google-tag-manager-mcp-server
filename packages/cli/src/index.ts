@@ -22,11 +22,20 @@ function main(): void {
   // 2025-era `initialize` handshake, and pins ONE instance from this factory for
   // the connection's lifetime. A bare `server.connect(new StdioServerTransport())`
   // would serve the 2025 era only, whatever SDK version it is built against.
-  serveStdio(() =>
-    createGtmMcpServer({
-      auth,
-      serverInfo: { name: PACKAGE_NAME, version: PACKAGE_VERSION },
-    }),
+  serveStdio(
+    () =>
+      createGtmMcpServer({
+        auth,
+        serverInfo: { name: PACKAGE_NAME, version: PACKAGE_VERSION },
+      }),
+    {
+      // serveStdio() swallows transport-start failures internally and only
+      // surfaces them here - main()'s try/catch below never sees them.
+      onerror: (error) =>
+        console.error(
+          `[${PACKAGE_NAME}] stdio transport error:\n${error.message}`,
+        ),
+    },
   );
 
   console.error(

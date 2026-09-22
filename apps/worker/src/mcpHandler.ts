@@ -73,7 +73,10 @@ export function createMcpApiHandler(
   // its `.fetch(request, requestOptions)` property, which never sees `ctx`
   // (and therefore never sees `ctx.props`).
   return {
-    fetch: (request: Request, workerEnv: Env, ctx: ExecutionContext) =>
-      handler(request, workerEnv, ctx),
+    // `env` here is the same per-request value closed over above (see the doc
+    // comment); the handler's own `env` parameter is unused downstream (its
+    // callable form ignores it), so it's prefixed to signal that.
+    fetch: (request: Request, _workerEnv: Env, ctx: ExecutionContext) =>
+      handler(request, env, ctx),
   };
 }

@@ -17,6 +17,13 @@ factory.
 **`/sse` is untouched** and still runs on `McpAgent` / SDK v1, exactly as
 before.
 
+**Behavior change:** `GET /mcp` now returns `405`. The old Durable-Object-backed
+route opened a server-initiated stream on a body-less `GET`; the new stateless
+handler serves `/mcp` per-request with no session for a GET to attach to, so it
+answers `405` instead (streamable-HTTP clients must use `POST`). This server
+never actually sent a stream on a plain `GET` in practice, so the change is
+benign, but it is a real protocol-level behavior change from before.
+
 `gtm_remove_session` moves from the removed variadic `.tool()` to
 `registerTool(name, { description }, handler)`. Name, description and behavior
 are unchanged.
