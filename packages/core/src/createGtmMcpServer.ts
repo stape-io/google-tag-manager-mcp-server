@@ -1,6 +1,8 @@
-import { ServerOptions } from "@modelcontextprotocol/sdk/server/index.js";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { Implementation } from "@modelcontextprotocol/sdk/types.js";
+import {
+  ServerOptions,
+  McpServer,
+  Implementation,
+} from "@modelcontextprotocol/server";
 import { tools as defaultTools } from "./tools/index.js";
 import { GtmToolContext, GtmToolRegistration } from "./types/index.js";
 import { PACKAGE_VERSION } from "./version.js";

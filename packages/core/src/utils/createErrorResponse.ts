@@ -1,4 +1,4 @@
-import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { CallToolResult } from "@modelcontextprotocol/server";
 import { log } from "./log.js";
 
 const DEFAULT_UNAUTHORIZED_HINT =

@@ -1,4 +1,4 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/server";
 import { tagmanager_v2 } from "@googleapis/tagmanager";
 import { z } from "zod";
 import { GtmToolContext } from "../types/index.js";
@@ -18,44 +18,46 @@ export const userPermissionActions = (
   server: McpServer,
   { auth }: GtmToolContext,
 ): void => {
-  server.tool(
+  server.registerTool(
     "gtm_user_permission",
-    `Performs all user permission operations: create, get, list, update, remove. The 'list' action returns up to ${ITEMS_PER_PAGE} items per page.`,
     {
-      action: z
-        .enum(["create", "get", "list", "update", "remove"])
-        .describe(
-          "The user permission operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove'.",
+      description: `Performs all user permission operations: create, get, list, update, remove. The 'list' action returns up to ${ITEMS_PER_PAGE} items per page.`,
+      inputSchema: z.object({
+        action: z
+          .enum(["create", "get", "list", "update", "remove"])
+          .describe(
+            "The user permission operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove'.",
+          ),
+        accountId: z
+          .string()
+          .describe(
+            "The unique ID of the GTM Account containing the user permission.",
+          ),
+        userPermissionId: z
+          .string()
+          .optional()
+          .describe(
+            "The unique ID of the user permission. Required for 'get', 'update', and 'remove' actions.",
+          ),
+        createOrUpdateConfig: UserPermissionSchema.optional().describe(
+          "Configuration for 'create' and 'update' actions. All fields correspond to the GTM user permission resource. 'update' replaces the entire user permission — any field omitted here is deleted. Always run 'get' first and send back the complete object with your modifications applied.",
         ),
-      accountId: z
-        .string()
-        .describe(
-          "The unique ID of the GTM Account containing the user permission.",
-        ),
-      userPermissionId: z
-        .string()
-        .optional()
-        .describe(
-          "The unique ID of the user permission. Required for 'get', 'update', and 'remove' actions.",
-        ),
-      createOrUpdateConfig: UserPermissionSchema.optional().describe(
-        "Configuration for 'create' and 'update' actions. All fields correspond to the GTM user permission resource. 'update' replaces the entire user permission — any field omitted here is deleted. Always run 'get' first and send back the complete object with your modifications applied.",
-      ),
-      page: z
-        .number()
-        .min(1)
-        .default(1)
-        .describe(
-          `Page number for pagination (starts from 1). Each page contains up to itemsPerPage items.`,
-        ),
-      itemsPerPage: z
-        .number()
-        .min(1)
-        .max(ITEMS_PER_PAGE)
-        .default(ITEMS_PER_PAGE)
-        .describe(
-          `Number of items to return per page (1-${ITEMS_PER_PAGE}). Default: ${ITEMS_PER_PAGE}. Use lower values if experiencing response issues.`,
-        ),
+        page: z
+          .number()
+          .min(1)
+          .default(1)
+          .describe(
+            `Page number for pagination (starts from 1). Each page contains up to itemsPerPage items.`,
+          ),
+        itemsPerPage: z
+          .number()
+          .min(1)
+          .max(ITEMS_PER_PAGE)
+          .default(ITEMS_PER_PAGE)
+          .describe(
+            `Number of items to return per page (1-${ITEMS_PER_PAGE}). Default: ${ITEMS_PER_PAGE}. Use lower values if experiencing response issues.`,
+          ),
+      }),
     },
     async ({
       action,

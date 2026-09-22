@@ -1,4 +1,4 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/server";
 import { tagmanager_v2 } from "@googleapis/tagmanager";
 import { z } from "zod";
 import { GtmToolContext } from "../types/index.js";
@@ -16,61 +16,63 @@ export const builtInVariableActions = (
   server: McpServer,
   { auth }: GtmToolContext,
 ): void => {
-  server.tool(
+  server.registerTool(
     "gtm_built_in_variable",
-    `Performs all built-in variable operations: create, list, remove, revert. The 'list' action returns up to itemsPerPage items per page.`,
     {
-      action: z
-        .enum(["create", "list", "remove", "revert"])
-        .describe(
-          "The built-in variable operation to perform. Must be one of: 'create', 'list', 'remove', 'revert'.",
-        ),
-      accountId: z
-        .string()
-        .describe(
-          "The unique ID of the GTM Account containing the built-in variable.",
-        ),
-      containerId: z
-        .string()
-        .describe(
-          "The unique ID of the GTM Container containing the built-in variable.",
-        ),
-      workspaceId: z
-        .string()
-        .describe(
-          "The unique ID of the GTM Workspace containing the built-in variable.",
-        ),
-      type: z
-        .string()
-        .optional()
-        .describe(
-          "The built-in variable type. Required for 'revert' and 'remove' actions.",
-        ),
-      types: z
-        .array(z.string())
-        .optional()
-        .describe(
-          "Array of built-in variable types. Optional for 'list' action.",
-        ),
-      pageToken: z
-        .string()
-        .optional()
-        .describe("A token for pagination. Optional for 'list' action."),
-      page: z
-        .number()
-        .min(1)
-        .default(1)
-        .describe(
-          `Page number for pagination (starts from 1). Each page contains up to itemsPerPage items.`,
-        ),
-      itemsPerPage: z
-        .number()
-        .min(1)
-        .max(ITEMS_PER_PAGE)
-        .default(ITEMS_PER_PAGE)
-        .describe(
-          `Number of items to return per page (1-${ITEMS_PER_PAGE}). Default: ${ITEMS_PER_PAGE}. Use lower values if experiencing response issues.`,
-        ),
+      description: `Performs all built-in variable operations: create, list, remove, revert. The 'list' action returns up to itemsPerPage items per page.`,
+      inputSchema: z.object({
+        action: z
+          .enum(["create", "list", "remove", "revert"])
+          .describe(
+            "The built-in variable operation to perform. Must be one of: 'create', 'list', 'remove', 'revert'.",
+          ),
+        accountId: z
+          .string()
+          .describe(
+            "The unique ID of the GTM Account containing the built-in variable.",
+          ),
+        containerId: z
+          .string()
+          .describe(
+            "The unique ID of the GTM Container containing the built-in variable.",
+          ),
+        workspaceId: z
+          .string()
+          .describe(
+            "The unique ID of the GTM Workspace containing the built-in variable.",
+          ),
+        type: z
+          .string()
+          .optional()
+          .describe(
+            "The built-in variable type. Required for 'revert' and 'remove' actions.",
+          ),
+        types: z
+          .array(z.string())
+          .optional()
+          .describe(
+            "Array of built-in variable types. Optional for 'list' action.",
+          ),
+        pageToken: z
+          .string()
+          .optional()
+          .describe("A token for pagination. Optional for 'list' action."),
+        page: z
+          .number()
+          .min(1)
+          .default(1)
+          .describe(
+            `Page number for pagination (starts from 1). Each page contains up to itemsPerPage items.`,
+          ),
+        itemsPerPage: z
+          .number()
+          .min(1)
+          .max(ITEMS_PER_PAGE)
+          .default(ITEMS_PER_PAGE)
+          .describe(
+            `Number of items to return per page (1-${ITEMS_PER_PAGE}). Default: ${ITEMS_PER_PAGE}. Use lower values if experiencing response issues.`,
+          ),
+      }),
     },
     async ({
       action,
