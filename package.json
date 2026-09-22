@@ -23,6 +23,7 @@
     "deploy": "npm run deploy -w gtm-mcp-worker",
     "changeset": "changeset",
     "release": "npm run build && changeset publish",
+    "test": "npm run test --workspaces --if-present",
     "smoke": "node scripts/smoke-cli.mjs"
   },
   "devDependencies": {

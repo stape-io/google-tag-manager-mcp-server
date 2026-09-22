@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 
 const CLI = "packages/cli/dist/index.js";
 const TIMEOUT_MS = 30_000;
+// Bumped in lockstep with whatever the server actually negotiates.
+const CURRENT_PROTOCOL_VERSION = "2024-11-05";
 
 function run(env, stdin) {
   return new Promise((resolve, reject) => {
@@ -45,7 +47,7 @@ const requests = [
     id: 1,
     method: "initialize",
     params: {
-      protocolVersion: "2024-11-05",
+      protocolVersion: CURRENT_PROTOCOL_VERSION,
       capabilities: {},
       clientInfo: { name: "smoke", version: "0" },
     },
