@@ -3,9 +3,9 @@ import {
   createGtmMcpServer,
   createStaticTokenAuth,
 } from "google-tag-manager-mcp-core";
+import { SERVER_INFO } from "./constants/serverInfo";
 import { McpAgentPropsModel } from "./models/McpAgentModel";
 import { removeMCPServerData } from "./tools/removeMCPServerData";
-import { PACKAGE_VERSION } from "./version";
 
 /**
  * `OAuthProvider` decrypts the grant onto `ctx.props` before it calls any
@@ -53,13 +53,7 @@ export function createMcpApiHandler(
           accessToken: props.accessToken,
           expiresAt: props.expiresAt,
         })),
-        serverInfo: {
-          name: "google-tag-manager-mcp-server",
-          title: "Google Tag Manager",
-          version: PACKAGE_VERSION,
-          websiteUrl:
-            "https://github.com/stape-io/google-tag-manager-mcp-server",
-        },
+        serverInfo: { ...SERVER_INFO },
         extraTools: [(server) => removeMCPServerData(server, { props, env })],
       });
     },

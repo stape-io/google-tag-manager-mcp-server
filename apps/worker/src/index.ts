@@ -7,6 +7,7 @@ import {
   registerGtmTools,
   setUnauthorizedHint,
 } from "google-tag-manager-mcp-core";
+import { SERVER_INFO } from "./constants/serverInfo";
 import { TAG_MANAGER_REMOVE_MCP_SERVER_DATA } from "./constants/tools";
 import { createMcpApiHandler } from "./mcpHandler";
 import { McpAgentPropsModel } from "./models/McpAgentModel";
@@ -17,7 +18,6 @@ import {
   upstreamReauthErrorResponse,
   withSseKeepalive,
 } from "./utils";
-import { PACKAGE_VERSION } from "./version";
 
 setUnauthorizedHint(
   `It seems that your token has been expired, please use ${TAG_MANAGER_REMOVE_MCP_SERVER_DATA} tool to clear your session in the MCP client`,
@@ -28,12 +28,7 @@ export class GoogleTagManagerMCPServer extends McpAgent<
   null,
   McpAgentPropsModel
 > {
-  server = new McpServer({
-    name: "google-tag-manager-mcp-server",
-    title: "Google Tag Manager",
-    version: PACKAGE_VERSION,
-    websiteUrl: "https://github.com/stape-io/google-tag-manager-mcp-server",
-  });
+  server = new McpServer({ ...SERVER_INFO });
 
   async init() {
     console.log("[MCP] init() called");
@@ -90,7 +85,11 @@ export default {
     const isMcp = url.pathname === "/mcp" && request.method === "GET";
     const isLegacySse = url.pathname === "/sse" && request.method === "GET";
 
-    if (isMcp || isLegacySse) {
+    // Only `/sse` opens a long-lived GET stream now. `/mcp` is served
+    // statelessly, which has no session for a standalone GET stream to attach
+    // to, so a GET there answers 405 - logging it as a stream opening would
+    // mislead anyone debugging that.
+    if (isLegacySse) {
       console.log("[MCP_STREAM] Connection opening", logBase);
 
       request.signal.addEventListener("abort", () => {
@@ -144,7 +143,7 @@ export default {
         });
       }
 
-      if (isMcp || isLegacySse) {
+      if (isLegacySse) {
         return withSseKeepalive(response, request.signal);
       }
 
