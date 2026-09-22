@@ -5,6 +5,7 @@ import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createHarness, McpHarness } from "./mcpHarness.js";
 import { normalizeToolsList } from "./normalizeTools.js";
+import { PACKAGE_VERSION } from "../version.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const GOLDEN_PATH = join(__dirname, "__golden__", "tools.json");
@@ -67,5 +68,25 @@ describe("tool registry", () => {
         `${tool.name}: description must be under ${DESCRIPTION_MAX_LENGTH} characters`,
       ).toBe(true);
     }
+  });
+
+  it("negotiates the expected server identity and capabilities on initialize", () => {
+    // A real (unmocked) check of what createHarness()'s initialize handshake
+    // negotiated - would catch an SDK swap silently changing this.
+    expect(harness.client.getServerVersion()).toEqual({
+      name: "google-tag-manager-mcp-server",
+      version: PACKAGE_VERSION,
+    });
+    expect(harness.client.getServerCapabilities()?.tools).toBeDefined();
+  });
+
+  it("rejects tools/call with missing required arguments before any handler logic runs", async () => {
+    // No accountId: zod schema validation must reject this before the gtm_account
+    // handler runs - so no getTagManagerClient()/network call is ever attempted.
+    const result = await harness.client.callTool({
+      name: "gtm_account",
+      arguments: { action: "get" },
+    });
+    expect(result.isError).toBe(true);
   });
 });

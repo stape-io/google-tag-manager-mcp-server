@@ -51,8 +51,11 @@ export async function createHarness({
   return {
     client,
     close: async (): Promise<void> => {
-      await client.close();
-      await server.close();
+      try {
+        await client.close();
+      } finally {
+        await server.close();
+      }
     },
   };
 }

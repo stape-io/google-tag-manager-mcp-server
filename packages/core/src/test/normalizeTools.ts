@@ -22,8 +22,9 @@ function sortKeysDeep(value: unknown): unknown {
 /**
  * Deterministically normalizes a `tools/list` result for golden-file comparison:
  * tools sorted by name, all object keys sorted recursively, 2-space-indented JSON.
- * Shared by the golden snapshot test and the one-off fixture generation script so
- * both use identical normalization logic.
+ * Shared by the golden snapshot test (toolRegistry.test.ts) and the
+ * `test:golden:update` script (generateGolden.ts) so both use identical
+ * normalization logic.
  */
 export function normalizeToolsList(tools: Tool[]): string {
   const sortedTools = [...tools].sort((a, b) => a.name.localeCompare(b.name));
