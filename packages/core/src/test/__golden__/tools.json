@@ -1,11 +1,8 @@
 [
   {
     "description": "Lists the Google Tag destinations listed under https://tagmanager.google.com/#/home#tags. This is not the classic GTM \"destination\" concept from the tagmanager.google.com UI; passing a regular GTM Container ID here typically returns no results. It only returns data for Google Tag IDs, i.e. the tags listed under tagmanager.google.com/#/home#tags. Returns up to 50 items per page. Note: this is the only action the underlying Google API still supports; 'get' and 'link' are deprecated by Google, and 'unlink' was never part of the API.",
-    "execution": {
-      "taskSupport": "forbidden"
-    },
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "accountId": {
           "description": "The unique ID of the GTM Account containing the destination.",
@@ -39,11 +36,8 @@
   },
   {
     "description": "Performs all account-related operations: get, list, update. Use the 'action' parameter to select the operation.",
-    "execution": {
-      "taskSupport": "forbidden"
-    },
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "accountId": {
           "description": "The unique ID of the GTM Account.",
@@ -105,11 +99,8 @@
   },
   {
     "description": "Performs all built-in variable operations: create, list, remove, revert. The 'list' action returns up to itemsPerPage items per page.",
-    "execution": {
-      "taskSupport": "forbidden"
-    },
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "accountId": {
           "description": "The unique ID of the GTM Account containing the built-in variable.",
@@ -174,12 +165,8 @@
   },
   {
     "description": "Performs all client operations: create, get, list, update, remove, revert. The 'list' action returns up to itemsPerPage items per page.",
-    "execution": {
-      "taskSupport": "forbidden"
-    },
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "definitions": {
+      "$defs": {
         "__schema0": {
           "properties": {
             "isWeakReference": {
@@ -193,14 +180,14 @@
             "list": {
               "description": "List of parameter values (if the parameter is a list type).",
               "items": {
-                "$ref": "#/definitions/__schema0"
+                "$ref": "#/$defs/__schema0"
               },
               "type": "array"
             },
             "map": {
               "description": "Array of key-value pairs for map parameters.",
               "items": {
-                "$ref": "#/definitions/__schema0"
+                "$ref": "#/$defs/__schema0"
               },
               "type": "array"
             },
@@ -216,6 +203,7 @@
           "type": "object"
         }
       },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "accountId": {
           "description": "The unique ID of the GTM Account containing the client.",
@@ -255,7 +243,7 @@
             "parameter": {
               "description": "The client's parameters.",
               "items": {
-                "$ref": "#/definitions/__schema0"
+                "$ref": "#/$defs/__schema0"
               },
               "type": "array"
             },
@@ -312,11 +300,8 @@
   },
   {
     "description": "Performs all container-related operations: create, get, update, remove, list, combine, lookup, moveTagId, snippet. The 'list' action returns up to itemsPerPage items per page.",
-    "execution": {
-      "taskSupport": "forbidden"
-    },
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "accountId": {
           "description": "The unique ID of the GTM Account containing the container.",
@@ -554,11 +539,8 @@
   },
   {
     "description": "Performs all environment operations: create, get, list, update, remove, reauthorize.  The 'list' action returns up to 50 items per page.",
-    "execution": {
-      "taskSupport": "forbidden"
-    },
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "accountId": {
           "description": "The unique ID of the GTM Account containing the environment.",
@@ -665,11 +647,8 @@
   },
   {
     "description": "Performs all folder operations: create, get, list, update, remove, revert, entities, moveEntitiesToFolder. The 'list' action returns up to 50 items per page.",
-    "execution": {
-      "taskSupport": "forbidden"
-    },
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "accountId": {
           "description": "The unique ID of the GTM Account containing the folder.",
@@ -770,12 +749,8 @@
   },
   {
     "description": "Performs all Google tag config operations: create, get, list, update, remove. The 'list' action returns up to itemsPerPage items per page.",
-    "execution": {
-      "taskSupport": "forbidden"
-    },
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "definitions": {
+      "$defs": {
         "__schema0": {
           "properties": {
             "isWeakReference": {
@@ -789,14 +764,14 @@
             "list": {
               "description": "List of parameter values (if the parameter is a list type).",
               "items": {
-                "$ref": "#/definitions/__schema0"
+                "$ref": "#/$defs/__schema0"
               },
               "type": "array"
             },
             "map": {
               "description": "Array of key-value pairs for map parameters.",
               "items": {
-                "$ref": "#/definitions/__schema0"
+                "$ref": "#/$defs/__schema0"
               },
               "type": "array"
             },
@@ -812,6 +787,7 @@
           "type": "object"
         }
       },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "accountId": {
           "description": "The unique ID of the GTM Account containing the Google tag config.",
@@ -838,7 +814,7 @@
             "parameter": {
               "description": "The Google tag config's parameters.",
               "items": {
-                "$ref": "#/definitions/__schema0"
+                "$ref": "#/$defs/__schema0"
               },
               "type": "array"
             },
@@ -891,12 +867,8 @@
   },
   {
     "description": "Performs all GTM tag operations: create, get, list, update, remove, revert. The 'list' action returns up to 20 items per page.",
-    "execution": {
-      "taskSupport": "forbidden"
-    },
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "definitions": {
+      "$defs": {
         "__schema0": {
           "properties": {
             "isWeakReference": {
@@ -910,14 +882,14 @@
             "list": {
               "description": "List of parameter values (if the parameter is a list type).",
               "items": {
-                "$ref": "#/definitions/__schema0"
+                "$ref": "#/$defs/__schema0"
               },
               "type": "array"
             },
             "map": {
               "description": "Array of key-value pairs for map parameters.",
               "items": {
-                "$ref": "#/definitions/__schema0"
+                "$ref": "#/$defs/__schema0"
               },
               "type": "array"
             },
@@ -933,6 +905,7 @@
           "type": "object"
         }
       },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "accountId": {
           "description": "The unique ID of the GTM Account containing the tag.",
@@ -977,11 +950,7 @@
                   "type": "string"
                 },
                 "consentType": {
-                  "allOf": [
-                    {
-                      "$ref": "#/definitions/__schema0"
-                    }
-                  ],
+                  "$ref": "#/$defs/__schema0",
                   "description": "The type of consents to check for during tag firing if in the consent NEEDED state. This parameter must be of type LIST where each list item is of type STRING."
                 }
               },
@@ -999,11 +968,7 @@
               "type": "boolean"
             },
             "monitoringMetadata": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/__schema0"
-                }
-              ],
+              "$ref": "#/$defs/__schema0",
               "description": "A map of key-value pairs of tag metadata to be included in the event data for tag monitoring."
             },
             "monitoringMetadataTagNameKey": {
@@ -1021,7 +986,7 @@
             "parameter": {
               "description": "The tag's parameters.",
               "items": {
-                "$ref": "#/definitions/__schema0"
+                "$ref": "#/$defs/__schema0"
               },
               "type": "array"
             },
@@ -1034,11 +999,7 @@
               "type": "boolean"
             },
             "priority": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/__schema0"
-                }
-              ],
+              "$ref": "#/$defs/__schema0",
               "description": "User defined numeric priority of the tag. Tags are fired asynchronously in order of priority. Tags with higher numeric value fire first. A tag's priority can be a positive or negative value. The default value is 0."
             },
             "scheduleEndMs": {
@@ -1142,11 +1103,8 @@
   },
   {
     "description": "Performs all GTM custom template operations: create, get, list, update, remove, revert. The 'list' action returns up to itemsPerPage items per page.",
-    "execution": {
-      "taskSupport": "forbidden"
-    },
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "accountId": {
           "description": "The unique ID of the GTM Account containing the custom template.",
@@ -1262,12 +1220,8 @@
   },
   {
     "description": "Performs all GTM transformation operations: create, get, list, update, remove, revert. The 'list' action returns up to itemsPerPage items per page.",
-    "execution": {
-      "taskSupport": "forbidden"
-    },
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "definitions": {
+      "$defs": {
         "__schema0": {
           "properties": {
             "isWeakReference": {
@@ -1281,14 +1235,14 @@
             "list": {
               "description": "List of parameter values (if the parameter is a list type).",
               "items": {
-                "$ref": "#/definitions/__schema0"
+                "$ref": "#/$defs/__schema0"
               },
               "type": "array"
             },
             "map": {
               "description": "Array of key-value pairs for map parameters.",
               "items": {
-                "$ref": "#/definitions/__schema0"
+                "$ref": "#/$defs/__schema0"
               },
               "type": "array"
             },
@@ -1304,6 +1258,7 @@
           "type": "object"
         }
       },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "accountId": {
           "description": "The unique ID of the GTM Account containing the transformation.",
@@ -1339,7 +1294,7 @@
             "parameter": {
               "description": "The transformation's parameters.",
               "items": {
-                "$ref": "#/definitions/__schema0"
+                "$ref": "#/$defs/__schema0"
               },
               "type": "array"
             },
@@ -1396,12 +1351,8 @@
   },
   {
     "description": "Performs all GTM trigger operations: create, get, list, update, remove, revert. The 'list' action returns up to 20 items per page.",
-    "execution": {
-      "taskSupport": "forbidden"
-    },
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "definitions": {
+      "$defs": {
         "__schema0": {
           "properties": {
             "isWeakReference": {
@@ -1415,14 +1366,14 @@
             "list": {
               "description": "List of parameter values (if the parameter is a list type).",
               "items": {
-                "$ref": "#/definitions/__schema0"
+                "$ref": "#/$defs/__schema0"
               },
               "type": "array"
             },
             "map": {
               "description": "Array of key-value pairs for map parameters.",
               "items": {
-                "$ref": "#/definitions/__schema0"
+                "$ref": "#/$defs/__schema0"
               },
               "type": "array"
             },
@@ -1438,6 +1389,7 @@
           "type": "object"
         }
       },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "accountId": {
           "description": "The unique ID of the GTM Account containing the trigger.",
@@ -1469,7 +1421,7 @@
                   "parameter": {
                     "description": "A list of named parameters (key/value), depending on the condition's type.",
                     "items": {
-                      "$ref": "#/definitions/__schema0"
+                      "$ref": "#/$defs/__schema0"
                     },
                     "type": "array"
                   },
@@ -1486,19 +1438,11 @@
               "type": "array"
             },
             "checkValidation": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/__schema0"
-                }
-              ],
+              "$ref": "#/$defs/__schema0",
               "description": "Whether or not to only fire tags if the form submit or link click event is not cancelled by some other event handler. Only valid for Form Submission and Link Click triggers."
             },
             "continuousTimeMinMilliseconds": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/__schema0"
-                }
-              ],
+              "$ref": "#/$defs/__schema0",
               "description": "A visibility trigger minimum continuous visible time (ms). Only valid for AMP Visibility trigger."
             },
             "customEventFilter": {
@@ -1508,7 +1452,7 @@
                   "parameter": {
                     "description": "A list of named parameters (key/value), depending on the condition's type.",
                     "items": {
-                      "$ref": "#/definitions/__schema0"
+                      "$ref": "#/$defs/__schema0"
                     },
                     "type": "array"
                   },
@@ -1525,11 +1469,7 @@
               "type": "array"
             },
             "eventName": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/__schema0"
-                }
-              ],
+              "$ref": "#/$defs/__schema0",
               "description": "Name of the GTM event that is fired. Only valid for Timer triggers."
             },
             "filter": {
@@ -1539,7 +1479,7 @@
                   "parameter": {
                     "description": "A list of named parameters (key/value), depending on the condition's type.",
                     "items": {
-                      "$ref": "#/definitions/__schema0"
+                      "$ref": "#/$defs/__schema0"
                     },
                     "type": "array"
                   },
@@ -1556,43 +1496,23 @@
               "type": "array"
             },
             "horizontalScrollPercentageList": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/__schema0"
-                }
-              ],
+              "$ref": "#/$defs/__schema0",
               "description": "List of integer percentage values for scroll triggers. Fires when each percentage is reached when scrolled horizontally. Only valid for AMP scroll triggers."
             },
             "interval": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/__schema0"
-                }
-              ],
+              "$ref": "#/$defs/__schema0",
               "description": "Time between triggering recurring Timer Events (in ms). Only valid for Timer triggers."
             },
             "intervalSeconds": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/__schema0"
-                }
-              ],
+              "$ref": "#/$defs/__schema0",
               "description": "Time between Timer Events to fire (in seconds). Only valid for AMP Timer trigger."
             },
             "limit": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/__schema0"
-                }
-              ],
+              "$ref": "#/$defs/__schema0",
               "description": "Limit of the number of GTM events this Timer Trigger will fire. Only valid for Timer triggers."
             },
             "maxTimerLengthSeconds": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/__schema0"
-                }
-              ],
+              "$ref": "#/$defs/__schema0",
               "description": "Max time to fire Timer Events (in seconds). Only valid for AMP Timer trigger."
             },
             "name": {
@@ -1606,7 +1526,7 @@
             "parameter": {
               "description": "Additional parameters for the trigger.",
               "items": {
-                "$ref": "#/definitions/__schema0"
+                "$ref": "#/$defs/__schema0"
               },
               "type": "array"
             },
@@ -1615,11 +1535,7 @@
               "type": "string"
             },
             "selector": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/__schema0"
-                }
-              ],
+              "$ref": "#/$defs/__schema0",
               "description": "A click trigger CSS selector. Only valid for AMP Click trigger."
             },
             "tagManagerUrl": {
@@ -1627,11 +1543,7 @@
               "type": "string"
             },
             "totalTimeMinMilliseconds": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/__schema0"
-                }
-              ],
+              "$ref": "#/$defs/__schema0",
               "description": "A visibility trigger minimum total visible time (ms). Only valid for AMP Visibility trigger."
             },
             "type": {
@@ -1639,59 +1551,31 @@
               "type": "string"
             },
             "uniqueTriggerId": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/__schema0"
-                }
-              ],
+              "$ref": "#/$defs/__schema0",
               "description": "Globally unique id of the trigger that auto-generates this (a Form Submit, Link Click or Timer listener) if any. Only valid for Form Submit, Link Click and Timer triggers."
             },
             "verticalScrollPercentageList": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/__schema0"
-                }
-              ],
+              "$ref": "#/$defs/__schema0",
               "description": "List of integer percentage values for scroll triggers. Fires when each percentage is reached when scrolled vertically. Only valid for AMP scroll triggers."
             },
             "visibilitySelector": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/__schema0"
-                }
-              ],
+              "$ref": "#/$defs/__schema0",
               "description": "A visibility trigger CSS selector. Only valid for AMP Visibility trigger."
             },
             "visiblePercentageMax": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/__schema0"
-                }
-              ],
+              "$ref": "#/$defs/__schema0",
               "description": "A visibility trigger maximum percent visibility. Only valid for AMP Visibility trigger."
             },
             "visiblePercentageMin": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/__schema0"
-                }
-              ],
+              "$ref": "#/$defs/__schema0",
               "description": "A visibility trigger minimum percent visibility. Only valid for AMP Visibility trigger."
             },
             "waitForTags": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/__schema0"
-                }
-              ],
+              "$ref": "#/$defs/__schema0",
               "description": "Whether or not to delay form submissions or link opening until all of the tags have fired. Only valid for Form Submission and Link Click triggers."
             },
             "waitForTagsTimeout": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/__schema0"
-                }
-              ],
+              "$ref": "#/$defs/__schema0",
               "description": "How long to wait (in ms) for tags to fire when 'waits_for_tags' above evaluates to true. Only valid for Form Submission and Link Click triggers."
             }
           },
@@ -1735,11 +1619,8 @@
   },
   {
     "description": "Performs all user permission operations: create, get, list, update, remove. The 'list' action returns up to 50 items per page.",
-    "execution": {
-      "taskSupport": "forbidden"
-    },
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "accountId": {
           "description": "The unique ID of the GTM Account containing the user permission.",
@@ -1841,12 +1722,8 @@
   },
   {
     "description": "Performs all GTM variable operations: create, get, list, update, remove, revert. The 'list' action returns up to 20 items per page.",
-    "execution": {
-      "taskSupport": "forbidden"
-    },
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "definitions": {
+      "$defs": {
         "__schema0": {
           "properties": {
             "isWeakReference": {
@@ -1860,14 +1737,14 @@
             "list": {
               "description": "List of parameter values (if the parameter is a list type).",
               "items": {
-                "$ref": "#/definitions/__schema0"
+                "$ref": "#/$defs/__schema0"
               },
               "type": "array"
             },
             "map": {
               "description": "Array of key-value pairs for map parameters.",
               "items": {
-                "$ref": "#/definitions/__schema0"
+                "$ref": "#/$defs/__schema0"
               },
               "type": "array"
             },
@@ -1883,6 +1760,7 @@
           "type": "object"
         }
       },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "accountId": {
           "description": "The unique ID of the GTM Account containing the variable.",
@@ -1934,19 +1812,11 @@
                   "type": "string"
                 },
                 "convertFalseToValue": {
-                  "allOf": [
-                    {
-                      "$ref": "#/definitions/__schema0"
-                    }
-                  ],
+                  "$ref": "#/$defs/__schema0",
                   "description": "The value to convert if a variable value is false."
                 },
                 "convertNullToValue": {
-                  "allOf": [
-                    {
-                      "$ref": "#/definitions/__schema0"
-                    }
-                  ],
+                  "$ref": "#/$defs/__schema0",
                   "description": "The value to convert if a variable value is null."
                 },
                 "convertToBoolean": {
@@ -1964,19 +1834,11 @@
                   "type": "string"
                 },
                 "convertTrueToValue": {
-                  "allOf": [
-                    {
-                      "$ref": "#/definitions/__schema0"
-                    }
-                  ],
+                  "$ref": "#/$defs/__schema0",
                   "description": "The value to convert if a variable value is true."
                 },
                 "convertUndefinedToValue": {
-                  "allOf": [
-                    {
-                      "$ref": "#/definitions/__schema0"
-                    }
-                  ],
+                  "$ref": "#/$defs/__schema0",
                   "description": "The value to convert if a variable value is undefined."
                 }
               },
@@ -1993,7 +1855,7 @@
             "parameter": {
               "description": "The variable's parameters.",
               "items": {
-                "$ref": "#/definitions/__schema0"
+                "$ref": "#/$defs/__schema0"
               },
               "type": "array"
             },
@@ -2058,12 +1920,8 @@
   },
   {
     "description": "Performs all container version operations: get, live, publish, remove, setLatest, undelete, update. For 'get' and 'live' actions, use 'resourceType' to paginate specific resource arrays (up to 20 items per page) to avoid response truncation.",
-    "execution": {
-      "taskSupport": "forbidden"
-    },
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "definitions": {
+      "$defs": {
         "__schema0": {
           "properties": {
             "isWeakReference": {
@@ -2077,14 +1935,14 @@
             "list": {
               "description": "List of parameter values (if the parameter is a list type).",
               "items": {
-                "$ref": "#/definitions/__schema0"
+                "$ref": "#/$defs/__schema0"
               },
               "type": "array"
             },
             "map": {
               "description": "Array of key-value pairs for map parameters.",
               "items": {
-                "$ref": "#/definitions/__schema0"
+                "$ref": "#/$defs/__schema0"
               },
               "type": "array"
             },
@@ -2100,6 +1958,7 @@
           "type": "object"
         }
       },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "accountId": {
           "description": "The unique ID of the GTM Account containing the container version.",
@@ -2181,7 +2040,7 @@
                   "parameter": {
                     "description": "The client's parameters.",
                     "items": {
-                      "$ref": "#/definitions/__schema0"
+                      "$ref": "#/$defs/__schema0"
                     },
                     "type": "array"
                   },
@@ -2513,7 +2372,7 @@
                   "parameter": {
                     "description": "The Google tag config's parameters.",
                     "items": {
-                      "$ref": "#/definitions/__schema0"
+                      "$ref": "#/$defs/__schema0"
                     },
                     "type": "array"
                   },
@@ -2571,11 +2430,7 @@
                         "type": "string"
                       },
                       "consentType": {
-                        "allOf": [
-                          {
-                            "$ref": "#/definitions/__schema0"
-                          }
-                        ],
+                        "$ref": "#/$defs/__schema0",
                         "description": "The type of consents to check for during tag firing if in the consent NEEDED state. This parameter must be of type LIST where each list item is of type STRING."
                       }
                     },
@@ -2601,11 +2456,7 @@
                     "type": "boolean"
                   },
                   "monitoringMetadata": {
-                    "allOf": [
-                      {
-                        "$ref": "#/definitions/__schema0"
-                      }
-                    ],
+                    "$ref": "#/$defs/__schema0",
                     "description": "A map of key-value pairs of tag metadata to be included in the event data for tag monitoring."
                   },
                   "monitoringMetadataTagNameKey": {
@@ -2623,7 +2474,7 @@
                   "parameter": {
                     "description": "The tag's parameters.",
                     "items": {
-                      "$ref": "#/definitions/__schema0"
+                      "$ref": "#/$defs/__schema0"
                     },
                     "type": "array"
                   },
@@ -2636,11 +2487,7 @@
                     "type": "boolean"
                   },
                   "priority": {
-                    "allOf": [
-                      {
-                        "$ref": "#/definitions/__schema0"
-                      }
-                    ],
+                    "$ref": "#/$defs/__schema0",
                     "description": "User defined numeric priority of the tag. Tags are fired asynchronously in order of priority. Tags with higher numeric value fire first. A tag's priority can be a positive or negative value. The default value is 0."
                   },
                   "scheduleEndMs": {
@@ -2752,7 +2599,7 @@
                   "parameter": {
                     "description": "The transformation's parameters.",
                     "items": {
-                      "$ref": "#/definitions/__schema0"
+                      "$ref": "#/$defs/__schema0"
                     },
                     "type": "array"
                   },
@@ -2801,7 +2648,7 @@
                         "parameter": {
                           "description": "A list of named parameters (key/value), depending on the condition's type.",
                           "items": {
-                            "$ref": "#/definitions/__schema0"
+                            "$ref": "#/$defs/__schema0"
                           },
                           "type": "array"
                         },
@@ -2818,11 +2665,7 @@
                     "type": "array"
                   },
                   "checkValidation": {
-                    "allOf": [
-                      {
-                        "$ref": "#/definitions/__schema0"
-                      }
-                    ],
+                    "$ref": "#/$defs/__schema0",
                     "description": "Whether or not to only fire tags if the form submit or link click event is not cancelled by some other event handler. Only valid for Form Submission and Link Click triggers."
                   },
                   "containerId": {
@@ -2830,11 +2673,7 @@
                     "type": "string"
                   },
                   "continuousTimeMinMilliseconds": {
-                    "allOf": [
-                      {
-                        "$ref": "#/definitions/__schema0"
-                      }
-                    ],
+                    "$ref": "#/$defs/__schema0",
                     "description": "A visibility trigger minimum continuous visible time (ms). Only valid for AMP Visibility trigger."
                   },
                   "customEventFilter": {
@@ -2844,7 +2683,7 @@
                         "parameter": {
                           "description": "A list of named parameters (key/value), depending on the condition's type.",
                           "items": {
-                            "$ref": "#/definitions/__schema0"
+                            "$ref": "#/$defs/__schema0"
                           },
                           "type": "array"
                         },
@@ -2861,11 +2700,7 @@
                     "type": "array"
                   },
                   "eventName": {
-                    "allOf": [
-                      {
-                        "$ref": "#/definitions/__schema0"
-                      }
-                    ],
+                    "$ref": "#/$defs/__schema0",
                     "description": "Name of the GTM event that is fired. Only valid for Timer triggers."
                   },
                   "filter": {
@@ -2875,7 +2710,7 @@
                         "parameter": {
                           "description": "A list of named parameters (key/value), depending on the condition's type.",
                           "items": {
-                            "$ref": "#/definitions/__schema0"
+                            "$ref": "#/$defs/__schema0"
                           },
                           "type": "array"
                         },
@@ -2896,43 +2731,23 @@
                     "type": "string"
                   },
                   "horizontalScrollPercentageList": {
-                    "allOf": [
-                      {
-                        "$ref": "#/definitions/__schema0"
-                      }
-                    ],
+                    "$ref": "#/$defs/__schema0",
                     "description": "List of integer percentage values for scroll triggers. Fires when each percentage is reached when scrolled horizontally. Only valid for AMP scroll triggers."
                   },
                   "interval": {
-                    "allOf": [
-                      {
-                        "$ref": "#/definitions/__schema0"
-                      }
-                    ],
+                    "$ref": "#/$defs/__schema0",
                     "description": "Time between triggering recurring Timer Events (in ms). Only valid for Timer triggers."
                   },
                   "intervalSeconds": {
-                    "allOf": [
-                      {
-                        "$ref": "#/definitions/__schema0"
-                      }
-                    ],
+                    "$ref": "#/$defs/__schema0",
                     "description": "Time between Timer Events to fire (in seconds). Only valid for AMP Timer trigger."
                   },
                   "limit": {
-                    "allOf": [
-                      {
-                        "$ref": "#/definitions/__schema0"
-                      }
-                    ],
+                    "$ref": "#/$defs/__schema0",
                     "description": "Limit of the number of GTM events this Timer Trigger will fire. Only valid for Timer triggers."
                   },
                   "maxTimerLengthSeconds": {
-                    "allOf": [
-                      {
-                        "$ref": "#/definitions/__schema0"
-                      }
-                    ],
+                    "$ref": "#/$defs/__schema0",
                     "description": "Max time to fire Timer Events (in seconds). Only valid for AMP Timer trigger."
                   },
                   "name": {
@@ -2946,7 +2761,7 @@
                   "parameter": {
                     "description": "Additional parameters for the trigger.",
                     "items": {
-                      "$ref": "#/definitions/__schema0"
+                      "$ref": "#/$defs/__schema0"
                     },
                     "type": "array"
                   },
@@ -2955,11 +2770,7 @@
                     "type": "string"
                   },
                   "selector": {
-                    "allOf": [
-                      {
-                        "$ref": "#/definitions/__schema0"
-                      }
-                    ],
+                    "$ref": "#/$defs/__schema0",
                     "description": "A click trigger CSS selector. Only valid for AMP Click trigger."
                   },
                   "tagManagerUrl": {
@@ -2967,11 +2778,7 @@
                     "type": "string"
                   },
                   "totalTimeMinMilliseconds": {
-                    "allOf": [
-                      {
-                        "$ref": "#/definitions/__schema0"
-                      }
-                    ],
+                    "$ref": "#/$defs/__schema0",
                     "description": "A visibility trigger minimum total visible time (ms). Only valid for AMP Visibility trigger."
                   },
                   "triggerId": {
@@ -2983,59 +2790,31 @@
                     "type": "string"
                   },
                   "uniqueTriggerId": {
-                    "allOf": [
-                      {
-                        "$ref": "#/definitions/__schema0"
-                      }
-                    ],
+                    "$ref": "#/$defs/__schema0",
                     "description": "Globally unique id of the trigger that auto-generates this (a Form Submit, Link Click or Timer listener) if any. Only valid for Form Submit, Link Click and Timer triggers."
                   },
                   "verticalScrollPercentageList": {
-                    "allOf": [
-                      {
-                        "$ref": "#/definitions/__schema0"
-                      }
-                    ],
+                    "$ref": "#/$defs/__schema0",
                     "description": "List of integer percentage values for scroll triggers. Fires when each percentage is reached when scrolled vertically. Only valid for AMP scroll triggers."
                   },
                   "visibilitySelector": {
-                    "allOf": [
-                      {
-                        "$ref": "#/definitions/__schema0"
-                      }
-                    ],
+                    "$ref": "#/$defs/__schema0",
                     "description": "A visibility trigger CSS selector. Only valid for AMP Visibility trigger."
                   },
                   "visiblePercentageMax": {
-                    "allOf": [
-                      {
-                        "$ref": "#/definitions/__schema0"
-                      }
-                    ],
+                    "$ref": "#/$defs/__schema0",
                     "description": "A visibility trigger maximum percent visibility. Only valid for AMP Visibility trigger."
                   },
                   "visiblePercentageMin": {
-                    "allOf": [
-                      {
-                        "$ref": "#/definitions/__schema0"
-                      }
-                    ],
+                    "$ref": "#/$defs/__schema0",
                     "description": "A visibility trigger minimum percent visibility. Only valid for AMP Visibility trigger."
                   },
                   "waitForTags": {
-                    "allOf": [
-                      {
-                        "$ref": "#/definitions/__schema0"
-                      }
-                    ],
+                    "$ref": "#/$defs/__schema0",
                     "description": "Whether or not to delay form submissions or link opening until all of the tags have fired. Only valid for Form Submission and Link Click triggers."
                   },
                   "waitForTagsTimeout": {
-                    "allOf": [
-                      {
-                        "$ref": "#/definitions/__schema0"
-                      }
-                    ],
+                    "$ref": "#/$defs/__schema0",
                     "description": "How long to wait (in ms) for tags to fire when 'waits_for_tags' above evaluates to true. Only valid for Form Submission and Link Click triggers."
                   },
                   "workspaceId": {
@@ -3095,19 +2874,11 @@
                         "type": "string"
                       },
                       "convertFalseToValue": {
-                        "allOf": [
-                          {
-                            "$ref": "#/definitions/__schema0"
-                          }
-                        ],
+                        "$ref": "#/$defs/__schema0",
                         "description": "The value to convert if a variable value is false."
                       },
                       "convertNullToValue": {
-                        "allOf": [
-                          {
-                            "$ref": "#/definitions/__schema0"
-                          }
-                        ],
+                        "$ref": "#/$defs/__schema0",
                         "description": "The value to convert if a variable value is null."
                       },
                       "convertToBoolean": {
@@ -3125,19 +2896,11 @@
                         "type": "string"
                       },
                       "convertTrueToValue": {
-                        "allOf": [
-                          {
-                            "$ref": "#/definitions/__schema0"
-                          }
-                        ],
+                        "$ref": "#/$defs/__schema0",
                         "description": "The value to convert if a variable value is true."
                       },
                       "convertUndefinedToValue": {
-                        "allOf": [
-                          {
-                            "$ref": "#/definitions/__schema0"
-                          }
-                        ],
+                        "$ref": "#/$defs/__schema0",
                         "description": "The value to convert if a variable value is undefined."
                       }
                     },
@@ -3154,7 +2917,7 @@
                   "parameter": {
                     "description": "The variable's parameters.",
                     "items": {
-                      "$ref": "#/definitions/__schema0"
+                      "$ref": "#/$defs/__schema0"
                     },
                     "type": "array"
                   },
@@ -3214,7 +2977,7 @@
                             "parameter": {
                               "description": "A list of named parameters (key/value), depending on the condition's type.",
                               "items": {
-                                "$ref": "#/definitions/__schema0"
+                                "$ref": "#/$defs/__schema0"
                               },
                               "type": "array"
                             },
@@ -3372,11 +3135,8 @@
   },
   {
     "description": "Performs all container version header operations: list, latest. The 'list' action returns up to 50 items per page.",
-    "execution": {
-      "taskSupport": "forbidden"
-    },
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "accountId": {
           "description": "The unique ID of the GTM Account containing the container.",
@@ -3423,12 +3183,8 @@
   },
   {
     "description": "Performs various workspace operations including create, get, list, update, remove, createVersion, getStatus, sync, quickPreview, and resolveConflict actions. The 'list' action returns up to 50 items per page.",
-    "execution": {
-      "taskSupport": "forbidden"
-    },
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "definitions": {
+      "$defs": {
         "__schema0": {
           "properties": {
             "isWeakReference": {
@@ -3442,14 +3198,14 @@
             "list": {
               "description": "List of parameter values (if the parameter is a list type).",
               "items": {
-                "$ref": "#/definitions/__schema0"
+                "$ref": "#/$defs/__schema0"
               },
               "type": "array"
             },
             "map": {
               "description": "Array of key-value pairs for map parameters.",
               "items": {
-                "$ref": "#/definitions/__schema0"
+                "$ref": "#/$defs/__schema0"
               },
               "type": "array"
             },
@@ -3465,6 +3221,7 @@
           "type": "object"
         }
       },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "accountId": {
           "description": "The unique ID of the GTM Account containing the workspace.",
@@ -3542,11 +3299,7 @@
                           "type": "string"
                         },
                         "consentType": {
-                          "allOf": [
-                            {
-                              "$ref": "#/definitions/__schema0"
-                            }
-                          ],
+                          "$ref": "#/$defs/__schema0",
                           "description": "The type of consents to check for during tag firing if in the consent NEEDED state. This parameter must be of type LIST where each list item is of type STRING."
                         }
                       },
@@ -3572,11 +3325,7 @@
                       "type": "boolean"
                     },
                     "monitoringMetadata": {
-                      "allOf": [
-                        {
-                          "$ref": "#/definitions/__schema0"
-                        }
-                      ],
+                      "$ref": "#/$defs/__schema0",
                       "description": "A map of key-value pairs of tag metadata to be included in the event data for tag monitoring."
                     },
                     "monitoringMetadataTagNameKey": {
@@ -3594,7 +3343,7 @@
                     "parameter": {
                       "description": "The tag's parameters.",
                       "items": {
-                        "$ref": "#/definitions/__schema0"
+                        "$ref": "#/$defs/__schema0"
                       },
                       "type": "array"
                     },
@@ -3607,11 +3356,7 @@
                       "type": "boolean"
                     },
                     "priority": {
-                      "allOf": [
-                        {
-                          "$ref": "#/definitions/__schema0"
-                        }
-                      ],
+                      "$ref": "#/$defs/__schema0",
                       "description": "User defined numeric priority of the tag. Tags are fired asynchronously in order of priority. Tags with higher numeric value fire first. A tag's priority can be a positive or negative value. The default value is 0."
                     },
                     "scheduleEndMs": {
@@ -3711,7 +3456,7 @@
                           "parameter": {
                             "description": "A list of named parameters (key/value), depending on the condition's type.",
                             "items": {
-                              "$ref": "#/definitions/__schema0"
+                              "$ref": "#/$defs/__schema0"
                             },
                             "type": "array"
                           },
@@ -3728,11 +3473,7 @@
                       "type": "array"
                     },
                     "checkValidation": {
-                      "allOf": [
-                        {
-                          "$ref": "#/definitions/__schema0"
-                        }
-                      ],
+                      "$ref": "#/$defs/__schema0",
                       "description": "Whether or not to only fire tags if the form submit or link click event is not cancelled by some other event handler. Only valid for Form Submission and Link Click triggers."
                     },
                     "containerId": {
@@ -3740,11 +3481,7 @@
                       "type": "string"
                     },
                     "continuousTimeMinMilliseconds": {
-                      "allOf": [
-                        {
-                          "$ref": "#/definitions/__schema0"
-                        }
-                      ],
+                      "$ref": "#/$defs/__schema0",
                       "description": "A visibility trigger minimum continuous visible time (ms). Only valid for AMP Visibility trigger."
                     },
                     "customEventFilter": {
@@ -3754,7 +3491,7 @@
                           "parameter": {
                             "description": "A list of named parameters (key/value), depending on the condition's type.",
                             "items": {
-                              "$ref": "#/definitions/__schema0"
+                              "$ref": "#/$defs/__schema0"
                             },
                             "type": "array"
                           },
@@ -3771,11 +3508,7 @@
                       "type": "array"
                     },
                     "eventName": {
-                      "allOf": [
-                        {
-                          "$ref": "#/definitions/__schema0"
-                        }
-                      ],
+                      "$ref": "#/$defs/__schema0",
                       "description": "Name of the GTM event that is fired. Only valid for Timer triggers."
                     },
                     "filter": {
@@ -3785,7 +3518,7 @@
                           "parameter": {
                             "description": "A list of named parameters (key/value), depending on the condition's type.",
                             "items": {
-                              "$ref": "#/definitions/__schema0"
+                              "$ref": "#/$defs/__schema0"
                             },
                             "type": "array"
                           },
@@ -3806,43 +3539,23 @@
                       "type": "string"
                     },
                     "horizontalScrollPercentageList": {
-                      "allOf": [
-                        {
-                          "$ref": "#/definitions/__schema0"
-                        }
-                      ],
+                      "$ref": "#/$defs/__schema0",
                       "description": "List of integer percentage values for scroll triggers. Fires when each percentage is reached when scrolled horizontally. Only valid for AMP scroll triggers."
                     },
                     "interval": {
-                      "allOf": [
-                        {
-                          "$ref": "#/definitions/__schema0"
-                        }
-                      ],
+                      "$ref": "#/$defs/__schema0",
                       "description": "Time between triggering recurring Timer Events (in ms). Only valid for Timer triggers."
                     },
                     "intervalSeconds": {
-                      "allOf": [
-                        {
-                          "$ref": "#/definitions/__schema0"
-                        }
-                      ],
+                      "$ref": "#/$defs/__schema0",
                       "description": "Time between Timer Events to fire (in seconds). Only valid for AMP Timer trigger."
                     },
                     "limit": {
-                      "allOf": [
-                        {
-                          "$ref": "#/definitions/__schema0"
-                        }
-                      ],
+                      "$ref": "#/$defs/__schema0",
                       "description": "Limit of the number of GTM events this Timer Trigger will fire. Only valid for Timer triggers."
                     },
                     "maxTimerLengthSeconds": {
-                      "allOf": [
-                        {
-                          "$ref": "#/definitions/__schema0"
-                        }
-                      ],
+                      "$ref": "#/$defs/__schema0",
                       "description": "Max time to fire Timer Events (in seconds). Only valid for AMP Timer trigger."
                     },
                     "name": {
@@ -3856,7 +3569,7 @@
                     "parameter": {
                       "description": "Additional parameters for the trigger.",
                       "items": {
-                        "$ref": "#/definitions/__schema0"
+                        "$ref": "#/$defs/__schema0"
                       },
                       "type": "array"
                     },
@@ -3865,11 +3578,7 @@
                       "type": "string"
                     },
                     "selector": {
-                      "allOf": [
-                        {
-                          "$ref": "#/definitions/__schema0"
-                        }
-                      ],
+                      "$ref": "#/$defs/__schema0",
                       "description": "A click trigger CSS selector. Only valid for AMP Click trigger."
                     },
                     "tagManagerUrl": {
@@ -3877,11 +3586,7 @@
                       "type": "string"
                     },
                     "totalTimeMinMilliseconds": {
-                      "allOf": [
-                        {
-                          "$ref": "#/definitions/__schema0"
-                        }
-                      ],
+                      "$ref": "#/$defs/__schema0",
                       "description": "A visibility trigger minimum total visible time (ms). Only valid for AMP Visibility trigger."
                     },
                     "triggerId": {
@@ -3893,59 +3598,31 @@
                       "type": "string"
                     },
                     "uniqueTriggerId": {
-                      "allOf": [
-                        {
-                          "$ref": "#/definitions/__schema0"
-                        }
-                      ],
+                      "$ref": "#/$defs/__schema0",
                       "description": "Globally unique id of the trigger that auto-generates this (a Form Submit, Link Click or Timer listener) if any. Only valid for Form Submit, Link Click and Timer triggers."
                     },
                     "verticalScrollPercentageList": {
-                      "allOf": [
-                        {
-                          "$ref": "#/definitions/__schema0"
-                        }
-                      ],
+                      "$ref": "#/$defs/__schema0",
                       "description": "List of integer percentage values for scroll triggers. Fires when each percentage is reached when scrolled vertically. Only valid for AMP scroll triggers."
                     },
                     "visibilitySelector": {
-                      "allOf": [
-                        {
-                          "$ref": "#/definitions/__schema0"
-                        }
-                      ],
+                      "$ref": "#/$defs/__schema0",
                       "description": "A visibility trigger CSS selector. Only valid for AMP Visibility trigger."
                     },
                     "visiblePercentageMax": {
-                      "allOf": [
-                        {
-                          "$ref": "#/definitions/__schema0"
-                        }
-                      ],
+                      "$ref": "#/$defs/__schema0",
                       "description": "A visibility trigger maximum percent visibility. Only valid for AMP Visibility trigger."
                     },
                     "visiblePercentageMin": {
-                      "allOf": [
-                        {
-                          "$ref": "#/definitions/__schema0"
-                        }
-                      ],
+                      "$ref": "#/$defs/__schema0",
                       "description": "A visibility trigger minimum percent visibility. Only valid for AMP Visibility trigger."
                     },
                     "waitForTags": {
-                      "allOf": [
-                        {
-                          "$ref": "#/definitions/__schema0"
-                        }
-                      ],
+                      "$ref": "#/$defs/__schema0",
                       "description": "Whether or not to delay form submissions or link opening until all of the tags have fired. Only valid for Form Submission and Link Click triggers."
                     },
                     "waitForTagsTimeout": {
-                      "allOf": [
-                        {
-                          "$ref": "#/definitions/__schema0"
-                        }
-                      ],
+                      "$ref": "#/$defs/__schema0",
                       "description": "How long to wait (in ms) for tags to fire when 'waits_for_tags' above evaluates to true. Only valid for Form Submission and Link Click triggers."
                     },
                     "workspaceId": {
@@ -4009,19 +3686,11 @@
                           "type": "string"
                         },
                         "convertFalseToValue": {
-                          "allOf": [
-                            {
-                              "$ref": "#/definitions/__schema0"
-                            }
-                          ],
+                          "$ref": "#/$defs/__schema0",
                           "description": "The value to convert if a variable value is false."
                         },
                         "convertNullToValue": {
-                          "allOf": [
-                            {
-                              "$ref": "#/definitions/__schema0"
-                            }
-                          ],
+                          "$ref": "#/$defs/__schema0",
                           "description": "The value to convert if a variable value is null."
                         },
                         "convertToBoolean": {
@@ -4039,19 +3708,11 @@
                           "type": "string"
                         },
                         "convertTrueToValue": {
-                          "allOf": [
-                            {
-                              "$ref": "#/definitions/__schema0"
-                            }
-                          ],
+                          "$ref": "#/$defs/__schema0",
                           "description": "The value to convert if a variable value is true."
                         },
                         "convertUndefinedToValue": {
-                          "allOf": [
-                            {
-                              "$ref": "#/definitions/__schema0"
-                            }
-                          ],
+                          "$ref": "#/$defs/__schema0",
                           "description": "The value to convert if a variable value is undefined."
                         }
                       },
@@ -4068,7 +3729,7 @@
                     "parameter": {
                       "description": "The variable's parameters.",
                       "items": {
-                        "$ref": "#/definitions/__schema0"
+                        "$ref": "#/$defs/__schema0"
                       },
                       "type": "array"
                     },
@@ -4191,7 +3852,7 @@
                     "parameter": {
                       "description": "The transformation's parameters.",
                       "items": {
-                        "$ref": "#/definitions/__schema0"
+                        "$ref": "#/$defs/__schema0"
                       },
                       "type": "array"
                     },
@@ -4256,7 +3917,7 @@
                     "parameter": {
                       "description": "The transformation's parameters.",
                       "items": {
-                        "$ref": "#/definitions/__schema0"
+                        "$ref": "#/$defs/__schema0"
                       },
                       "type": "array"
                     },
@@ -4312,7 +3973,7 @@
                               "parameter": {
                                 "description": "A list of named parameters (key/value), depending on the condition's type.",
                                 "items": {
-                                  "$ref": "#/definitions/__schema0"
+                                  "$ref": "#/$defs/__schema0"
                                 },
                                 "type": "array"
                               },
@@ -4557,7 +4218,7 @@
                     "parameter": {
                       "description": "The Google tag config's parameters.",
                       "items": {
-                        "$ref": "#/definitions/__schema0"
+                        "$ref": "#/$defs/__schema0"
                       },
                       "type": "array"
                     },
@@ -4623,12 +4284,8 @@
   },
   {
     "description": "Performs various zone operations including create, get, list, update, remove, and revert actions. The 'list' action returns up to 20 items per page.",
-    "execution": {
-      "taskSupport": "forbidden"
-    },
     "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "definitions": {
+      "$defs": {
         "__schema0": {
           "properties": {
             "isWeakReference": {
@@ -4642,14 +4299,14 @@
             "list": {
               "description": "List of parameter values (if the parameter is a list type).",
               "items": {
-                "$ref": "#/definitions/__schema0"
+                "$ref": "#/$defs/__schema0"
               },
               "type": "array"
             },
             "map": {
               "description": "Array of key-value pairs for map parameters.",
               "items": {
-                "$ref": "#/definitions/__schema0"
+                "$ref": "#/$defs/__schema0"
               },
               "type": "array"
             },
@@ -4665,6 +4322,7 @@
           "type": "object"
         }
       },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "accountId": {
           "description": "The unique ID of the GTM Account containing the zone.",
@@ -4699,7 +4357,7 @@
                       "parameter": {
                         "description": "A list of named parameters (key/value), depending on the condition's type.",
                         "items": {
-                          "$ref": "#/definitions/__schema0"
+                          "$ref": "#/$defs/__schema0"
                         },
                         "type": "array"
                       },

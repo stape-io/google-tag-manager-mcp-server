@@ -1,4 +1,4 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/server";
 import { tagmanager_v2 } from "@googleapis/tagmanager";
 import { z } from "zod";
 import { GtmToolContext } from "../types/index.js";
@@ -24,55 +24,57 @@ export const environmentActions = (
   server: McpServer,
   { auth }: GtmToolContext,
 ): void => {
-  server.tool(
+  server.registerTool(
     "gtm_environment",
-    `Performs all environment operations: create, get, list, update, remove, reauthorize.  The 'list' action returns up to ${ITEMS_PER_PAGE} items per page.`,
     {
-      action: z
-        .enum(["create", "get", "list", "update", "remove", "reauthorize"])
-        .describe(
-          "The environment operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove', 'reauthorize'.",
+      description: `Performs all environment operations: create, get, list, update, remove, reauthorize.  The 'list' action returns up to ${ITEMS_PER_PAGE} items per page.`,
+      inputSchema: z.object({
+        action: z
+          .enum(["create", "get", "list", "update", "remove", "reauthorize"])
+          .describe(
+            "The environment operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove', 'reauthorize'.",
+          ),
+        accountId: z
+          .string()
+          .describe(
+            "The unique ID of the GTM Account containing the environment.",
+          ),
+        containerId: z
+          .string()
+          .describe(
+            "The unique ID of the GTM Container containing the environment.",
+          ),
+        environmentId: z
+          .string()
+          .optional()
+          .describe(
+            "The unique ID of the GTM Environment. Required for 'get', 'update', 'remove', and 'reauthorize' actions.",
+          ),
+        createOrUpdateConfig: PayloadSchema.optional().describe(
+          "Configuration for 'create' and 'update' actions. All fields correspond to the GTM Environment resource, except IDs. 'update' replaces the entire environment — any field omitted here is deleted. Always run 'get' first and send back the complete object with your modifications applied.",
         ),
-      accountId: z
-        .string()
-        .describe(
-          "The unique ID of the GTM Account containing the environment.",
-        ),
-      containerId: z
-        .string()
-        .describe(
-          "The unique ID of the GTM Container containing the environment.",
-        ),
-      environmentId: z
-        .string()
-        .optional()
-        .describe(
-          "The unique ID of the GTM Environment. Required for 'get', 'update', 'remove', and 'reauthorize' actions.",
-        ),
-      createOrUpdateConfig: PayloadSchema.optional().describe(
-        "Configuration for 'create' and 'update' actions. All fields correspond to the GTM Environment resource, except IDs. 'update' replaces the entire environment — any field omitted here is deleted. Always run 'get' first and send back the complete object with your modifications applied.",
-      ),
-      fingerprint: z
-        .string()
-        .optional()
-        .describe(
-          "The fingerprint for optimistic concurrency control. Required for 'update' action.",
-        ),
-      page: z
-        .number()
-        .min(1)
-        .default(1)
-        .describe(
-          `Page number for pagination (starts from 1). Each page contains up to itemsPerPage items.`,
-        ),
-      itemsPerPage: z
-        .number()
-        .min(1)
-        .max(ITEMS_PER_PAGE)
-        .default(ITEMS_PER_PAGE)
-        .describe(
-          `Number of items to return per page (1-${ITEMS_PER_PAGE}). Default: ${ITEMS_PER_PAGE}. Use lower values if experiencing response issues.`,
-        ),
+        fingerprint: z
+          .string()
+          .optional()
+          .describe(
+            "The fingerprint for optimistic concurrency control. Required for 'update' action.",
+          ),
+        page: z
+          .number()
+          .min(1)
+          .default(1)
+          .describe(
+            `Page number for pagination (starts from 1). Each page contains up to itemsPerPage items.`,
+          ),
+        itemsPerPage: z
+          .number()
+          .min(1)
+          .max(ITEMS_PER_PAGE)
+          .default(ITEMS_PER_PAGE)
+          .describe(
+            `Number of items to return per page (1-${ITEMS_PER_PAGE}). Default: ${ITEMS_PER_PAGE}. Use lower values if experiencing response issues.`,
+          ),
+      }),
     },
     async ({
       action,

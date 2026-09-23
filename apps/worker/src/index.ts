@@ -1,12 +1,15 @@
 import { OAuthProvider } from "@cloudflare/workers-oauth-provider";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { McpServer as McpServerV2 } from "@modelcontextprotocol/server";
 import { McpAgent } from "agents/mcp";
 import {
   createStaticTokenAuth,
   registerGtmTools,
   setUnauthorizedHint,
 } from "google-tag-manager-mcp-core";
+import { SERVER_INFO } from "./constants/serverInfo";
 import { TAG_MANAGER_REMOVE_MCP_SERVER_DATA } from "./constants/tools";
+import { createMcpApiHandler } from "./mcpHandler";
 import { McpAgentPropsModel } from "./models/McpAgentModel";
 import { removeMCPServerData } from "./tools/removeMCPServerData";
 import {
@@ -15,7 +18,6 @@ import {
   upstreamReauthErrorResponse,
   withSseKeepalive,
 } from "./utils";
-import { PACKAGE_VERSION } from "./version";
 
 setUnauthorizedHint(
   `It seems that your token has been expired, please use ${TAG_MANAGER_REMOVE_MCP_SERVER_DATA} tool to clear your session in the MCP client`,
@@ -26,12 +28,7 @@ export class GoogleTagManagerMCPServer extends McpAgent<
   null,
   McpAgentPropsModel
 > {
-  server = new McpServer({
-    name: "google-tag-manager-mcp-server",
-    title: "Google Tag Manager",
-    version: PACKAGE_VERSION,
-    websiteUrl: "https://github.com/stape-io/google-tag-manager-mcp-server",
-  });
+  server = new McpServer({ ...SERVER_INFO });
 
   async init() {
     console.log("[MCP] init() called");
@@ -51,8 +48,19 @@ export class GoogleTagManagerMCPServer extends McpAgent<
       expiresAt: this.props?.expiresAt,
     }));
 
-    registerGtmTools(this.server, { auth });
-    removeMCPServerData(this.server, { props, env: this.env });
+    // Type-only bridge, no runtime change: McpAgent is feature-frozen on SDK
+    // v1, so `this.server` is a v1 `McpServer`, while core and
+    // removeMCPServerData are now typed against v2's. The two classes are
+    // nominally unrelated but structurally compatible for what gets called
+    // here - every registration is `registerTool(name, { description,
+    // inputSchema }, cb)`, and v1's `registerTool` accepts an `AnySchema`
+    // inputSchema (@modelcontextprotocol/sdk/server/zod-compat). Proven by
+    // legacySseRegistration.test.ts, which registers the real tool set on a
+    // real v1 `McpServer` and lists it back over a v1 client.
+    const legacyServer = this.server as unknown as McpServerV2;
+
+    registerGtmTools(legacyServer, { auth });
+    removeMCPServerData(legacyServer, { props, env: this.env });
   }
 }
 
@@ -77,7 +85,11 @@ export default {
     const isMcp = url.pathname === "/mcp" && request.method === "GET";
     const isLegacySse = url.pathname === "/sse" && request.method === "GET";
 
-    if (isMcp || isLegacySse) {
+    // Only `/sse` opens a long-lived GET stream now. `/mcp` is served
+    // statelessly, which has no session for a standalone GET stream to attach
+    // to, so a GET there answers 405 - logging it as a stream opening would
+    // mislead anyone debugging that.
+    if (isLegacySse) {
       console.log("[MCP_STREAM] Connection opening", logBase);
 
       request.signal.addEventListener("abort", () => {
@@ -92,7 +104,7 @@ export default {
       apiRoute: ["/sse", "/mcp"],
       apiHandlers: {
         "/sse": GoogleTagManagerMCPServer.serveSSE("/sse"),
-        "/mcp": GoogleTagManagerMCPServer.serve("/mcp"),
+        "/mcp": createMcpApiHandler(env),
       },
       // @ts-ignore
       defaultHandler: apisHandler,
@@ -131,7 +143,7 @@ export default {
         });
       }
 
-      if (isMcp || isLegacySse) {
+      if (isLegacySse) {
         return withSseKeepalive(response, request.signal);
       }
 
