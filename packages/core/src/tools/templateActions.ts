@@ -28,12 +28,20 @@ export const templateActions = (
   server.registerTool(
     "gtm_template",
     {
-      description: `Performs all GTM custom template operations: create, get, list, update, remove, revert. The 'list' action returns up to itemsPerPage items per page.`,
+      description: `Performs all GTM custom template operations: create, get, list, update, remove, revert, importFromGallery. 'importFromGallery' adds a Community Template Gallery template (github.com/<galleryOwner>/<galleryRepository>) to the workspace; the template must support the container's type (web or server). The 'list' action returns up to itemsPerPage items per page.`,
       inputSchema: z.object({
         action: z
-          .enum(["create", "get", "list", "update", "remove", "revert"])
+          .enum([
+            "create",
+            "get",
+            "list",
+            "update",
+            "remove",
+            "revert",
+            "importFromGallery",
+          ])
           .describe(
-            "The GTM custom template operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove', 'revert'.",
+            "The GTM custom template operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove', 'revert', 'importFromGallery'.",
           ),
         accountId: z
           .string()
@@ -65,6 +73,30 @@ export const templateActions = (
           .describe(
             "The fingerprint for optimistic concurrency control. Required for 'update' and 'revert' actions.",
           ),
+        galleryOwner: z
+          .string()
+          .optional()
+          .describe(
+            "GitHub owner of the Community Template Gallery template, e.g. 'stape-io'. Required for 'importFromGallery' action.",
+          ),
+        galleryRepository: z
+          .string()
+          .optional()
+          .describe(
+            "GitHub repository of the Community Template Gallery template, e.g. 'facebook-tag'. Required for 'importFromGallery' action.",
+          ),
+        gallerySha: z
+          .string()
+          .optional()
+          .describe(
+            "Commit SHA of the gallery template version to import. Defaults to the latest version. Only used by 'importFromGallery' action.",
+          ),
+        acknowledgePermissions: z
+          .boolean()
+          .optional()
+          .describe(
+            "Must be true for 'importFromGallery': confirms the user reviewed and accepts the permissions the template requests. Google rejects the import otherwise.",
+          ),
         page: z
           .number()
           .min(1)
@@ -90,6 +122,10 @@ export const templateActions = (
       templateId,
       createOrUpdateConfig,
       fingerprint,
+      galleryOwner,
+      galleryRepository,
+      gallerySha,
+      acknowledgePermissions,
       page,
       itemsPerPage,
     }) => {
@@ -225,6 +261,36 @@ export const templateActions = (
                 path: `accounts/${accountId}/containers/${containerId}/workspaces/${workspaceId}/templates/${templateId}`,
                 fingerprint,
               });
+
+            return {
+              content: [
+                { type: "text", text: JSON.stringify(response.data, null, 2) },
+              ],
+            };
+          }
+          case "importFromGallery": {
+            if (!galleryOwner || !galleryRepository) {
+              throw new Error(
+                `galleryOwner and galleryRepository are required for ${action} action`,
+              );
+            }
+
+            if (acknowledgePermissions !== true) {
+              throw new Error(
+                `acknowledgePermissions must be true for ${action} action`,
+              );
+            }
+
+            const response =
+              await tagmanager.accounts.containers.workspaces.templates.import_from_gallery(
+                {
+                  parent: `accounts/${accountId}/containers/${containerId}/workspaces/${workspaceId}`,
+                  galleryOwner,
+                  galleryRepository,
+                  gallerySha,
+                  acknowledgePermissions,
+                },
+              );
 
             return {
               content: [

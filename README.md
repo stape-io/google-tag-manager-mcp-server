@@ -45,7 +45,7 @@ Tools reach Google through a `GtmAuthProvider` (`getAccessToken(): Promise<strin
 
 ## Installation
 
-This server comes in two flavours: Hosted server and Local CLI. Both give you the same 18 GTM tools; the difference is who handles Google auth.
+This server comes in two flavours: Hosted server and Local CLI. Both give you the same 20 GTM tools; the difference is who handles Google auth.
 
 | | Hosted server | Local CLI |
 | --- | --- | --- |
@@ -349,6 +349,10 @@ Or the local CLI directly, with your credentials:
 </details>
 
 ### Troubleshooting
+
+**Authentication errors**
+
+If tools fail with 401/403 errors, ask your assistant to run `gtm_auth_status`. It reports whether the current Google token is accepted, when it expires and which Tag Manager scopes are missing, without revealing the token.
 
 **MCP Server Name Length Limit**
 
