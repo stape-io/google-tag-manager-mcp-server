@@ -78,8 +78,8 @@ function parseMessages({ code, stdout, stderr }, label) {
 
 function assertToolset(tools, label) {
   assert.ok(
-    tools.length >= 18,
-    `[${label}] expected at least 18 tools, got ${tools.length}`,
+    tools.length >= 20,
+    `[${label}] expected at least 20 tools, got ${tools.length}`,
   );
   for (const name of ["gtm_account", "gtm_tag", "gtm_workspace"]) {
     assert.ok(

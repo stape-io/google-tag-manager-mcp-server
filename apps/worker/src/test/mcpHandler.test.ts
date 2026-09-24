@@ -140,8 +140,10 @@ describe("/mcp handler", () => {
       (tool: { name: string }) => tool.name,
     );
 
-    expect(names.length).toBeGreaterThanOrEqual(19);
+    expect(names.length).toBeGreaterThanOrEqual(21);
     expect(names).toContain("gtm_account");
+    expect(names).toContain("gtm_auth_status");
+    expect(names).toContain("gtm_guide");
     expect(names).toContain("gtm_tag");
     expect(names).toContain("gtm_remove_session");
   });
