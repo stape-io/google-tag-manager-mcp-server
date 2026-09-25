@@ -220,6 +220,18 @@ export function upstreamReauthErrorResponse(
   );
 }
 
+// Lifetime of the MCP access token we hand to clients.
+const ACCESS_TOKEN_TTL = 1800;
+// Refresh Google once its token has less than this left. The slack lets a
+// transient Google failure be retried on a later refresh instead of forcing
+// a new login.
+const GOOGLE_REFRESH_MARGIN = 900;
+// The provider rejects access tokens shorter than this (KV's minimum TTL).
+const MIN_ACCESS_TOKEN_TTL = 60;
+// Google errors that mean the refresh token is dead for good.
+const PERMANENT_GOOGLE_ERRORS =
+  /invalid_grant|invalid_client|unauthorized_client/;
+
 /**
  * Handles the logic for exchanging an OAuth code or refreshing a token.
  */
@@ -231,7 +243,7 @@ export async function handleTokenExchangeCallback(
 
   if (grantType === "authorization_code") {
     // Regular TTL for the MCP access token
-    return { accessTokenTTL: 1800 };
+    return { accessTokenTTL: ACCESS_TOKEN_TTL };
   }
 
   if (grantType === "refresh_token") {
@@ -244,26 +256,42 @@ export async function handleTokenExchangeCallback(
       );
     }
 
-    const expiresAt = p.expiresAt ?? 0;
-    // Heartbeat: If token expires in less than 15 minutes, refresh it.
-    const REFRESH_THRESHOLD = 900;
-    if (expiresAt >= now + REFRESH_THRESHOLD) {
+    // The MCP token must never outlive the Google token behind it: tool calls
+    // would fail while the client still holds a valid MCP token, and a
+    // lazily-refreshing client never calls /token to fix it.
+    const googleSecondsLeft = (p.expiresAt ?? 0) - now;
+    if (googleSecondsLeft >= GOOGLE_REFRESH_MARGIN) {
       console.log(
-        `[TokenExchange] Token valid until ${expiresAt}. No refresh needed.`,
+        `[TokenExchange] Google token valid for ${googleSecondsLeft}s. No refresh needed.`,
       );
-      return { accessTokenTTL: 1800 };
+      return {
+        accessTokenTTL: Math.min(ACCESS_TOKEN_TTL, googleSecondsLeft),
+      };
     }
 
     console.log("[TokenExchange] Refreshing Google auth token...");
-    const [token, err] = await refreshUpstreamAuthToken({
-      clientId: env.GOOGLE_CLIENT_ID,
-      clientSecret: env.GOOGLE_CLIENT_SECRET,
-      refreshToken: p.refreshToken,
-      upstreamUrl: GOOGLE_TOKEN_URL,
-    });
+    let token: GoogleRefreshResponse | null;
+    let err: string | null;
+    try {
+      [token, err] = await refreshUpstreamAuthToken({
+        clientId: env.GOOGLE_CLIENT_ID,
+        clientSecret: env.GOOGLE_CLIENT_SECRET,
+        refreshToken: p.refreshToken,
+        upstreamUrl: GOOGLE_TOKEN_URL,
+      });
+    } catch (e) {
+      [token, err] = [null, String(e)];
+    }
 
     if (!token) {
       console.error(`[TokenExchange] Google refresh failed: ${err}`);
+      if (
+        !PERMANENT_GOOGLE_ERRORS.test(err ?? "") &&
+        googleSecondsLeft >= MIN_ACCESS_TOKEN_TTL
+      ) {
+        // Transient: keep serving on the current Google token, retry later.
+        return { accessTokenTTL: googleSecondsLeft };
+      }
       throw new UpstreamReauthRequiredError(
         `Google refresh failed: ${err}. Please re-authenticate.`,
       );
@@ -278,7 +306,7 @@ export async function handleTokenExchangeCallback(
         expiresAt: now + token.expires_in,
         refreshToken: token.refresh_token || p.refreshToken,
       } satisfies Props,
-      accessTokenTTL: 1800,
+      accessTokenTTL: ACCESS_TOKEN_TTL,
     };
   }
 }
