@@ -1,3 +1,4 @@
+import type { OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import { createMcpHandler, getMcpAuthContext } from "agents/mcp/server";
 import {
   createGtmMcpServer,
@@ -54,7 +55,15 @@ export function createMcpApiHandler(
           expiresAt: props.expiresAt,
         })),
         serverInfo: { ...SERVER_INFO },
-        extraTools: [(server) => removeMCPServerData(server, { props, env })],
+        extraTools: [
+          (server) =>
+            removeMCPServerData(server, {
+              props,
+              // Injected by OAuthProvider before it calls this API handler.
+              oauth: (env as Env & { OAUTH_PROVIDER: OAuthHelpers })
+                .OAUTH_PROVIDER,
+            }),
+        ],
       });
     },
     {
