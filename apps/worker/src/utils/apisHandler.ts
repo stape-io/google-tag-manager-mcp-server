@@ -8,6 +8,7 @@ import {
   GTM_OAUTH_SCOPES,
 } from "google-tag-manager-mcp-core";
 import { Context, Hono } from "hono";
+import { LLMS_TXT } from "../constants/llmsTxt";
 import {
   fetchUpstreamAuthToken,
   getUpstreamAuthorizeUrl,
@@ -217,5 +218,7 @@ app.get("/terms", async () => {
     },
   });
 });
+
+app.get("/llms.txt", (c) => c.text(LLMS_TXT));
 
 export { app as apisHandler };

@@ -98,6 +98,14 @@
     "name": "gtm_account"
   },
   {
+    "description": "Diagnoses this server's Google credentials: whether an access token can be obtained, whether Google accepts it, which Tag Manager scopes it grants and how long until it expires. Call it when other GTM tools fail with 401/403 errors, before retrying. Never returns the token itself and makes no Tag Manager API calls.",
+    "inputSchema": {
+      "properties": {},
+      "type": "object"
+    },
+    "name": "gtm_auth_status"
+  },
+  {
     "description": "Performs all built-in variable operations: create, list, remove, revert. The 'list' action returns up to itemsPerPage items per page.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -866,6 +874,31 @@
     "name": "gtm_gtag_config"
   },
   {
+    "description": "Returns Google Tag Manager best-practice guidance and step-by-step workflows as markdown. Read the relevant topic before planning changes: 'safeEditing' (workspace -> edit -> preview -> version -> publish, with this server's tools), 'naming' (naming conventions), 'audit' (container audit checklist), 'trackingPlan' (building a tracking plan and dataLayer spec), 'consentMode' (Consent Mode v2 setup), 'serverSide' (server-side tagging). Makes no API calls.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "topic": {
+          "description": "The guidance topic to return. One of: 'safeEditing', 'naming', 'audit', 'trackingPlan', 'consentMode', 'serverSide'.",
+          "enum": [
+            "safeEditing",
+            "naming",
+            "audit",
+            "trackingPlan",
+            "consentMode",
+            "serverSide"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "topic"
+      ],
+      "type": "object"
+    },
+    "name": "gtm_guide"
+  },
+  {
     "description": "Performs all GTM tag operations: create, get, list, update, remove, revert. The 'list' action returns up to 20 items per page.",
     "inputSchema": {
       "$defs": {
@@ -1102,7 +1135,7 @@
     "name": "gtm_tag"
   },
   {
-    "description": "Performs all GTM custom template operations: create, get, list, update, remove, revert. The 'list' action returns up to itemsPerPage items per page.",
+    "description": "Performs all GTM custom template operations: create, get, list, update, remove, revert, importFromGallery. 'importFromGallery' adds a Community Template Gallery template (github.com/<galleryOwner>/<galleryRepository>) to the workspace; the template must support the container's type (web or server). The 'list' action returns up to itemsPerPage items per page.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
@@ -1110,15 +1143,20 @@
           "description": "The unique ID of the GTM Account containing the custom template.",
           "type": "string"
         },
+        "acknowledgePermissions": {
+          "description": "Must be true for 'importFromGallery': confirms the user reviewed and accepts the permissions the template requests. Google rejects the import otherwise.",
+          "type": "boolean"
+        },
         "action": {
-          "description": "The GTM custom template operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove', 'revert'.",
+          "description": "The GTM custom template operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove', 'revert', 'importFromGallery'.",
           "enum": [
             "create",
             "get",
             "list",
             "update",
             "remove",
-            "revert"
+            "revert",
+            "importFromGallery"
           ],
           "type": "string"
         },
@@ -1184,6 +1222,18 @@
         },
         "fingerprint": {
           "description": "The fingerprint for optimistic concurrency control. Required for 'update' and 'revert' actions.",
+          "type": "string"
+        },
+        "galleryOwner": {
+          "description": "GitHub owner of the Community Template Gallery template, e.g. 'stape-io'. Required for 'importFromGallery' action.",
+          "type": "string"
+        },
+        "galleryRepository": {
+          "description": "GitHub repository of the Community Template Gallery template, e.g. 'facebook-tag'. Required for 'importFromGallery' action.",
+          "type": "string"
+        },
+        "gallerySha": {
+          "description": "Commit SHA of the gallery template version to import. Defaults to the latest version. Only used by 'importFromGallery' action.",
           "type": "string"
         },
         "itemsPerPage": {
@@ -3182,94 +3232,10 @@
     "name": "gtm_version_header"
   },
   {
-    "description": "Performs various workspace operations including create, get, list, update, remove, createVersion, getStatus, sync, quickPreview, and resolveConflict actions. The 'list' action returns up to 50 items per page.",
+    "description": "Performs various workspace operations including create, get, list, update, remove, createVersion, getStatus, sync, quickPreview, resolveConflict, and bulkUpdate actions. 'bulkUpdate' applies several entity changes atomically in one call. The 'list' action returns up to 50 items per page.",
     "inputSchema": {
       "$defs": {
-        "__schema0": {
-          "properties": {
-            "isWeakReference": {
-              "description": "Whether this is a weak reference parameter.",
-              "type": "boolean"
-            },
-            "key": {
-              "description": "Parameter key.",
-              "type": "string"
-            },
-            "list": {
-              "description": "List of parameter values (if the parameter is a list type).",
-              "items": {
-                "$ref": "#/$defs/__schema0"
-              },
-              "type": "array"
-            },
-            "map": {
-              "description": "Array of key-value pairs for map parameters.",
-              "items": {
-                "$ref": "#/$defs/__schema0"
-              },
-              "type": "array"
-            },
-            "type": {
-              "description": "The type of the parameter.",
-              "type": "string"
-            },
-            "value": {
-              "description": "Parameter value as a string. The actual value may depend on the parameter type.",
-              "type": "string"
-            }
-          },
-          "type": "object"
-        }
-      },
-      "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "properties": {
-        "accountId": {
-          "description": "The unique ID of the GTM Account containing the workspace.",
-          "type": "string"
-        },
-        "action": {
-          "description": "The workspace operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove', 'createVersion', 'getStatus', 'sync', 'quickPreview', 'resolveConflict'.",
-          "enum": [
-            "create",
-            "get",
-            "list",
-            "update",
-            "remove",
-            "createVersion",
-            "getStatus",
-            "sync",
-            "quickPreview",
-            "resolveConflict"
-          ],
-          "type": "string"
-        },
-        "changeStatus": {
-          "description": "The status of the change for the entity in the workspace for 'resolveConflict' action. Possible values: 'added', 'modified', 'deleted', 'unmodified'.",
-          "type": "string"
-        },
-        "containerId": {
-          "description": "The unique ID of the GTM Container containing the workspace.",
-          "type": "string"
-        },
-        "createOrUpdateConfig": {
-          "description": "Configuration for 'create' and 'update' actions. All fields correspond to the GTM workspace resource, except IDs. 'update' replaces the entire workspace — any field omitted here is deleted. Always run 'get' first and send back the complete object with your modifications applied.",
-          "properties": {
-            "description": {
-              "description": "Workspace description.",
-              "type": "string"
-            },
-            "name": {
-              "description": "Workspace display name.",
-              "type": "string"
-            },
-            "tagManagerUrl": {
-              "description": "Auto generated link to the tag manager UI.",
-              "type": "string"
-            }
-          },
-          "type": "object"
-        },
-        "entity": {
+        "GtmEntity": {
           "anyOf": [
             {
               "properties": {
@@ -3833,24 +3799,28 @@
                       "description": "GTM Account ID.",
                       "type": "string"
                     },
+                    "clientId": {
+                      "description": "The Client ID uniquely identifies the GTM Client.",
+                      "type": "string"
+                    },
                     "containerId": {
                       "description": "GTM Container ID.",
                       "type": "string"
                     },
                     "fingerprint": {
-                      "description": "The fingerprint of the GTM Transformation as computed at storage time. This value is recomputed whenever the transformation is modified.",
+                      "description": "The fingerprint of the GTM Client as computed at storage time. This value is recomputed whenever the client is modified.",
                       "type": "string"
                     },
                     "name": {
-                      "description": "Transformation display name.",
+                      "description": "Client display name.",
                       "type": "string"
                     },
                     "notes": {
-                      "description": "User notes on how to apply this transformation in the container.",
+                      "description": "User notes on how to apply this tag in the container.",
                       "type": "string"
                     },
                     "parameter": {
-                      "description": "The transformation's parameters.",
+                      "description": "The client's parameters.",
                       "items": {
                         "$ref": "#/$defs/__schema0"
                       },
@@ -3860,16 +3830,16 @@
                       "description": "Parent folder id.",
                       "type": "string"
                     },
+                    "priority": {
+                      "description": "Priority determines relative firing order.",
+                      "type": "number"
+                    },
                     "tagManagerUrl": {
                       "description": "Auto generated link to the tag manager UI.",
                       "type": "string"
                     },
-                    "transformationId": {
-                      "description": "The Transformation ID uniquely identifies the GTM transformation.",
-                      "type": "string"
-                    },
                     "type": {
-                      "description": "Transformation type.",
+                      "description": "Client type.",
                       "type": "string"
                     },
                     "workspaceId": {
@@ -4248,7 +4218,121 @@
               ],
               "type": "object"
             }
+          ]
+        },
+        "__schema0": {
+          "properties": {
+            "isWeakReference": {
+              "description": "Whether this is a weak reference parameter.",
+              "type": "boolean"
+            },
+            "key": {
+              "description": "Parameter key.",
+              "type": "string"
+            },
+            "list": {
+              "description": "List of parameter values (if the parameter is a list type).",
+              "items": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "type": "array"
+            },
+            "map": {
+              "description": "Array of key-value pairs for map parameters.",
+              "items": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "type": "array"
+            },
+            "type": {
+              "description": "The type of the parameter.",
+              "type": "string"
+            },
+            "value": {
+              "description": "Parameter value as a string. The actual value may depend on the parameter type.",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "accountId": {
+          "description": "The unique ID of the GTM Account containing the workspace.",
+          "type": "string"
+        },
+        "action": {
+          "description": "The workspace operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove', 'createVersion', 'getStatus', 'sync', 'quickPreview', 'resolveConflict', 'bulkUpdate'.",
+          "enum": [
+            "create",
+            "get",
+            "list",
+            "update",
+            "remove",
+            "createVersion",
+            "getStatus",
+            "sync",
+            "quickPreview",
+            "resolveConflict",
+            "bulkUpdate"
           ],
+          "type": "string"
+        },
+        "changeStatus": {
+          "description": "The status of the change for the entity in the workspace for 'resolveConflict' action. Possible values: 'added', 'updated', 'deleted', 'none'.",
+          "type": "string"
+        },
+        "changes": {
+          "description": "The entity changes for 'bulkUpdate' action, applied atomically. Each item is { changeStatus, entity }, e.g. { changeStatus: 'added', entity: { trigger: {...} } }. New entities must use unique temporary IDs of the form 'new_1', 'new_2', ... in their ID field; other entities in the same request can reference them by that ID (e.g. a new tag's firingTriggerId). Updated entities are full replacements - send the complete entity from 'get', including its fingerprint.",
+          "items": {
+            "properties": {
+              "changeStatus": {
+                "description": "What to do with this entity.",
+                "enum": [
+                  "added",
+                  "updated",
+                  "deleted"
+                ],
+                "type": "string"
+              },
+              "entity": {
+                "$ref": "#/$defs/GtmEntity",
+                "description": "The entity, holding exactly one entity type key (tag, trigger, variable, ...). Any additional key is dropped."
+              }
+            },
+            "required": [
+              "changeStatus",
+              "entity"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "containerId": {
+          "description": "The unique ID of the GTM Container containing the workspace.",
+          "type": "string"
+        },
+        "createOrUpdateConfig": {
+          "description": "Configuration for 'create' and 'update' actions. All fields correspond to the GTM workspace resource, except IDs. 'update' replaces the entire workspace — any field omitted here is deleted. Always run 'get' first and send back the complete object with your modifications applied.",
+          "properties": {
+            "description": {
+              "description": "Workspace description.",
+              "type": "string"
+            },
+            "name": {
+              "description": "Workspace display name.",
+              "type": "string"
+            },
+            "tagManagerUrl": {
+              "description": "Auto generated link to the tag manager UI.",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "entity": {
+          "$ref": "#/$defs/GtmEntity",
           "description": "The resolved entity for 'resolveConflict' action."
         },
         "fingerprint": {
