@@ -1,4 +1,4 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/server";
 
 /** Called on every tool invocation: implementations cache and refresh internally. */
 export interface GtmAuthProvider {

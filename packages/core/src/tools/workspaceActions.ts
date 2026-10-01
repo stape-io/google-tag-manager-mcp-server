@@ -1,5 +1,4 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { McpServer, CallToolResult } from "@modelcontextprotocol/server";
 import { tagmanager_v2 } from "@googleapis/tagmanager";
 import { z } from "zod";
 import { GtmToolContext } from "../types/index.js";
@@ -48,73 +47,77 @@ export const workspaceActions = (
   server: McpServer,
   { auth }: GtmToolContext,
 ): void => {
-  server.tool(
+  server.registerTool(
     "gtm_workspace",
-    `Performs various workspace operations including create, get, list, update, remove, createVersion, getStatus, sync, quickPreview, and resolveConflict actions. The 'list' action returns up to ${ITEMS_PER_PAGE} items per page.`,
     {
-      action: z
-        .enum([
-          "create",
-          "get",
-          "list",
-          "update",
-          "remove",
-          "createVersion",
-          "getStatus",
-          "sync",
-          "quickPreview",
-          "resolveConflict",
-        ])
-        .describe(
-          "The workspace operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove', 'createVersion', 'getStatus', 'sync', 'quickPreview', 'resolveConflict'.",
+      description: `Performs various workspace operations including create, get, list, update, remove, createVersion, getStatus, sync, quickPreview, and resolveConflict actions. The 'list' action returns up to ${ITEMS_PER_PAGE} items per page.`,
+      inputSchema: z.object({
+        action: z
+          .enum([
+            "create",
+            "get",
+            "list",
+            "update",
+            "remove",
+            "createVersion",
+            "getStatus",
+            "sync",
+            "quickPreview",
+            "resolveConflict",
+          ])
+          .describe(
+            "The workspace operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove', 'createVersion', 'getStatus', 'sync', 'quickPreview', 'resolveConflict'.",
+          ),
+        accountId: z
+          .string()
+          .describe(
+            "The unique ID of the GTM Account containing the workspace.",
+          ),
+        containerId: z
+          .string()
+          .describe(
+            "The unique ID of the GTM Container containing the workspace.",
+          ),
+        workspaceId: z
+          .string()
+          .optional()
+          .describe(
+            "The unique ID of the GTM Workspace. Required for all actions except 'create' and 'list'.",
+          ),
+        createOrUpdateConfig: PayloadSchema.optional().describe(
+          "Configuration for 'create' and 'update' actions. All fields correspond to the GTM workspace resource, except IDs. 'update' replaces the entire workspace — any field omitted here is deleted. Always run 'get' first and send back the complete object with your modifications applied.",
         ),
-      accountId: z
-        .string()
-        .describe("The unique ID of the GTM Account containing the workspace."),
-      containerId: z
-        .string()
-        .describe(
-          "The unique ID of the GTM Container containing the workspace.",
+        fingerprint: z
+          .string()
+          .optional()
+          .describe(
+            "Fingerprint for optimistic concurrency control. Required for 'update' and 'resolveConflict' actions.",
+          ),
+        entity: EntitySchema.optional().describe(
+          "The resolved entity for 'resolveConflict' action.",
         ),
-      workspaceId: z
-        .string()
-        .optional()
-        .describe(
-          "The unique ID of the GTM Workspace. Required for all actions except 'create' and 'list'.",
-        ),
-      createOrUpdateConfig: PayloadSchema.optional().describe(
-        "Configuration for 'create' and 'update' actions. All fields correspond to the GTM workspace resource, except IDs. 'update' replaces the entire workspace — any field omitted here is deleted. Always run 'get' first and send back the complete object with your modifications applied.",
-      ),
-      fingerprint: z
-        .string()
-        .optional()
-        .describe(
-          "Fingerprint for optimistic concurrency control. Required for 'update' and 'resolveConflict' actions.",
-        ),
-      entity: EntitySchema.optional().describe(
-        "The resolved entity for 'resolveConflict' action.",
-      ),
-      changeStatus: z
-        .string()
-        .optional()
-        .describe(
-          "The status of the change for the entity in the workspace for 'resolveConflict' action. Possible values: 'added', 'modified', 'deleted', 'unmodified'.",
-        ),
-      page: z
-        .number()
-        .min(1)
-        .default(1)
-        .describe(
-          `Page number for pagination (starts from 1). Each page contains up to itemsPerPage items.`,
-        ),
-      itemsPerPage: z
-        .number()
-        .min(1)
-        .max(ITEMS_PER_PAGE)
-        .default(ITEMS_PER_PAGE)
-        .describe(
-          `Number of items to return per page (1-${ITEMS_PER_PAGE}). Default: ${ITEMS_PER_PAGE}. Use lower values if experiencing response issues.`,
-        ),
+        changeStatus: z
+          .string()
+          .optional()
+          .describe(
+            "The status of the change for the entity in the workspace for 'resolveConflict' action. Possible values: 'added', 'modified', 'deleted', 'unmodified'.",
+          ),
+        page: z
+          .number()
+          .min(1)
+          .default(1)
+          .describe(
+            `Page number for pagination (starts from 1). Each page contains up to itemsPerPage items.`,
+          ),
+        itemsPerPage: z
+          .number()
+          .min(1)
+          .max(ITEMS_PER_PAGE)
+          .default(ITEMS_PER_PAGE)
+          .describe(
+            `Number of items to return per page (1-${ITEMS_PER_PAGE}). Default: ${ITEMS_PER_PAGE}. Use lower values if experiencing response issues.`,
+          ),
+      }),
     },
     async ({
       action,

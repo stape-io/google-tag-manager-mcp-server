@@ -1,4 +1,4 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/server";
 import { tagmanager_v2 } from "@googleapis/tagmanager";
 import { z } from "zod";
 import { GtmToolContext } from "../types/index.js";
@@ -25,81 +25,87 @@ export const folderActions = (
   server: McpServer,
   { auth }: GtmToolContext,
 ): void => {
-  server.tool(
+  server.registerTool(
     "gtm_folder",
-    `Performs all folder operations: create, get, list, update, remove, revert, entities, moveEntitiesToFolder. The 'list' action returns up to ${ITEMS_PER_PAGE} items per page.`,
     {
-      action: z
-        .enum([
-          "create",
-          "get",
-          "list",
-          "update",
-          "remove",
-          "revert",
-          "entities",
-          "moveEntitiesToFolder",
-        ])
-        .describe(
-          "The folder operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove', 'revert', 'entities', 'moveEntitiesToFolder'.",
+      description: `Performs all folder operations: create, get, list, update, remove, revert, entities, moveEntitiesToFolder. The 'list' action returns up to ${ITEMS_PER_PAGE} items per page.`,
+      inputSchema: z.object({
+        action: z
+          .enum([
+            "create",
+            "get",
+            "list",
+            "update",
+            "remove",
+            "revert",
+            "entities",
+            "moveEntitiesToFolder",
+          ])
+          .describe(
+            "The folder operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove', 'revert', 'entities', 'moveEntitiesToFolder'.",
+          ),
+        accountId: z
+          .string()
+          .describe("The unique ID of the GTM Account containing the folder."),
+        containerId: z
+          .string()
+          .describe(
+            "The unique ID of the GTM Container containing the folder.",
+          ),
+        workspaceId: z
+          .string()
+          .describe(
+            "The unique ID of the GTM Workspace containing the folder.",
+          ),
+        folderId: z
+          .string()
+          .optional()
+          .describe(
+            "The unique ID of the GTM Folder. Required for 'get', 'update', 'remove', 'revert', 'entities', and 'moveEntitiesToFolder' actions.",
+          ),
+        createOrUpdateConfig: PayloadSchema.optional().describe(
+          "Configuration for 'create' and 'update' actions. All fields correspond to the GTM Folder resource, except IDs. 'update' replaces the entire folder — any field omitted here is deleted. Always run 'get' first and send back the complete object with your modifications applied.",
         ),
-      accountId: z
-        .string()
-        .describe("The unique ID of the GTM Account containing the folder."),
-      containerId: z
-        .string()
-        .describe("The unique ID of the GTM Container containing the folder."),
-      workspaceId: z
-        .string()
-        .describe("The unique ID of the GTM Workspace containing the folder."),
-      folderId: z
-        .string()
-        .optional()
-        .describe(
-          "The unique ID of the GTM Folder. Required for 'get', 'update', 'remove', 'revert', 'entities', and 'moveEntitiesToFolder' actions.",
-        ),
-      createOrUpdateConfig: PayloadSchema.optional().describe(
-        "Configuration for 'create' and 'update' actions. All fields correspond to the GTM Folder resource, except IDs. 'update' replaces the entire folder — any field omitted here is deleted. Always run 'get' first and send back the complete object with your modifications applied.",
-      ),
-      fingerprint: z
-        .string()
-        .optional()
-        .describe(
-          "The fingerprint for optimistic concurrency control. Required for 'update' and 'revert' actions.",
-        ),
-      tagId: z
-        .array(z.string())
-        .optional()
-        .describe(
-          "The tags to be moved to the folder. Required for 'moveEntitiesToFolder' action.",
-        ),
-      triggerId: z
-        .array(z.string())
-        .optional()
-        .describe(
-          "The triggers to be moved to the folder. Required for 'moveEntitiesToFolder' action.",
-        ),
-      variableId: z
-        .array(z.string())
-        .optional()
-        .describe(
-          "The variables to be moved to the folder. Required for 'moveEntitiesToFolder' action.",
-        ),
-      page: z
-        .number()
-        .min(1)
-        .default(1)
-        .describe(
-          `Page number for pagination (starts from 1). Each page contains up to itemsPerPage items.`,
-        ),
-      itemsPerPage: z
-        .number()
-        .min(1)
-        .max(ITEMS_PER_PAGE)
-        .default(ITEMS_PER_PAGE)
-        .describe(
-          `Number of items to return per page (1-${ITEMS_PER_PAGE}). Default: ${ITEMS_PER_PAGE}. Use lower values if experiencing response issues.`,
-        ),
+        fingerprint: z
+          .string()
+          .optional()
+          .describe(
+            "The fingerprint for optimistic concurrency control. Required for 'update' and 'revert' actions.",
+          ),
+        tagId: z
+          .array(z.string())
+          .optional()
+          .describe(
+            "The tags to be moved to the folder. Required for 'moveEntitiesToFolder' action.",
+          ),
+        triggerId: z
+          .array(z.string())
+          .optional()
+          .describe(
+            "The triggers to be moved to the folder. Required for 'moveEntitiesToFolder' action.",
+          ),
+        variableId: z
+          .array(z.string())
+          .optional()
+          .describe(
+            "The variables to be moved to the folder. Required for 'moveEntitiesToFolder' action.",
+          ),
+        page: z
+          .number()
+          .min(1)
+          .default(1)
+          .describe(
+            `Page number for pagination (starts from 1). Each page contains up to itemsPerPage items.`,
+          ),
+        itemsPerPage: z
+          .number()
+          .min(1)
+          .max(ITEMS_PER_PAGE)
+          .default(ITEMS_PER_PAGE)
+          .describe(
+            `Number of items to return per page (1-${ITEMS_PER_PAGE}). Default: ${ITEMS_PER_PAGE}. Use lower values if experiencing response issues.`,
+          ),
+      }),
     },
     async ({
       action,

@@ -1,4 +1,4 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/server";
 import { tagmanager_v2 } from "@googleapis/tagmanager";
 import { z } from "zod";
 import { GtmToolContext } from "../types/index.js";
@@ -23,84 +23,88 @@ export const versionActions = (
   server: McpServer,
   { auth }: GtmToolContext,
 ): void => {
-  server.tool(
+  server.registerTool(
     "gtm_version",
-    `Performs all container version operations: get, live, publish, remove, setLatest, undelete, update. For 'get' and 'live' actions, use 'resourceType' to paginate specific resource arrays (up to ${ITEMS_PER_PAGE} items per page) to avoid response truncation.`,
     {
-      action: z
-        .enum([
-          "get",
-          "live",
-          "publish",
-          "remove",
-          "setLatest",
-          "undelete",
-          "update",
-        ])
-        .describe(
-          "The container version operation to perform. Must be one of: 'get', 'live', 'publish', 'remove', 'setLatest', 'undelete', 'update'.",
+      description: `Performs all container version operations: get, live, publish, remove, setLatest, undelete, update. For 'get' and 'live' actions, use 'resourceType' to paginate specific resource arrays (up to ${ITEMS_PER_PAGE} items per page) to avoid response truncation.`,
+      inputSchema: z.object({
+        action: z
+          .enum([
+            "get",
+            "live",
+            "publish",
+            "remove",
+            "setLatest",
+            "undelete",
+            "update",
+          ])
+          .describe(
+            "The container version operation to perform. Must be one of: 'get', 'live', 'publish', 'remove', 'setLatest', 'undelete', 'update'.",
+          ),
+        accountId: z
+          .string()
+          .describe(
+            "The unique ID of the GTM Account containing the container version.",
+          ),
+        containerId: z
+          .string()
+          .describe(
+            "The unique ID of the GTM Container containing the version.",
+          ),
+        containerVersionId: z
+          .string()
+          .optional()
+          .describe(
+            "The unique ID of the GTM container version. Required for 'get', 'publish', 'remove', 'setLatest', 'undelete', and 'update' actions.",
+          ),
+        createOrUpdateConfig: PayloadSchema.optional().describe(
+          "Configuration for 'create' and 'update' actions. All fields correspond to the GTM container version resource, except IDs. 'update' replaces the entire container version — any field omitted here is deleted. Always run 'get' first and send back the complete object with your modifications applied.",
         ),
-      accountId: z
-        .string()
-        .describe(
-          "The unique ID of the GTM Account containing the container version.",
-        ),
-      containerId: z
-        .string()
-        .describe("The unique ID of the GTM Container containing the version."),
-      containerVersionId: z
-        .string()
-        .optional()
-        .describe(
-          "The unique ID of the GTM container version. Required for 'get', 'publish', 'remove', 'setLatest', 'undelete', and 'update' actions.",
-        ),
-      createOrUpdateConfig: PayloadSchema.optional().describe(
-        "Configuration for 'create' and 'update' actions. All fields correspond to the GTM container version resource, except IDs. 'update' replaces the entire container version — any field omitted here is deleted. Always run 'get' first and send back the complete object with your modifications applied.",
-      ),
-      fingerprint: z
-        .string()
-        .optional()
-        .describe(
-          "The fingerprint for optimistic concurrency control. Required for 'publish' and 'update' actions.",
-        ),
-      resourceType: z
-        .enum([
-          "tag",
-          "trigger",
-          "variable",
-          "folder",
-          "builtInVariable",
-          "zone",
-          "customTemplate",
-          "client",
-          "gtagConfig",
-          "transformation",
-        ])
-        .optional()
-        .describe(
-          "Specific resource type to retrieve with pagination (only for 'get' and 'live' actions). If not specified, returns summary with sample items.",
-        ),
-      page: z
-        .number()
-        .min(1)
-        .default(1)
-        .describe(
-          "Page number for pagination (starts from 1). Only used when resourceType is specified.",
-        ),
-      itemsPerPage: z
-        .number()
-        .min(1)
-        .max(ITEMS_PER_PAGE)
-        .default(ITEMS_PER_PAGE)
-        .describe(
-          `Number of items to return per page (1-${ITEMS_PER_PAGE}). Only used when resourceType is specified.`,
-        ),
-      includeSummary: z
-        .boolean()
-        .default(true)
-        .describe(
-          "Include counts and metadata for all resource types. Only used when resourceType is specified.",
-        ),
+        fingerprint: z
+          .string()
+          .optional()
+          .describe(
+            "The fingerprint for optimistic concurrency control. Required for 'publish' and 'update' actions.",
+          ),
+        resourceType: z
+          .enum([
+            "tag",
+            "trigger",
+            "variable",
+            "folder",
+            "builtInVariable",
+            "zone",
+            "customTemplate",
+            "client",
+            "gtagConfig",
+            "transformation",
+          ])
+          .optional()
+          .describe(
+            "Specific resource type to retrieve with pagination (only for 'get' and 'live' actions). If not specified, returns summary with sample items.",
+          ),
+        page: z
+          .number()
+          .min(1)
+          .default(1)
+          .describe(
+            "Page number for pagination (starts from 1). Only used when resourceType is specified.",
+          ),
+        itemsPerPage: z
+          .number()
+          .min(1)
+          .max(ITEMS_PER_PAGE)
+          .default(ITEMS_PER_PAGE)
+          .describe(
+            `Number of items to return per page (1-${ITEMS_PER_PAGE}). Only used when resourceType is specified.`,
+          ),
+        includeSummary: z
+          .boolean()
+          .default(true)
+          .describe(
+            "Include counts and metadata for all resource types. Only used when resourceType is specified.",
+          ),
+      }),
     },
     async ({
       action,

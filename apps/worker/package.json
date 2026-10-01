@@ -9,6 +9,7 @@
   "scripts": {
     "build": "node ../../scripts/generate-version.mjs",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "dev": "wrangler dev --local-upstream localhost:8788",
     "start": "wrangler dev --local-upstream localhost:8788",
     "deploy": "wrangler deploy",
@@ -16,8 +17,9 @@
   },
   "dependencies": {
     "@cloudflare/workers-oauth-provider": "^0.10.3",
-    "@modelcontextprotocol/sdk": "^1.30.0",
-    "agents": "^0.21.0",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "@modelcontextprotocol/server": "2.0.0",
+    "agents": "^0.24.0",
     "google-tag-manager-mcp-core": "*",
     "hono": "^4.13.2",
     "zod": "^4.4.3"
@@ -25,6 +27,7 @@
   "devDependencies": {
     "@types/node": "^24.0.0",
     "typescript": "^5.8.3",
+    "vitest": "^3.2.4",
     "wrangler": "^4.123.0"
   }
 }

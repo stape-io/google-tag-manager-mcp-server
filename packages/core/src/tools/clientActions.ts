@@ -1,4 +1,4 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/server";
 import { tagmanager_v2 } from "@googleapis/tagmanager";
 import { z } from "zod";
 import { GtmToolContext } from "../types/index.js";
@@ -25,54 +25,60 @@ export const clientActions = (
   server: McpServer,
   { auth }: GtmToolContext,
 ): void => {
-  server.tool(
+  server.registerTool(
     "gtm_client",
-    `Performs all client operations: create, get, list, update, remove, revert. The 'list' action returns up to itemsPerPage items per page.`,
     {
-      action: z
-        .enum(["create", "get", "list", "update", "remove", "revert"])
-        .describe(
-          "The client operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove', 'revert'.",
+      description: `Performs all client operations: create, get, list, update, remove, revert. The 'list' action returns up to itemsPerPage items per page.`,
+      inputSchema: z.object({
+        action: z
+          .enum(["create", "get", "list", "update", "remove", "revert"])
+          .describe(
+            "The client operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove', 'revert'.",
+          ),
+        accountId: z
+          .string()
+          .describe("The unique ID of the GTM Account containing the client."),
+        containerId: z
+          .string()
+          .describe(
+            "The unique ID of the GTM Container containing the client.",
+          ),
+        workspaceId: z
+          .string()
+          .describe(
+            "The unique ID of the GTM Workspace containing the client.",
+          ),
+        clientId: z
+          .string()
+          .optional()
+          .describe(
+            "The unique ID of the GTM Client. Required for 'get', 'update', 'remove', and 'revert' actions.",
+          ),
+        createOrUpdateConfig: PayloadSchema.optional().describe(
+          "Configuration for 'create' and 'update' actions. All fields correspond to the GTM Client resource, except IDs. 'update' replaces the entire client — any field omitted here is deleted. Always run 'get' first and send back the complete object with your modifications applied.",
         ),
-      accountId: z
-        .string()
-        .describe("The unique ID of the GTM Account containing the client."),
-      containerId: z
-        .string()
-        .describe("The unique ID of the GTM Container containing the client."),
-      workspaceId: z
-        .string()
-        .describe("The unique ID of the GTM Workspace containing the client."),
-      clientId: z
-        .string()
-        .optional()
-        .describe(
-          "The unique ID of the GTM Client. Required for 'get', 'update', 'remove', and 'revert' actions.",
-        ),
-      createOrUpdateConfig: PayloadSchema.optional().describe(
-        "Configuration for 'create' and 'update' actions. All fields correspond to the GTM Client resource, except IDs. 'update' replaces the entire client — any field omitted here is deleted. Always run 'get' first and send back the complete object with your modifications applied.",
-      ),
-      fingerprint: z
-        .string()
-        .optional()
-        .describe(
-          "The fingerprint for optimistic concurrency control. Required for 'update' and 'revert' actions.",
-        ),
-      page: z
-        .number()
-        .min(1)
-        .default(1)
-        .describe(
-          `Page number for pagination (starts from 1). Each page contains up to itemsPerPage items.`,
-        ),
-      itemsPerPage: z
-        .number()
-        .min(1)
-        .max(ITEMS_PER_PAGE)
-        .default(ITEMS_PER_PAGE)
-        .describe(
-          `Number of items to return per page (1-${ITEMS_PER_PAGE}). Default: ${ITEMS_PER_PAGE}. Use lower values if experiencing response issues.`,
-        ),
+        fingerprint: z
+          .string()
+          .optional()
+          .describe(
+            "The fingerprint for optimistic concurrency control. Required for 'update' and 'revert' actions.",
+          ),
+        page: z
+          .number()
+          .min(1)
+          .default(1)
+          .describe(
+            `Page number for pagination (starts from 1). Each page contains up to itemsPerPage items.`,
+          ),
+        itemsPerPage: z
+          .number()
+          .min(1)
+          .max(ITEMS_PER_PAGE)
+          .default(ITEMS_PER_PAGE)
+          .describe(
+            `Number of items to return per page (1-${ITEMS_PER_PAGE}). Default: ${ITEMS_PER_PAGE}. Use lower values if experiencing response issues.`,
+          ),
+      }),
     },
     async ({
       action,
