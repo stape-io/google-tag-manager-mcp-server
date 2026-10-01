@@ -144,6 +144,10 @@ app.get("/callback", async (c) => {
   const { redirectTo } = await c.env.OAUTH_PROVIDER.completeAuthorization({
     request: oauthReqInfo,
     userId: id,
+    // Clients share one DCR registration across windows and stale login tabs;
+    // revoking "older" grants here logs out whichever copy already saved its
+    // tokens. Unused grants expire with their refresh token instead.
+    revokeExistingGrants: false,
     metadata: {
       label: name,
     },
@@ -163,36 +167,6 @@ app.get("/callback", async (c) => {
   const url = new URL(redirectTo);
   url.searchParams.set("email", email);
   return Response.redirect(url.toString());
-});
-
-app.get("/remove", async (c) => {
-  const userId = c.req.query("userId");
-  const clientId = c.req.query("clientId");
-  const accessToken = c.req.query("accessToken");
-
-  if (!userId || !clientId || !accessToken) {
-    return new Response("Invalid request", {
-      status: 400,
-    });
-  }
-
-  const listUserGrants = await c.env.OAUTH_PROVIDER.listUserGrants(userId);
-  const revokeGrantRequests = listUserGrants.items.map((item) => {
-    return c.env.OAUTH_PROVIDER.revokeGrant(item.id, item.userId);
-  });
-
-  await Promise.all(revokeGrantRequests);
-  await c.env.OAUTH_PROVIDER.deleteClient(clientId);
-  await fetch(`https://oauth2.googleapis.com/revoke?token=${accessToken}`, {
-    method: "POST",
-    headers: {
-      "Content-type": "application/x-www-form-urlencoded",
-    },
-  });
-
-  return new Response("OK", {
-    status: 200,
-  });
 });
 
 app.get("/", async () => {
