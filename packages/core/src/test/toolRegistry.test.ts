@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Tool } from "@modelcontextprotocol/server";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createHarness, McpHarness } from "./mcpHarness.js";
 import { normalizeToolsList } from "./normalizeTools.js";
 import { PACKAGE_VERSION } from "../version.js";
@@ -85,13 +85,29 @@ describe.each(["legacy", "modern"] as const)(
     });
 
     it("rejects tools/call with missing required arguments before any handler logic runs", async () => {
-      // No accountId: zod schema validation must reject this before the gtm_account
-      // handler runs - so no getTagManagerClient()/network call is ever attempted.
-      const result = await harness.client.callTool({
-        name: "gtm_account",
-        arguments: { action: "get" },
+      // No accountId: SDK input validation must reject this before the gtm_account
+      // handler runs. The handler's own "accountId is required" check also yields
+      // isError, so isError alone can't tell the two apart: a spy auth provider proves
+      // the handler never ran (it calls getAccessToken first), and the message proves
+      // the rejection came from the SDK's validation layer.
+      const getAccessToken = vi.fn(async () => "test-access-token");
+      const spyHarness = await createHarness({
+        era,
+        auth: { getAccessToken },
       });
-      expect(result.isError).toBe(true);
+      try {
+        const result = await spyHarness.client.callTool({
+          name: "gtm_account",
+          arguments: { action: "get" },
+        });
+        expect(result.isError).toBe(true);
+        expect(JSON.stringify(result.content)).toMatch(
+          /input validation error/i,
+        );
+        expect(getAccessToken).not.toHaveBeenCalled();
+      } finally {
+        await spyHarness.close();
+      }
     });
   },
 );
