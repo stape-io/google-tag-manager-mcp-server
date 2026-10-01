@@ -32,10 +32,19 @@ export const removeMCPServerData = (
         // Google doesn't document whether revoking one token drops the whole
         // app authorization, which the other clients rely on. So only revoke
         // once none of them is left.
-        const remaining = await oauth.listUserGrants(props.userId, {
-          limit: 1,
-        });
-        if (remaining.items.length === 0 && props.refreshToken) {
+        // An empty page can still carry a cursor, so keep paging until a
+        // grant turns up or the listing is exhausted.
+        let othersRemain = false;
+        cursor = undefined;
+        do {
+          const page = await oauth.listUserGrants(props.userId, {
+            limit: 1,
+            cursor,
+          });
+          othersRemain = page.items.length > 0;
+          cursor = page.cursor;
+        } while (!othersRemain && cursor);
+        if (!othersRemain && props.refreshToken) {
           await fetch("https://oauth2.googleapis.com/revoke", {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },

@@ -31,6 +31,7 @@ const nowSeconds = () => Math.floor(Date.now() / 1000);
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe("refresh_token exchange", () => {
@@ -109,6 +110,47 @@ describe("refresh_token exchange", () => {
     },
   );
 
+  // The provider applies accessTokenTTL after the callback returns, so the
+  // time spent waiting on Google comes out of the Google token's lifetime.
+  it("counts the time a failed Google refresh took against the fallback TTL", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("fetch", async () => {
+      vi.advanceTimersByTime(120_000);
+      return new Response("busy", { status: 503 });
+    });
+    const googleExpiresAt = nowSeconds() + 600;
+
+    const result = await handleTokenExchangeCallback(
+      {
+        grantType: "refresh_token",
+        props: { ...PROPS, expiresAt: googleExpiresAt },
+      },
+      ENV,
+    );
+
+    expect(nowSeconds() + result!.accessTokenTTL).toBeLessThanOrEqual(
+      googleExpiresAt,
+    );
+  });
+
+  it("asks for a new login when a failed Google refresh leaves under 60 s on its token", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("fetch", async () => {
+      vi.advanceTimersByTime(60_000);
+      return new Response("busy", { status: 503 });
+    });
+
+    await expect(
+      handleTokenExchangeCallback(
+        {
+          grantType: "refresh_token",
+          props: { ...PROPS, expiresAt: nowSeconds() + 100 },
+        },
+        ENV,
+      ),
+    ).rejects.toBeInstanceOf(UpstreamReauthRequiredError);
+  });
+
   it("asks for a new login when Google rejects the refresh token", async () => {
     vi.stubGlobal("fetch", async () =>
       Response.json({ error: "invalid_grant" }, { status: 400 }),
@@ -169,7 +211,12 @@ describe("gtm_remove_session", () => {
     ];
     return {
       grants,
-      listUserGrants: vi.fn(async () => ({ items: [...grants] })),
+      listUserGrants: vi.fn<
+        (
+          userId: string,
+          options?: { limit?: number; cursor?: string },
+        ) => Promise<{ items: typeof grants; cursor?: string }>
+      >(async () => ({ items: [...grants] })),
       revokeGrant: vi.fn(async (id: string) => {
         grants.splice(
           grants.findIndex((g) => g.id === id),
@@ -238,6 +285,25 @@ describe("gtm_remove_session", () => {
 
     expect(result.isError).toBeFalsy();
     expect(oauth.grants).toEqual([]);
+  });
+
+  // KV can answer a list with an empty page plus a cursor (e.g. after
+  // deletions), so an empty first page doesn't prove nothing is left.
+  it("keeps Google access when another client's grant is on a later page", async () => {
+    const fetchMock = vi.fn(async () => new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const oauth = fakeOAuth();
+    oauth.listUserGrants.mockImplementation(async (_userId, options) =>
+      options?.cursor === undefined
+        ? { items: [], cursor: "next-page" }
+        : { items: [...oauth.grants] },
+    );
+
+    const result = await callTool(oauth);
+
+    expect(result.isError).toBeFalsy();
+    expect(oauth.grants.map((g) => g.id)).toEqual(["g-desktop", "g-cursor"]);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   // Revoking the grants already forces a clean login on the next request.

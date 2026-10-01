@@ -285,12 +285,15 @@ export async function handleTokenExchangeCallback(
 
     if (!token) {
       console.error(`[TokenExchange] Google refresh failed: ${err}`);
+      // The refresh took time, and the provider applies the TTL after this
+      // returns, so measure what is left on the Google token now.
+      const secondsLeftNow = (p.expiresAt ?? 0) - Math.floor(Date.now() / 1000);
       if (
         !PERMANENT_GOOGLE_ERRORS.test(err ?? "") &&
-        googleSecondsLeft >= MIN_ACCESS_TOKEN_TTL
+        secondsLeftNow >= MIN_ACCESS_TOKEN_TTL
       ) {
         // Transient: keep serving on the current Google token, retry later.
-        return { accessTokenTTL: googleSecondsLeft };
+        return { accessTokenTTL: secondsLeftNow };
       }
       throw new UpstreamReauthRequiredError(
         `Google refresh failed: ${err}. Please re-authenticate.`,
