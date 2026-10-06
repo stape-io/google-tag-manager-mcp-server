@@ -1,4 +1,4 @@
-import { Tool } from "@modelcontextprotocol/sdk/types.js";
+import { Tool } from "@modelcontextprotocol/server";
 
 /**
  * Recursively sorts object keys so JSON.stringify output is stable regardless of

@@ -1,4 +1,4 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/server";
 import { tagmanager_v2 } from "@googleapis/tagmanager";
 import { z } from "zod";
 import { GtmToolContext } from "../types/index.js";
@@ -25,60 +25,94 @@ export const templateActions = (
   server: McpServer,
   { auth }: GtmToolContext,
 ): void => {
-  server.tool(
+  server.registerTool(
     "gtm_template",
-    `Performs all GTM custom template operations: create, get, list, update, remove, revert. The 'list' action returns up to itemsPerPage items per page.`,
     {
-      action: z
-        .enum(["create", "get", "list", "update", "remove", "revert"])
-        .describe(
-          "The GTM custom template operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove', 'revert'.",
+      description: `Performs all GTM custom template operations: create, get, list, update, remove, revert, importFromGallery. 'importFromGallery' adds a Community Template Gallery template (github.com/<galleryOwner>/<galleryRepository>) to the workspace; the template must support the container's type (web or server). The 'list' action returns up to itemsPerPage items per page.`,
+      inputSchema: z.object({
+        action: z
+          .enum([
+            "create",
+            "get",
+            "list",
+            "update",
+            "remove",
+            "revert",
+            "importFromGallery",
+          ])
+          .describe(
+            "The GTM custom template operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove', 'revert', 'importFromGallery'.",
+          ),
+        accountId: z
+          .string()
+          .describe(
+            "The unique ID of the GTM Account containing the custom template.",
+          ),
+        containerId: z
+          .string()
+          .describe(
+            "The unique ID of the GTM Container containing the custom template.",
+          ),
+        workspaceId: z
+          .string()
+          .describe(
+            "The unique ID of the GTM Workspace containing the custom template.",
+          ),
+        templateId: z
+          .string()
+          .optional()
+          .describe(
+            "The unique ID of the GTM custom template. Required for 'get', 'update', 'remove', and 'revert' actions.",
+          ),
+        createOrUpdateConfig: PayloadSchema.optional().describe(
+          "Configuration for 'create' and 'update' actions. All fields correspond to the GTM custom template resource, except IDs. 'update' replaces the entire custom template — any field omitted here is deleted. Always run 'get' first and send back the complete object with your modifications applied.",
         ),
-      accountId: z
-        .string()
-        .describe(
-          "The unique ID of the GTM Account containing the custom template.",
-        ),
-      containerId: z
-        .string()
-        .describe(
-          "The unique ID of the GTM Container containing the custom template.",
-        ),
-      workspaceId: z
-        .string()
-        .describe(
-          "The unique ID of the GTM Workspace containing the custom template.",
-        ),
-      templateId: z
-        .string()
-        .optional()
-        .describe(
-          "The unique ID of the GTM custom template. Required for 'get', 'update', 'remove', and 'revert' actions.",
-        ),
-      createOrUpdateConfig: PayloadSchema.optional().describe(
-        "Configuration for 'create' and 'update' actions. All fields correspond to the GTM custom template resource, except IDs. 'update' replaces the entire custom template — any field omitted here is deleted. Always run 'get' first and send back the complete object with your modifications applied.",
-      ),
-      fingerprint: z
-        .string()
-        .optional()
-        .describe(
-          "The fingerprint for optimistic concurrency control. Required for 'update' and 'revert' actions.",
-        ),
-      page: z
-        .number()
-        .min(1)
-        .default(1)
-        .describe(
-          `Page number for pagination (starts from 1). Each page contains up to itemsPerPage items.`,
-        ),
-      itemsPerPage: z
-        .number()
-        .min(1)
-        .max(ITEMS_PER_PAGE)
-        .default(ITEMS_PER_PAGE)
-        .describe(
-          `Number of items to return per page (1-${ITEMS_PER_PAGE}). Default: ${ITEMS_PER_PAGE}. Use lower values if experiencing response issues.`,
-        ),
+        fingerprint: z
+          .string()
+          .optional()
+          .describe(
+            "The fingerprint for optimistic concurrency control. Required for 'update' and 'revert' actions.",
+          ),
+        galleryOwner: z
+          .string()
+          .optional()
+          .describe(
+            "GitHub owner of the Community Template Gallery template, e.g. 'stape-io'. Required for 'importFromGallery' action.",
+          ),
+        galleryRepository: z
+          .string()
+          .optional()
+          .describe(
+            "GitHub repository of the Community Template Gallery template, e.g. 'facebook-tag'. Required for 'importFromGallery' action.",
+          ),
+        gallerySha: z
+          .string()
+          .optional()
+          .describe(
+            "Commit SHA of the gallery template version to import. Defaults to the latest version. Only used by 'importFromGallery' action.",
+          ),
+        acknowledgePermissions: z
+          .boolean()
+          .optional()
+          .describe(
+            "Must be true for 'importFromGallery': confirms the user reviewed and accepts the permissions the template requests. Google rejects the import otherwise.",
+          ),
+        page: z
+          .number()
+          .min(1)
+          .default(1)
+          .describe(
+            `Page number for pagination (starts from 1). Each page contains up to itemsPerPage items.`,
+          ),
+        itemsPerPage: z
+          .number()
+          .min(1)
+          .max(ITEMS_PER_PAGE)
+          .default(ITEMS_PER_PAGE)
+          .describe(
+            `Number of items to return per page (1-${ITEMS_PER_PAGE}). Default: ${ITEMS_PER_PAGE}. Use lower values if experiencing response issues.`,
+          ),
+      }),
     },
     async ({
       action,
@@ -88,6 +122,10 @@ export const templateActions = (
       templateId,
       createOrUpdateConfig,
       fingerprint,
+      galleryOwner,
+      galleryRepository,
+      gallerySha,
+      acknowledgePermissions,
       page,
       itemsPerPage,
     }) => {
@@ -223,6 +261,36 @@ export const templateActions = (
                 path: `accounts/${accountId}/containers/${containerId}/workspaces/${workspaceId}/templates/${templateId}`,
                 fingerprint,
               });
+
+            return {
+              content: [
+                { type: "text", text: JSON.stringify(response.data, null, 2) },
+              ],
+            };
+          }
+          case "importFromGallery": {
+            if (!galleryOwner || !galleryRepository) {
+              throw new Error(
+                `galleryOwner and galleryRepository are required for ${action} action`,
+              );
+            }
+
+            if (acknowledgePermissions !== true) {
+              throw new Error(
+                `acknowledgePermissions must be true for ${action} action`,
+              );
+            }
+
+            const response =
+              await tagmanager.accounts.containers.workspaces.templates.import_from_gallery(
+                {
+                  parent: `accounts/${accountId}/containers/${containerId}/workspaces/${workspaceId}`,
+                  galleryOwner,
+                  galleryRepository,
+                  gallerySha,
+                  acknowledgePermissions,
+                },
+              );
 
             return {
               content: [

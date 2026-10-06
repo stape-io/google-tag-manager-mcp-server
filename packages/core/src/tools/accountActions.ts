@@ -1,4 +1,4 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { GtmToolContext } from "../types/index.js";
 import { AccountSchema } from "../schemas/AccountSchema.js";
@@ -16,19 +16,22 @@ export const accountActions = (
   server: McpServer,
   { auth }: GtmToolContext,
 ): void => {
-  server.tool(
+  server.registerTool(
     "gtm_account",
-    "Performs all account-related operations: get, list, update. Use the 'action' parameter to select the operation.",
     {
-      action: z
-        .enum(["get", "list", "update"])
-        .describe(
-          "The account operation to perform. Must be one of: 'get', 'list', 'update'.",
+      description:
+        "Performs all account-related operations: get, list, update. Use the 'action' parameter to select the operation.",
+      inputSchema: z.object({
+        action: z
+          .enum(["get", "list", "update"])
+          .describe(
+            "The account operation to perform. Must be one of: 'get', 'list', 'update'.",
+          ),
+        accountId: z.string().describe("The unique ID of the GTM Account."),
+        config: PayloadSchema.optional().describe(
+          "Configuration for 'update' action. All fields correspond to the GTM Account resource. 'update' replaces the entire account — any field omitted here is deleted. Always run 'get' first and send back the complete object with your modifications applied.",
         ),
-      accountId: z.string().describe("The unique ID of the GTM Account."),
-      config: PayloadSchema.optional().describe(
-        "Configuration for 'update' action. All fields correspond to the GTM Account resource. 'update' replaces the entire account — any field omitted here is deleted. Always run 'get' first and send back the complete object with your modifications applied.",
-      ),
+      }),
     },
     async ({ action, accountId, config }) => {
       log(`Running tool: gtm_account with action ${action}`);
