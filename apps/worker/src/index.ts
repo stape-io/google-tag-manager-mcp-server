@@ -1,4 +1,8 @@
-import { OAuthProvider } from "@cloudflare/workers-oauth-provider";
+import {
+  getOAuthApi,
+  OAuthProvider,
+  type OAuthProviderOptions,
+} from "@cloudflare/workers-oauth-provider";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { McpServer as McpServerV2 } from "@modelcontextprotocol/server";
 import { McpAgent } from "agents/mcp";
@@ -8,7 +12,7 @@ import {
   setUnauthorizedHint,
 } from "google-tag-manager-mcp-core";
 import { SERVER_INFO } from "./constants/serverInfo";
-import { TAG_MANAGER_REMOVE_MCP_SERVER_DATA } from "./constants/tools";
+import { UNAUTHORIZED_HINT } from "./constants/tools";
 import { createMcpApiHandler } from "./mcpHandler";
 import { McpAgentPropsModel } from "./models/McpAgentModel";
 import { removeMCPServerData } from "./tools/removeMCPServerData";
@@ -19,9 +23,7 @@ import {
   withSseKeepalive,
 } from "./utils";
 
-setUnauthorizedHint(
-  `It seems that your token has been expired, please use ${TAG_MANAGER_REMOVE_MCP_SERVER_DATA} tool to clear your session in the MCP client`,
-);
+setUnauthorizedHint(UNAUTHORIZED_HINT);
 
 export class GoogleTagManagerMCPServer extends McpAgent<
   Env,
@@ -60,8 +62,31 @@ export class GoogleTagManagerMCPServer extends McpAgent<
     const legacyServer = this.server as unknown as McpServerV2;
 
     registerGtmTools(legacyServer, { auth });
-    removeMCPServerData(legacyServer, { props, env: this.env });
+    // The Durable Object's env never passes through OAuthProvider, so build
+    // the helpers from the same options instead of relying on injection.
+    removeMCPServerData(legacyServer, {
+      props,
+      oauth: getOAuthApi(providerOptions(this.env), this.env),
+    });
   }
+}
+
+function providerOptions(env: Env): OAuthProviderOptions {
+  return {
+    apiRoute: ["/sse", "/mcp"],
+    apiHandlers: {
+      "/sse": GoogleTagManagerMCPServer.serveSSE("/sse"),
+      "/mcp": createMcpApiHandler(env),
+    },
+    // @ts-ignore
+    defaultHandler: apisHandler,
+    authorizeEndpoint: "/authorize",
+    tokenEndpoint: "/token",
+    clientRegistrationEndpoint: "/register",
+    tokenExchangeCallback: async (options) => {
+      return handleTokenExchangeCallback(options, env);
+    },
+  };
 }
 
 export default {
@@ -100,21 +125,7 @@ export default {
       });
     }
 
-    const provider = new OAuthProvider({
-      apiRoute: ["/sse", "/mcp"],
-      apiHandlers: {
-        "/sse": GoogleTagManagerMCPServer.serveSSE("/sse"),
-        "/mcp": createMcpApiHandler(env),
-      },
-      // @ts-ignore
-      defaultHandler: apisHandler,
-      authorizeEndpoint: "/authorize",
-      tokenEndpoint: "/token",
-      clientRegistrationEndpoint: "/register",
-      tokenExchangeCallback: async (options) => {
-        return handleTokenExchangeCallback(options, env);
-      },
-    });
+    const provider = new OAuthProvider(providerOptions(env));
 
     try {
       const response = await provider.fetch(request, env, ctx);

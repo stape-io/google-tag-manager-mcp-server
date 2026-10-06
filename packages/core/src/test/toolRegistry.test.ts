@@ -10,6 +10,9 @@ import { PACKAGE_VERSION } from "../version.js";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const GOLDEN_PATH = join(__dirname, "__golden__", "tools.json");
 const DESCRIPTION_MAX_LENGTH = 1024; // Gemini's known rejection ceiling.
+// Tools that take no arguments by design; every other tool must declare some,
+// which catches a schema silently converted to an empty one.
+const NO_ARGUMENT_TOOLS = new Set(["gtm_auth_status"]);
 
 describe.each(["legacy", "modern"] as const)(
   "tool registry (%s era)",
@@ -47,6 +50,10 @@ describe.each(["legacy", "modern"] as const)(
           properties?: Record<string, unknown>;
         };
         const properties = schema.properties ?? {};
+        if (NO_ARGUMENT_TOOLS.has(tool.name)) {
+          expect(properties, `${tool.name}: takes no arguments`).toEqual({});
+          continue;
+        }
         expect(
           Object.keys(properties).length,
           `${tool.name}: inputSchema must declare at least one property`,

@@ -11,6 +11,10 @@ export function setUnauthorizedHint(hint: string): void {
   unauthorizedHint = hint;
 }
 
+export function getUnauthorizedHint(): string {
+  return unauthorizedHint;
+}
+
 export function createErrorResponse(
   message: string,
   error?: any,

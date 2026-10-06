@@ -1,3 +1,4 @@
+import type { OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -38,7 +39,8 @@ it("registers the v2 tool set on a v1 McpServer, as /sse does", async () => {
   });
   removeMCPServerData(legacyServer, {
     props,
-    env: { WORKER_HOST: "https://gtm-mcp.example" } as unknown as Env,
+    // Registration only; the tool is never called here.
+    oauth: {} as OAuthHelpers,
   });
 
   const client = new Client({ name: "sse-compat-test", version: "0" });
@@ -52,8 +54,22 @@ it("registers the v2 tool set on a v1 McpServer, as /sse does", async () => {
 
   const { tools } = await client.listTools();
 
-  expect(tools.length).toBeGreaterThanOrEqual(19);
+  expect(tools.length).toBeGreaterThanOrEqual(21);
   expect(tools.map((tool) => tool.name)).toContain("gtm_remove_session");
+  expect(tools.map((tool) => tool.name)).toContain("gtm_auth_status");
+
+  const guide = tools.find((tool) => tool.name === "gtm_guide");
+  expect(Object.keys(guide?.inputSchema?.properties ?? {})).toEqual(["topic"]);
+
+  // A no-network call through v1 dispatch: schema validation + handler.
+  const guideResult = await client.callTool({
+    name: "gtm_guide",
+    arguments: { topic: "safeEditing" },
+  });
+  expect(guideResult.isError).toBeFalsy();
+  expect((guideResult.content as { text: string }[])[0].text).toMatch(
+    /^# Safe editing workflow/,
+  );
 
   // The failure mode worth catching: v1 silently turning a v2-shaped
   // `inputSchema` into an empty/degenerate JSON Schema.
