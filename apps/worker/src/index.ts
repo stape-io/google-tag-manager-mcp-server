@@ -89,6 +89,30 @@ function providerOptions(env: Env): OAuthProviderOptions {
   };
 }
 
+/**
+ * Same body the stateless `/mcp` handler returns for a non-POST, plus the
+ * `Allow` header RFC 9110 requires on a 405. The Origin is echoed because this
+ * skips OAuthProvider, which would otherwise add CORS headers for a browser
+ * client.
+ */
+function mcpMethodNotAllowed(request: Request): Response {
+  const headers = new Headers({ Allow: "POST, OPTIONS" });
+  const origin = request.headers.get("Origin");
+
+  if (origin) {
+    headers.set("Access-Control-Allow-Origin", origin);
+  }
+
+  return Response.json(
+    {
+      jsonrpc: "2.0",
+      error: { code: -32000, message: "Method not allowed." },
+      id: null,
+    },
+    { status: 405, headers },
+  );
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
     const startedAt = Date.now();
@@ -107,13 +131,18 @@ export default {
 
     console.log("[HTTP] Incoming request", logBase);
 
-    const isMcp = url.pathname === "/mcp" && request.method === "GET";
+    // `/mcp` is served statelessly: there is no SSE stream for a GET to open
+    // and no session for a DELETE to end, so the MCP Streamable HTTP spec
+    // calls for 405. Answer it before OAuthProvider, whose bearer check would
+    // otherwise turn every unauthenticated GET into a 401. A 405 reveals
+    // nothing a token protects; POST and every other route stay behind auth.
+    const isMcpNoStream =
+      url.pathname === "/mcp" &&
+      (request.method === "GET" || request.method === "DELETE");
     const isLegacySse = url.pathname === "/sse" && request.method === "GET";
 
-    // Only `/sse` opens a long-lived GET stream now. `/mcp` is served
-    // statelessly, which has no session for a standalone GET stream to attach
-    // to, so a GET there answers 405 - logging it as a stream opening would
-    // mislead anyone debugging that.
+    // Only `/sse` opens a long-lived GET stream now; a GET on `/mcp` answers
+    // 405 above, so logging it as a stream opening would mislead.
     if (isLegacySse) {
       console.log("[MCP_STREAM] Connection opening", logBase);
 
@@ -128,7 +157,9 @@ export default {
     const provider = new OAuthProvider(providerOptions(env));
 
     try {
-      const response = await provider.fetch(request, env, ctx);
+      const response = isMcpNoStream
+        ? mcpMethodNotAllowed(request)
+        : await provider.fetch(request, env, ctx);
 
       const durationMs = Date.now() - startedAt;
 
@@ -140,12 +171,13 @@ export default {
       });
 
       // Every client opens with an unauthenticated probe to discover where to
-      // authorize, so a 401 here is the protocol working. Logging it as an
-      // error buries the failures worth finding.
-      const isAuthChallenge =
-        response.status === 401 && (isMcp || url.pathname === "/mcp");
+      // authorize, and probes GET for an optional stream, so a 401 or that
+      // 405 is the protocol working. Logging it as an error buries the
+      // failures worth finding.
+      const isProtocolProbe =
+        isMcpNoStream || (response.status === 401 && url.pathname === "/mcp");
 
-      if (response.status >= 400 && !isAuthChallenge) {
+      if (response.status >= 400 && !isProtocolProbe) {
         console.error("[HTTP] Error response", {
           requestId,
           status: response.status,
