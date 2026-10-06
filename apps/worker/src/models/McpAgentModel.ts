@@ -7,8 +7,3 @@ export type McpAgentPropsModel = {
   expiresAt?: number;
   clientId: string;
 };
-
-export type McpAgentToolParamsModel = {
-  props: McpAgentPropsModel;
-  env: Env;
-};

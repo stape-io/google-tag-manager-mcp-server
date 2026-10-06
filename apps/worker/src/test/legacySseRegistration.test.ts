@@ -1,3 +1,4 @@
+import type { OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -38,7 +39,8 @@ it("registers the v2 tool set on a v1 McpServer, as /sse does", async () => {
   });
   removeMCPServerData(legacyServer, {
     props,
-    env: { WORKER_HOST: "https://gtm-mcp.example" } as unknown as Env,
+    // Registration only; the tool is never called here.
+    oauth: {} as OAuthHelpers,
   });
 
   const client = new Client({ name: "sse-compat-test", version: "0" });
