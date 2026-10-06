@@ -1,0 +1,120 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Tool } from "@modelcontextprotocol/server";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { createHarness, McpHarness } from "./mcpHarness.js";
+import { normalizeToolsList } from "./normalizeTools.js";
+import { PACKAGE_VERSION } from "../version.js";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const GOLDEN_PATH = join(__dirname, "__golden__", "tools.json");
+const DESCRIPTION_MAX_LENGTH = 1024; // Gemini's known rejection ceiling.
+// Tools that take no arguments by design; every other tool must declare some,
+// which catches a schema silently converted to an empty one.
+const NO_ARGUMENT_TOOLS = new Set(["gtm_auth_status"]);
+
+describe.each(["legacy", "modern"] as const)(
+  "tool registry (%s era)",
+  (era) => {
+    let harness: McpHarness;
+    let tools: Tool[];
+
+    beforeAll(async () => {
+      harness = await createHarness({ era });
+      ({ tools } = await harness.client.listTools());
+    });
+
+    afterAll(async () => {
+      await harness.close();
+    });
+
+    it("matches the committed golden tools/list snapshot", () => {
+      const actual = normalizeToolsList(tools);
+      // This fixture is manual-regeneration-only: it is never written by this test.
+      // If it's missing, generate it deliberately, hand-inspect it, then commit it.
+      // Both eras assert against this SAME fixture: legacy and modern must produce
+      // byte-identical schema output.
+      const expected = readFileSync(GOLDEN_PATH, "utf-8");
+      expect(actual).toBe(expected);
+    });
+
+    it("upholds schema invariants for every registered tool", () => {
+      expect(tools.length).toBeGreaterThan(0);
+
+      const names = tools.map((tool) => tool.name);
+      expect(new Set(names).size).toBe(names.length);
+
+      for (const tool of tools) {
+        const schema = tool.inputSchema as {
+          properties?: Record<string, unknown>;
+        };
+        const properties = schema.properties ?? {};
+        if (NO_ARGUMENT_TOOLS.has(tool.name)) {
+          expect(properties, `${tool.name}: takes no arguments`).toEqual({});
+          continue;
+        }
+        expect(
+          Object.keys(properties).length,
+          `${tool.name}: inputSchema must declare at least one property`,
+        ).toBeGreaterThan(0);
+
+        const action = properties["action"] as
+          { enum?: unknown[]; description?: string } | undefined;
+        if (action !== undefined) {
+          expect(
+            Array.isArray(action.enum) && action.enum.length > 0,
+            `${tool.name}: 'action' parameter must be a z.enum`,
+          ).toBe(true);
+          expect(
+            typeof action.description === "string" &&
+              action.description.trim().length > 0,
+            `${tool.name}: 'action' parameter must have a non-empty .describe()`,
+          ).toBe(true);
+        }
+
+        expect(
+          typeof tool.description === "string" &&
+            tool.description.length < DESCRIPTION_MAX_LENGTH,
+          `${tool.name}: description must be under ${DESCRIPTION_MAX_LENGTH} characters`,
+        ).toBe(true);
+      }
+    });
+
+    it("negotiates the expected server identity and capabilities on initialize", () => {
+      // A real (unmocked) check of what createHarness()'s initialize handshake
+      // negotiated - would catch an SDK swap silently changing this.
+      expect(harness.client.getServerVersion()).toEqual({
+        name: "google-tag-manager-mcp-server",
+        version: PACKAGE_VERSION,
+      });
+      expect(harness.client.getServerCapabilities()?.tools).toBeDefined();
+    });
+
+    it("rejects tools/call with missing required arguments before any handler logic runs", async () => {
+      // No accountId: SDK input validation must reject this before the gtm_account
+      // handler runs. The handler's own "accountId is required" check also yields
+      // isError, so isError alone can't tell the two apart: a spy auth provider proves
+      // the handler never ran (it calls getAccessToken first), and the message proves
+      // the rejection came from the SDK's validation layer.
+      const getAccessToken = vi.fn(async () => "test-access-token");
+      const spyHarness = await createHarness({
+        era,
+        auth: { getAccessToken },
+      });
+      try {
+        const result = await spyHarness.client.callTool({
+          name: "gtm_account",
+          arguments: { action: "get" },
+        });
+        expect(result.isError).toBe(true);
+        expect(JSON.stringify(result.content)).toMatch(
+          /input validation error/i,
+        );
+        expect(getAccessToken).not.toHaveBeenCalled();
+      } finally {
+        await spyHarness.close();
+      }
+    });
+  },
+);

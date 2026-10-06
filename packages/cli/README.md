@@ -80,13 +80,13 @@ Optionally, `GTM_SCOPES` overrides the requested scopes (space or comma separate
 
 One tool per GTM resource, each taking an `action` parameter (`list`, `get`, `create`, `update`, `remove`, …):
 
-`gtm_account`, `gtm_container`, `gtm_workspace`, `gtm_tag`, `gtm_trigger`, `gtm_variable`, `gtm_built_in_variable`, `gtm_folder`, `gtm_client`, `gtm_template`, `gtm_transformation`, `gtm_zone`, `gtm_environment`, `gtm_version`, `gtm_version_header`, `gtm_gtag_config`, `gtag_destination`, `gtm_user_permission`.
+`gtm_account`, `gtm_container`, `gtm_workspace`, `gtm_tag`, `gtm_trigger`, `gtm_variable`, `gtm_built_in_variable`, `gtm_folder`, `gtm_client`, `gtm_template`, `gtm_transformation`, `gtm_zone`, `gtm_environment`, `gtm_version`, `gtm_version_header`, `gtm_gtag_config`, `gtag_destination`, `gtm_user_permission`, plus `gtm_guide` (best-practice guidance) and `gtm_auth_status` (credential diagnostics).
 
 The tools themselves live in [`google-tag-manager-mcp-core`](https://www.npmjs.com/package/google-tag-manager-mcp-core), which you can reuse to build a server with your own authentication.
 
 ## Troubleshooting
 
-The server logs to stderr — your MCP client shows it in its server logs. If it exits immediately, the message says which environment variable is missing.
+The server logs to stderr — your MCP client shows it in its server logs. If it exits immediately, the message says which environment variable is missing. If tools fail with 401/403 errors, run `gtm_auth_status`: it reports whether the token is accepted, when it expires and which scopes are missing.
 
 Some clients cap the combined server name + tool name at 60 characters; keep the server name short (`gtm-mcp-server`) so no tools get filtered out.
 

@@ -1,5 +1,6 @@
 import { GtmToolRegistration } from "../types/index.js";
 import { accountActions } from "./accountActions.js";
+import { authStatusActions } from "./authStatusActions.js";
 import { builtInVariableActions } from "./builtInVariableActions.js";
 import { clientActions } from "./clientActions.js";
 import { containerActions } from "./containerActions.js";
@@ -7,6 +8,7 @@ import { destinationActions } from "./destinationActions.js";
 import { environmentActions } from "./environmentActions.js";
 import { folderActions } from "./folderActions.js";
 import { gtagConfigActions } from "./gtagConfigActions.js";
+import { guideActions } from "./guideActions.js";
 import { tagActions } from "./tagActions.js";
 import { templateActions } from "./templateActions.js";
 import { transformationActions } from "./transformationActions.js";
@@ -19,6 +21,7 @@ import { workspaceActions } from "./workspaceActions.js";
 import { zoneActions } from "./zoneActions.js";
 
 export * from "./accountActions.js";
+export * from "./authStatusActions.js";
 export * from "./builtInVariableActions.js";
 export * from "./clientActions.js";
 export * from "./containerActions.js";
@@ -26,6 +29,7 @@ export * from "./destinationActions.js";
 export * from "./environmentActions.js";
 export * from "./folderActions.js";
 export * from "./gtagConfigActions.js";
+export * from "./guideActions.js";
 export * from "./tagActions.js";
 export * from "./templateActions.js";
 export * from "./transformationActions.js";
@@ -39,6 +43,7 @@ export * from "./zoneActions.js";
 
 export const tools: GtmToolRegistration[] = [
   accountActions,
+  authStatusActions,
   builtInVariableActions,
   clientActions,
   containerActions,
@@ -46,6 +51,7 @@ export const tools: GtmToolRegistration[] = [
   environmentActions,
   folderActions,
   gtagConfigActions,
+  guideActions,
   tagActions,
   templateActions,
   transformationActions,

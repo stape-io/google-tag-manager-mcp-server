@@ -1,4 +1,4 @@
-import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { CallToolResult } from "@modelcontextprotocol/server";
 import { log } from "./log.js";
 
 const DEFAULT_UNAUTHORIZED_HINT =
@@ -9,6 +9,10 @@ let unauthorizedHint = DEFAULT_UNAUTHORIZED_HINT;
 /** How a 401 is recovered from differs per server, so the hint is theirs to set. */
 export function setUnauthorizedHint(hint: string): void {
   unauthorizedHint = hint;
+}
+
+export function getUnauthorizedHint(): string {
+  return unauthorizedHint;
 }
 
 export function createErrorResponse(

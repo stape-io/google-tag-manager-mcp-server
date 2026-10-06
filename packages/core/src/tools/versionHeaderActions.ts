@@ -1,4 +1,4 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/server";
 import { tagmanager_v2 } from "@googleapis/tagmanager";
 import { z } from "zod";
 import { GtmToolContext } from "../types/index.js";
@@ -16,40 +16,44 @@ export const versionHeaderActions = (
   server: McpServer,
   { auth }: GtmToolContext,
 ): void => {
-  server.tool(
+  server.registerTool(
     "gtm_version_header",
-    `Performs all container version header operations: list, latest. The 'list' action returns up to ${ITEMS_PER_PAGE} items per page.`,
     {
-      action: z
-        .enum(["list", "latest"])
-        .describe(
-          "The container version header operation to perform. Must be one of: 'list', 'latest'.",
-        ),
-      accountId: z
-        .string()
-        .describe("The unique ID of the GTM Account containing the container."),
-      containerId: z.string().describe("The unique ID of the GTM Container."),
-      includeDeleted: z
-        .boolean()
-        .optional()
-        .describe(
-          "Whether to also retrieve deleted (archived) versions. Required for 'list' action.",
-        ),
-      page: z
-        .number()
-        .min(1)
-        .default(1)
-        .describe(
-          `Page number for pagination (starts from 1). Each page contains up to itemsPerPage items.`,
-        ),
-      itemsPerPage: z
-        .number()
-        .min(1)
-        .max(ITEMS_PER_PAGE)
-        .default(ITEMS_PER_PAGE)
-        .describe(
-          `Number of items to return per page (1-${ITEMS_PER_PAGE}). Default: ${ITEMS_PER_PAGE}. Use lower values if experiencing response issues.`,
-        ),
+      description: `Performs all container version header operations: list, latest. The 'list' action returns up to ${ITEMS_PER_PAGE} items per page.`,
+      inputSchema: z.object({
+        action: z
+          .enum(["list", "latest"])
+          .describe(
+            "The container version header operation to perform. Must be one of: 'list', 'latest'.",
+          ),
+        accountId: z
+          .string()
+          .describe(
+            "The unique ID of the GTM Account containing the container.",
+          ),
+        containerId: z.string().describe("The unique ID of the GTM Container."),
+        includeDeleted: z
+          .boolean()
+          .optional()
+          .describe(
+            "Whether to also retrieve deleted (archived) versions. Required for 'list' action.",
+          ),
+        page: z
+          .number()
+          .min(1)
+          .default(1)
+          .describe(
+            `Page number for pagination (starts from 1). Each page contains up to itemsPerPage items.`,
+          ),
+        itemsPerPage: z
+          .number()
+          .min(1)
+          .max(ITEMS_PER_PAGE)
+          .default(ITEMS_PER_PAGE)
+          .describe(
+            `Number of items to return per page (1-${ITEMS_PER_PAGE}). Default: ${ITEMS_PER_PAGE}. Use lower values if experiencing response issues.`,
+          ),
+      }),
     },
     async ({
       action,

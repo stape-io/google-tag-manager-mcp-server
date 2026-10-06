@@ -1,9 +1,9 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { McpServer, CallToolResult } from "@modelcontextprotocol/server";
 import { tagmanager_v2 } from "@googleapis/tagmanager";
 import { z } from "zod";
 import { GtmToolContext } from "../types/index.js";
 import { BuiltInVariableSchema } from "../schemas/BuiltInVariableSchema.js";
+import { ClientSchema } from "../schemas/ClientSchema.js";
 import { CustomTemplateSchema } from "../schemas/CustomTemplateSchema.js";
 import { FolderSchema } from "../schemas/FolderSchema.js";
 import { GtagConfigSchema } from "../schemas/GtagConfigSchema.js";
@@ -22,18 +22,31 @@ import {
 import Schema$Entity = tagmanager_v2.Schema$Entity;
 import Schema$Workspace = tagmanager_v2.Schema$Workspace;
 
-const EntitySchema = z.union([
-  z.object({ tag: TagSchema }),
-  z.object({ trigger: TriggerSchema }),
-  z.object({ variable: VariableSchema }),
-  z.object({ folder: FolderSchema }),
-  z.object({ client: TransformationSchema }),
-  z.object({ transformation: TransformationSchema }),
-  z.object({ zone: ZoneSchema }),
-  z.object({ customTemplate: CustomTemplateSchema }),
-  z.object({ builtInVariable: BuiltInVariableSchema }),
-  z.object({ gtagConfig: GtagConfigSchema }),
-]);
+const EntitySchema = z
+  .union([
+    z.object({ tag: TagSchema }),
+    z.object({ trigger: TriggerSchema }),
+    z.object({ variable: VariableSchema }),
+    z.object({ folder: FolderSchema }),
+    z.object({ client: ClientSchema }),
+    z.object({ transformation: TransformationSchema }),
+    z.object({ zone: ZoneSchema }),
+    z.object({ customTemplate: CustomTemplateSchema }),
+    z.object({ builtInVariable: BuiltInVariableSchema }),
+    z.object({ gtagConfig: GtagConfigSchema }),
+    // The id emits this union once under $defs: it is used by both 'entity' and
+    // 'changes', and inlining it twice would double the tool's schema size.
+  ])
+  .meta({ id: "GtmEntity" });
+
+const BulkChangeSchema = z.object({
+  changeStatus: z
+    .enum(["added", "updated", "deleted"])
+    .describe("What to do with this entity."),
+  entity: EntitySchema.describe(
+    "The entity, holding exactly one entity type key (tag, trigger, variable, ...). Any additional key is dropped.",
+  ),
+});
 
 const PayloadSchema = WorkspaceSchema.omit({
   accountId: true,
@@ -48,73 +61,84 @@ export const workspaceActions = (
   server: McpServer,
   { auth }: GtmToolContext,
 ): void => {
-  server.tool(
+  server.registerTool(
     "gtm_workspace",
-    `Performs various workspace operations including create, get, list, update, remove, createVersion, getStatus, sync, quickPreview, and resolveConflict actions. The 'list' action returns up to ${ITEMS_PER_PAGE} items per page.`,
     {
-      action: z
-        .enum([
-          "create",
-          "get",
-          "list",
-          "update",
-          "remove",
-          "createVersion",
-          "getStatus",
-          "sync",
-          "quickPreview",
-          "resolveConflict",
-        ])
-        .describe(
-          "The workspace operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove', 'createVersion', 'getStatus', 'sync', 'quickPreview', 'resolveConflict'.",
+      description: `Performs various workspace operations including create, get, list, update, remove, createVersion, getStatus, sync, quickPreview, resolveConflict, and bulkUpdate actions. 'bulkUpdate' applies several entity changes atomically in one call. The 'list' action returns up to ${ITEMS_PER_PAGE} items per page.`,
+      inputSchema: z.object({
+        action: z
+          .enum([
+            "create",
+            "get",
+            "list",
+            "update",
+            "remove",
+            "createVersion",
+            "getStatus",
+            "sync",
+            "quickPreview",
+            "resolveConflict",
+            "bulkUpdate",
+          ])
+          .describe(
+            "The workspace operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove', 'createVersion', 'getStatus', 'sync', 'quickPreview', 'resolveConflict', 'bulkUpdate'.",
+          ),
+        accountId: z
+          .string()
+          .describe(
+            "The unique ID of the GTM Account containing the workspace.",
+          ),
+        containerId: z
+          .string()
+          .describe(
+            "The unique ID of the GTM Container containing the workspace.",
+          ),
+        workspaceId: z
+          .string()
+          .optional()
+          .describe(
+            "The unique ID of the GTM Workspace. Required for all actions except 'create' and 'list'.",
+          ),
+        createOrUpdateConfig: PayloadSchema.optional().describe(
+          "Configuration for 'create' and 'update' actions. All fields correspond to the GTM workspace resource, except IDs. 'update' replaces the entire workspace — any field omitted here is deleted. Always run 'get' first and send back the complete object with your modifications applied.",
         ),
-      accountId: z
-        .string()
-        .describe("The unique ID of the GTM Account containing the workspace."),
-      containerId: z
-        .string()
-        .describe(
-          "The unique ID of the GTM Container containing the workspace.",
+        fingerprint: z
+          .string()
+          .optional()
+          .describe(
+            "Fingerprint for optimistic concurrency control. Required for 'update' and 'resolveConflict' actions.",
+          ),
+        entity: EntitySchema.optional().describe(
+          "The resolved entity for 'resolveConflict' action.",
         ),
-      workspaceId: z
-        .string()
-        .optional()
-        .describe(
-          "The unique ID of the GTM Workspace. Required for all actions except 'create' and 'list'.",
-        ),
-      createOrUpdateConfig: PayloadSchema.optional().describe(
-        "Configuration for 'create' and 'update' actions. All fields correspond to the GTM workspace resource, except IDs. 'update' replaces the entire workspace — any field omitted here is deleted. Always run 'get' first and send back the complete object with your modifications applied.",
-      ),
-      fingerprint: z
-        .string()
-        .optional()
-        .describe(
-          "Fingerprint for optimistic concurrency control. Required for 'update' and 'resolveConflict' actions.",
-        ),
-      entity: EntitySchema.optional().describe(
-        "The resolved entity for 'resolveConflict' action.",
-      ),
-      changeStatus: z
-        .string()
-        .optional()
-        .describe(
-          "The status of the change for the entity in the workspace for 'resolveConflict' action. Possible values: 'added', 'modified', 'deleted', 'unmodified'.",
-        ),
-      page: z
-        .number()
-        .min(1)
-        .default(1)
-        .describe(
-          `Page number for pagination (starts from 1). Each page contains up to itemsPerPage items.`,
-        ),
-      itemsPerPage: z
-        .number()
-        .min(1)
-        .max(ITEMS_PER_PAGE)
-        .default(ITEMS_PER_PAGE)
-        .describe(
-          `Number of items to return per page (1-${ITEMS_PER_PAGE}). Default: ${ITEMS_PER_PAGE}. Use lower values if experiencing response issues.`,
-        ),
+        changeStatus: z
+          .string()
+          .optional()
+          .describe(
+            "The status of the change for the entity in the workspace for 'resolveConflict' action. Possible values: 'added', 'updated', 'deleted', 'none'.",
+          ),
+        changes: z
+          .array(BulkChangeSchema)
+          .optional()
+          .describe(
+            "The entity changes for 'bulkUpdate' action, applied atomically. Each item is { changeStatus, entity }, e.g. { changeStatus: 'added', entity: { trigger: {...} } }. New entities must use unique temporary IDs of the form 'new_1', 'new_2', ... in their ID field; other entities in the same request can reference them by that ID (e.g. a new tag's firingTriggerId). Updated entities are full replacements - send the complete entity from 'get', including its fingerprint.",
+          ),
+        page: z
+          .number()
+          .min(1)
+          .default(1)
+          .describe(
+            `Page number for pagination (starts from 1). Each page contains up to itemsPerPage items.`,
+          ),
+        itemsPerPage: z
+          .number()
+          .min(1)
+          .max(ITEMS_PER_PAGE)
+          .default(ITEMS_PER_PAGE)
+          .describe(
+            `Number of items to return per page (1-${ITEMS_PER_PAGE}). Default: ${ITEMS_PER_PAGE}. Use lower values if experiencing response issues.`,
+          ),
+      }),
     },
     async ({
       action,
@@ -125,6 +149,7 @@ export const workspaceActions = (
       fingerprint,
       entity,
       changeStatus,
+      changes,
       page,
       itemsPerPage,
     }): Promise<CallToolResult> => {
@@ -367,6 +392,33 @@ export const workspaceActions = (
                     2,
                   ),
                 },
+              ],
+            };
+          }
+
+          case "bulkUpdate": {
+            if (!workspaceId) {
+              throw new Error(`workspaceId is required for ${action} action`);
+            }
+
+            if (!changes?.length) {
+              throw new Error(`changes is required for ${action} action`);
+            }
+
+            const response =
+              await tagmanager.accounts.containers.workspaces.bulk_update({
+                path: `accounts/${accountId}/containers/${containerId}/workspaces/${workspaceId}`,
+                requestBody: {
+                  changes: changes.map(
+                    ({ changeStatus, entity }) =>
+                      ({ changeStatus, ...entity }) as Schema$Entity,
+                  ),
+                },
+              });
+
+            return {
+              content: [
+                { type: "text", text: JSON.stringify(response.data, null, 2) },
               ],
             };
           }

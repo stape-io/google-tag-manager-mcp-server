@@ -26,28 +26,33 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "!src/test"
   ],
   "scripts": {
     "prebuild": "node ../../scripts/generate-version.mjs",
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
     "clean": "rm -rf dist",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
+    "test": "vitest run",
+    "test:golden:update": "vitest run --config vitest.golden.config.ts",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@googleapis/tagmanager": "^16.0.0"
   },
   "peerDependencies": {
-    "@modelcontextprotocol/sdk": ">=1.18.1 <2",
+    "@modelcontextprotocol/server": "^2.0.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@modelcontextprotocol/client": "^2.0.0",
+    "@modelcontextprotocol/server": "^2.0.0",
     "@types/node": "^24.0.0",
     "typescript": "^5.8.3",
+    "vitest": "^3.2.4",
     "zod": "^4.4.3"
   },
   "type": "module",
