@@ -1,5 +1,35 @@
 # google-tag-manager-mcp-server
 
+## 6.0.0
+
+### Major Changes
+
+- 371f475: **Breaking:** the stdio server now negotiates MCP protocol revision **2026-07-28**, and migrates to the MCP TypeScript SDK v2 packages (`@modelcontextprotocol/server` `^2.0.0` replaces `@modelcontextprotocol/sdk`).
+
+  The entrypoint serves through `serveStdio()` instead of connecting an `McpServer` to a `StdioServerTransport` directly. The opening exchange now selects the era: a `server/discover` probe pins the connection to 2026-07-28, and 2026-era responses carry the new envelope (`resultType`, SEP-2549 `ttlMs`/`cacheScope` cache hints, and server identity in `_meta`). A bare `McpServer` + `StdioServerTransport` serves the 2025 era only no matter which SDK version it is built against, which is why this had to change rather than ride along with the dependency bump.
+
+  **Existing 2025-era clients keep working unchanged** — the legacy `initialize` handshake is still served and still negotiates the same protocol version as before. Requires Node.js 20+.
+
+### Minor Changes
+
+- 7620542: New tools and actions:
+
+  - **`gtm_auth_status`** — diagnoses the configured Google credentials: whether a token can be obtained and is accepted, when it expires, and which Tag Manager scopes are granted or missing. Never returns the token.
+  - **`gtm_guide`** — GTM best-practice guidance as markdown by `topic`: `safeEditing`, `naming`, `audit`, `trackingPlan`, `consentMode`, `serverSide`.
+  - **`gtm_template` `importFromGallery`** — imports a Community Template Gallery template (`galleryOwner`, `galleryRepository`, optional `gallerySha`; requires `acknowledgePermissions: true`).
+  - **`gtm_workspace` `bulkUpdate`** — applies several entity changes atomically through the GTM API's `workspaces.bulk_update`. `changes` is a list of `{ changeStatus, entity }`; new entities use `new_N` temporary IDs that other changes in the same call can reference.
+
+  Fix: the `client` variant of `gtm_workspace`'s `entity` parameter (`resolveConflict`) was typed with the transformation schema; it now uses the client schema. The entity schema is emitted once under `$defs` (`GtmEntity`) and referenced from both `entity` and `changes[].entity`.
+
+  Fix: `gtm_workspace`'s `changeStatus` description for `resolveConflict` listed `'modified'`/`'unmodified'`, which the GTM API rejects; it now lists the real values `'added'`, `'updated'`, `'deleted'`, `'none'`.
+
+### Patch Changes
+
+- Updated dependencies [371f475]
+- Updated dependencies [7620542]
+- Updated dependencies [34a682f]
+  - google-tag-manager-mcp-core@3.0.0
+
 ## 5.1.1
 
 ### Patch Changes
