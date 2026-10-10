@@ -21,7 +21,7 @@
     "@modelcontextprotocol/server": "2.0.0",
     "agents": "^0.24.0",
     "google-tag-manager-mcp-core": "*",
-    "hono": "^4.13.2",
+    "hono": "^4.13.7",
     "zod": "^4.4.3"
   },
   "devDependencies": {
