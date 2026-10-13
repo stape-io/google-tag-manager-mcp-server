@@ -2,7 +2,7 @@
   "name": "gtm-mcp-worker",
   "version": "3.0.6",
   "private": true,
-  "description": "The hosted Google Tag Manager MCP server at gtm-mcp.stape.ai",
+  "description": "The hosted Google Tag Manager MCP server at gtm-mcp.stape.io",
   "license": "Apache-2.0",
   "author": "stape-io",
   "type": "module",

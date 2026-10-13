@@ -37,7 +37,7 @@ npm workspace with one app and two published packages:
 
 | Path | Package | What it is |
 | --- | --- | --- |
-| `apps/worker` | *(private)* | The hosted Cloudflare Worker at `gtm-mcp.stape.ai`: Google OAuth, the approval flow, the public pages, session removal. |
+| `apps/worker` | *(private)* | The hosted Cloudflare Worker at `gtm-mcp.stape.io`: Google OAuth, the approval flow, the public pages, session removal. |
 | `packages/cli` | [`google-tag-manager-mcp-server`](packages/cli/README.md) | The npm package: a local MCP server over stdio, authenticating with credentials you supply. |
 | `packages/core` | [`google-tag-manager-mcp-core`](packages/core/README.md) | Every GTM tool and schema, independent of how credentials are obtained. |
 
@@ -50,19 +50,19 @@ This server comes in two flavours: Hosted server and Local CLI. Both give you th
 | | Hosted server | Local CLI |
 | --- | --- | --- |
 | Auth | Google OAuth in your browser, handled for you | You supply a service account key, refresh token, or access token |
-| Data | Passes through `gtm-mcp.stape.ai` | Only ever leaves your machine |
+| Data | Passes through `gtm-mcp.stape.io` | Only ever leaves your machine |
 | Setup | None | Set one environment variable |
 
 If you're a contributor testing an unreleased change rather than just using the tools, skip everything below and see [Test your changes locally](#test-your-changes-locally) instead.
 
-Pick your client below. The hosted server needs the [`mcp-remote`](https://github.com/geelen/mcp-remote#readme) bridge on clients whose MCP support doesn't complete Google's OAuth flow natively; where a client does that itself, it connects straight to `https://gtm-mcp.stape.ai/mcp`.
+Pick your client below. The hosted server needs the [`mcp-remote`](https://github.com/geelen/mcp-remote#readme) bridge on clients whose MCP support doesn't complete Google's OAuth flow natively; where a client does that itself, it connects straight to `https://gtm-mcp.stape.io/mcp`.
 
 ### Claude Desktop
 
 <details>
 <summary>⬇️ Click to expand ⬇️</summary>
 
-**Hosted server** — Claude Desktop connects to remote HTTP MCP servers natively, no bridge needed. Go to Settings → Connectors → Add custom connector, set the name to `gtm-mcp-server` and the URL to `https://gtm-mcp.stape.ai/mcp`, then save. Click the new connector to complete the Google OAuth flow in the browser window that opens.
+**Hosted server** — Claude Desktop connects to remote HTTP MCP servers natively, no bridge needed. Go to Settings → Connectors → Add custom connector, set the name to `gtm-mcp-server` and the URL to `https://gtm-mcp.stape.io/mcp`, then save. Click the new connector to complete the Google OAuth flow in the browser window that opens.
 
 > `mcp-remote` is also possible for the hosted server, for anyone who'd rather configure it through the JSON config file (Settings -> Developer -> Edit Config) instead of the Connectors UI — less recommended, but still supported:
 >
@@ -74,7 +74,7 @@ Pick your client below. The hosted server needs the [`mcp-remote`](https://githu
 >       "args": [
 >         "-y",
 >         "mcp-remote",
->         "https://gtm-mcp.stape.ai/mcp"
+>         "https://gtm-mcp.stape.io/mcp"
 >       ]
 >     }
 >   }
@@ -111,7 +111,7 @@ Claude Code speaks HTTP directly, including the OAuth handshake, so the hosted s
 **Hosted server**:
 
 ```bash
-claude mcp add --transport http gtm-mcp-server https://gtm-mcp.stape.ai/mcp
+claude mcp add --transport http gtm-mcp-server https://gtm-mcp.stape.io/mcp
 ```
 
 A browser window opens for the Google OAuth flow the first time a tool is used. Run `/mcp` inside Claude Code to confirm it connected.
@@ -140,7 +140,7 @@ VS Code's MCP client supports HTTP servers and their OAuth flow natively, no `mc
   "servers": {
     "gtm-mcp-server": {
       "type": "http",
-      "url": "https://gtm-mcp.stape.ai/mcp"
+      "url": "https://gtm-mcp.stape.io/mcp"
     }
   }
 }
@@ -188,7 +188,7 @@ Copilot CLI also completes OAuth natively for remote HTTP servers. Add this to `
   "mcpServers": {
     "gtm-mcp-server": {
       "type": "http",
-      "url": "https://gtm-mcp.stape.ai/mcp"
+      "url": "https://gtm-mcp.stape.io/mcp"
     }
   }
 }
@@ -227,7 +227,7 @@ Cursor speaks HTTP directly too, no `mcp-remote` needed. Add this to `.cursor/mc
 {
   "mcpServers": {
     "gtm-mcp-server": {
-      "url": "https://gtm-mcp.stape.ai/mcp"
+      "url": "https://gtm-mcp.stape.io/mcp"
     }
   }
 }
@@ -270,7 +270,7 @@ Antigravity's own OAuth support for remote HTTP servers doesn't reliably reach a
       "args": [
         "-y",
         "mcp-remote",
-        "https://gtm-mcp.stape.ai/mcp"
+        "https://gtm-mcp.stape.io/mcp"
       ]
     }
   }
@@ -301,7 +301,7 @@ Antigravity's own OAuth support for remote HTTP servers doesn't reliably reach a
 <summary>⬇️ Click to expand ⬇️</summary>
 
 1. In ChatGPT, enable Developer mode: Settings → Apps & Connectors → Advanced settings → Developer mode.
-2. Go to Settings → Connectors → Create, and set the server URL to `https://gtm-mcp.stape.ai/mcp`.
+2. Go to Settings → Connectors → Create, and set the server URL to `https://gtm-mcp.stape.io/mcp`.
 3. Set Authentication to **OAuth** and complete the Google login in the browser window that opens.
 
 ChatGPT only reaches servers over the public internet, it can't spawn a local process — so there's no Local CLI option here, only the hosted server.
@@ -323,7 +323,7 @@ Any other MCP-compatible client that expects a stdio-style `command`/`args` conf
       "args": [
         "-y",
         "mcp-remote",
-        "https://gtm-mcp.stape.ai/mcp"
+        "https://gtm-mcp.stape.io/mcp"
       ]
     }
   }
@@ -414,7 +414,7 @@ See the [CLI README](packages/cli/README.md) for every credential option.
 
 Only needed for the hosted server's own code: the OAuth flow, routing, session
 handling, the approval and status pages. This runs that code on your own machine
-against your own Google Cloud OAuth credentials instead of `gtm-mcp.stape.ai`.
+against your own Google Cloud OAuth credentials instead of `gtm-mcp.stape.io`.
 
 #### 1. Set up a Google Cloud OAuth client
 
