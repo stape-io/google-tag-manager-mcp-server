@@ -8,6 +8,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: non-production
     steps:
       - name: "Checkout"
         uses: actions/checkout@v7
@@ -36,16 +37,16 @@ jobs:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          GOOGLE_CLIENT_ID: op://google-tag-manager-mcp-server-dev/GOOGLE_CLIENT_ID/password
-          GOOGLE_CLIENT_SECRET: op://google-tag-manager-mcp-server-dev/GOOGLE_CLIENT_SECRET/password
+          GOOGLE_CLIENT_ID: op://google-tag-manager-mcp-server-dev/GOOGLE_OAUTH/CLIENT_ID
+          GOOGLE_CLIENT_SECRET: op://google-tag-manager-mcp-server-dev/GOOGLE_OAUTH/CLIENT_SECRET
           COOKIE_ENCRYPTION_KEY: op://google-tag-manager-mcp-server-dev/COOKIE_ENCRYPTION_KEY/password
-          CLOUDFLARE_ACCOUNT_ID: op://google-tag-manager-mcp-server-dev/CLOUDFLARE_ACCOUNT_ID/password
+          CLOUDFLARE_API_TOKEN: op://google-tag-manager-mcp-server-dev/CLOUDFLARE/API_TOKEN
+          CLOUDFLARE_ACCOUNT_ID: op://google-tag-manager-mcp-server-dev/CLOUDFLARE/ACCOUNT_ID
 
-      # CLOUDFLARE_API_TOKEN is the same token for dev and prod. It will be moved to 1Password later.
       - name: "Deploy to Cloudflare"
         uses: cloudflare/wrangler-action@v4
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/worker
           environment: dev

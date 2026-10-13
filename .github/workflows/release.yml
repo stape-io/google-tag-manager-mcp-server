@@ -1,6 +1,6 @@
 name: Release to Production
 
-run-name: Deploy to 'prod'
+run-name: Deploy to '${{ inputs.environment || 'ai' }}'
 
 on:
   push:
@@ -15,10 +15,23 @@ on:
       - "package-lock.json"
       - ".github/workflows/release.yml"
   workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        description: 'The production environment to deploy to:'
+        default: ai
+        options:
+          - ai
+          - io
+          - both
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: production
+    env:
+      # A push to main has no inputs, so it deploys gtm-mcp.stape.ai only.
+      TARGET: ${{ inputs.environment || 'ai' }}
     steps:
       - name: "Checkout"
         uses: actions/checkout@v7
@@ -41,22 +54,26 @@ jobs:
       - name: "Lint"
         run: npm run lint
 
+      # gtm-mcp.stape.ai and gtm-mcp.stape.io live in different Cloudflare
+      # accounts that share one API token.
       - name: "Load secrets from 1Password"
         uses: 1password/load-secrets-action@v5
         with:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          GOOGLE_CLIENT_ID: op://google-tag-manager-mcp-server/GOOGLE_CLIENT_ID/password
-          GOOGLE_CLIENT_SECRET: op://google-tag-manager-mcp-server/GOOGLE_CLIENT_SECRET/password
+          GOOGLE_CLIENT_ID: op://google-tag-manager-mcp-server/GOOGLE_OAUTH/CLIENT_ID
+          GOOGLE_CLIENT_SECRET: op://google-tag-manager-mcp-server/GOOGLE_OAUTH/CLIENT_SECRET
           COOKIE_ENCRYPTION_KEY: op://google-tag-manager-mcp-server/COOKIE_ENCRYPTION_KEY/password
-          CLOUDFLARE_ACCOUNT_ID: op://google-tag-manager-mcp-server/CLOUDFLARE_ACCOUNT_ID/password
+          CLOUDFLARE_API_TOKEN: op://google-tag-manager-mcp-server/CLOUDFLARE/API_TOKEN
+          CLOUDFLARE_ACCOUNT_ID: op://google-tag-manager-mcp-server/CLOUDFLARE/ACCOUNT_ID
+          CLOUDFLARE_ACCOUNT_ID_IO: op://google-tag-manager-mcp-server/CLOUDFLARE/ACCOUNT_ID_IO
 
-      # CLOUDFLARE_API_TOKEN is the same token for dev and prod. It will be moved to 1Password later.
-      - name: "Deploy to Cloudflare"
+      - name: "Deploy to Cloudflare (gtm-mcp.stape.ai)"
+        if: env.TARGET == 'ai' || env.TARGET == 'both'
         uses: cloudflare/wrangler-action@v4
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/worker
           secrets: |
@@ -69,3 +86,20 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ env.GOOGLE_CLIENT_SECRET }}
           COOKIE_ENCRYPTION_KEY: ${{ env.COOKIE_ENCRYPTION_KEY }}
           WORKER_HOST: ${{ vars.WORKER_HOST }}
+
+      - name: "Deploy to Cloudflare (gtm-mcp.stape.io)"
+        if: env.TARGET == 'io' || env.TARGET == 'both'
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID_IO }}
+          workingDirectory: apps/worker
+          environment: io
+          secrets: |
+            GOOGLE_CLIENT_ID
+            GOOGLE_CLIENT_SECRET
+            COOKIE_ENCRYPTION_KEY
+        env:
+          GOOGLE_CLIENT_ID: ${{ env.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ env.GOOGLE_CLIENT_SECRET }}
+          COOKIE_ENCRYPTION_KEY: ${{ env.COOKIE_ENCRYPTION_KEY }}
