@@ -76,10 +76,18 @@
     // gcp/stape-production/google-tag-manager-mcp-server (oauth_io).
     "io": {
       "name": "google-tag-manager-mcp-server",
+      // The custom domain creates the DNS record and certificate. The route is
+      // needed because the stape.io zone has a catch-all `*/*` route to
+      // gtm-loader that runs before a custom-domain Worker and 301s unknown
+      // hosts to stape.io; this more specific route sends the host here instead.
       "routes": [
         {
           "pattern": "gtm-mcp.stape.io",
           "custom_domain": true
+        },
+        {
+          "pattern": "gtm-mcp.stape.io/*",
+          "zone_name": "stape.io"
         }
       ],
       "durable_objects": {
