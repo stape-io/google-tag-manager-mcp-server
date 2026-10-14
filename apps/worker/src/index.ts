@@ -164,8 +164,12 @@ export default {
 
     console.log("[HTTP] Incoming request", logBase);
 
-    // CORS preflights still pass, so a browser client can read the error.
-    if (request.method !== "OPTIONS" && isPastCutover(request)) {
+    // Only the MCP routes: OAuth endpoints keep answering in their own format,
+    // and CORS preflights still pass, so a browser client can read the error.
+    const isMcpRoute =
+      url.pathname === "/mcp" || url.pathname.startsWith("/sse");
+
+    if (isMcpRoute && request.method !== "OPTIONS" && isPastCutover(request)) {
       return movedResponse(request);
     }
 

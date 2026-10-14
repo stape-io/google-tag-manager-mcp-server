@@ -226,6 +226,33 @@ describe("old host after the cutover", () => {
     expect(((await response.json()) as { id: unknown }).id).toBeNull();
   });
 
+  it("answers /sse/message POSTs with a 410, so the send fails instead of hanging", async () => {
+    const response = await worker.fetch(
+      new Request("https://gtm-mcp.stape.ai/sse/message?sessionId=s", {
+        method: "POST",
+        body: JSON.stringify(CALL_AUTH_STATUS),
+      }) as never,
+      ENV,
+      ctx(),
+    );
+
+    expect(response.status).toBe(410);
+  });
+
+  it("leaves the OAuth endpoints to OAuthProvider", async () => {
+    const response = await worker.fetch(
+      new Request("https://gtm-mcp.stape.ai/token", {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: "grant_type=refresh_token&refresh_token=x&client_id=c",
+      }) as never,
+      ENV,
+      ctx(),
+    );
+
+    expect(await response.text()).not.toContain("jsonrpc");
+  });
+
   it("lets CORS preflights through", async () => {
     const response = await worker.fetch(
       request("https://gtm-mcp.stape.ai", undefined, "OPTIONS") as never,

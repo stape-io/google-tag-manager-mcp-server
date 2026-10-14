@@ -10,7 +10,7 @@ const OLD_HOST = "gtm-mcp.stape.ai";
 const NEW_URL = "https://gtm-mcp.stape.io/mcp";
 export const CUTOVER_AT = Date.UTC(2026, 11, 1);
 
-export const HOST_NOTICE = `Notice from Stape: ${OLD_HOST} stops working on December 1, 2026. Change this MCP server's URL in your client config to ${NEW_URL}, then sign in with Google again when prompted.`;
+export const HOST_NOTICE = `Notice from Stape: ${OLD_HOST} stops working on December 1, 2026 at 00:00 UTC. Change this MCP server's URL in your client config to ${NEW_URL}, then sign in with Google again when prompted.`;
 
 export const HOST_NOTICE_INSTRUCTIONS = `Tell the user this once per conversation: ${HOST_NOTICE}`;
 
@@ -49,9 +49,11 @@ export const withHostNotice = (server: McpServer): McpServer => {
 
 /**
  * The JSON-RPC error every request to the old host gets after the cutover.
- * POSTs get it with a 200, so SDK clients (Claude Code, mcp-remote) show the
- * message itself; on a 4xx they show the raw body instead. A GET (stream or
- * `/sse` connect) gets a 410, since a 200 would be read as an event stream. The
+ * A POST to `/mcp` gets it with a 200, so SDK clients (Claude Code,
+ * mcp-remote) show the message itself; on a 4xx they show the raw body instead.
+ * Everything else gets a 410: a GET answered 200 would be read as an event
+ * stream, and a 200 on `/sse/message` would be dropped while the client waits
+ * for the reply on the stream. The
  * Origin is echoed because this skips OAuthProvider, like the `/mcp` 405.
  */
 export const movedResponse = async (request: Request): Promise<Response> => {
@@ -76,9 +78,16 @@ export const movedResponse = async (request: Request): Promise<Response> => {
       id,
       error: {
         code: -32000,
-        message: `${OLD_HOST} was shut down on December 1, 2026. Moved to ${NEW_URL}: change the server URL in your MCP client config and sign in with Google again.`,
+        message: `${OLD_HOST} was shut down on December 1, 2026 at 00:00 UTC. Moved to ${NEW_URL}: change the server URL in your MCP client config and sign in with Google again.`,
       },
     },
-    { status: request.method === "POST" ? 200 : 410, headers },
+    {
+      status:
+        request.method === "POST" &&
+        new URL(request.url).pathname.startsWith("/mcp")
+          ? 200
+          : 410,
+      headers,
+    },
   );
 };
