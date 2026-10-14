@@ -1,12 +1,15 @@
 import type { OAuthHelpers } from "@cloudflare/workers-oauth-provider";
+import type { McpServer } from "@modelcontextprotocol/server";
 import { createMcpHandler, getMcpAuthContext } from "agents/mcp/server";
 import {
   createGtmMcpServer,
   createStaticTokenAuth,
+  registerGtmTools,
 } from "google-tag-manager-mcp-core";
 import { SERVER_INFO } from "./constants/serverInfo";
 import { McpAgentPropsModel } from "./models/McpAgentModel";
 import { removeMCPServerData } from "./tools/removeMCPServerData";
+import { HOST_NOTICE_INSTRUCTIONS, withHostNotice } from "./utils/hostNotice";
 
 /**
  * `OAuthProvider` decrypts the grant onto `ctx.props` before it calls any
@@ -45,6 +48,9 @@ export function createMcpApiHandler(
   const handler = createMcpHandler(
     () => {
       const props = requireProps();
+      const target = props.oldHost
+        ? withHostNotice
+        : (server: McpServer): McpServer => server;
 
       return createGtmMcpServer({
         // Read at call time: a client that refreshes its grant mid-stream gets
@@ -55,9 +61,18 @@ export function createMcpApiHandler(
           expiresAt: props.expiresAt,
         })),
         serverInfo: { ...SERVER_INFO },
+        ...(props.oldHost && {
+          serverOptions: { instructions: HOST_NOTICE_INSTRUCTIONS },
+        }),
+        // The default tool set, registered on the notice-wrapped server.
+        tools: [
+          (server, ctx): void => {
+            registerGtmTools(target(server), ctx);
+          },
+        ],
         extraTools: [
           (server) =>
-            removeMCPServerData(server, {
+            removeMCPServerData(target(server), {
               props,
               // Injected by OAuthProvider before it calls this API handler.
               oauth: (env as Env & { OAUTH_PROVIDER: OAuthHelpers })

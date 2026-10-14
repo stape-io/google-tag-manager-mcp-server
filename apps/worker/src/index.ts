@@ -19,7 +19,12 @@ import { removeMCPServerData } from "./tools/removeMCPServerData";
 import {
   apisHandler,
   handleTokenExchangeCallback,
+  HOST_NOTICE_INSTRUCTIONS,
+  isOldHost,
+  isPastCutover,
+  movedResponse,
   upstreamReauthErrorResponse,
+  withHostNotice,
   withSseKeepalive,
 } from "./utils";
 
@@ -50,6 +55,15 @@ export class GoogleTagManagerMCPServer extends McpAgent<
       expiresAt: this.props?.expiresAt,
     }));
 
+    // `agents` connects `this.server` only after `init()` resolves, so it can
+    // still be swapped for one that carries the old-host instructions.
+    if (props.oldHost) {
+      this.server = new McpServer(
+        { ...SERVER_INFO },
+        { instructions: HOST_NOTICE_INSTRUCTIONS },
+      );
+    }
+
     // Type-only bridge, no runtime change: McpAgent is feature-frozen on SDK
     // v1, so `this.server` is a v1 `McpServer`, while core and
     // removeMCPServerData are now typed against v2's. The two classes are
@@ -60,23 +74,42 @@ export class GoogleTagManagerMCPServer extends McpAgent<
     // legacySseRegistration.test.ts, which registers the real tool set on a
     // real v1 `McpServer` and lists it back over a v1 client.
     const legacyServer = this.server as unknown as McpServerV2;
+    const target = props.oldHost ? withHostNotice(legacyServer) : legacyServer;
 
-    registerGtmTools(legacyServer, { auth });
+    registerGtmTools(target, { auth });
     // The Durable Object's env never passes through OAuthProvider, so build
     // the helpers from the same options instead of relying on injection.
-    removeMCPServerData(legacyServer, {
+    removeMCPServerData(target, {
       props,
       oauth: getOAuthApi(providerOptions(this.env), this.env),
     });
   }
 }
 
+/**
+ * OAuthProvider decrypts the grant onto `ctx.props` before calling an API
+ * handler; flag old-host requests there so both routes' servers can see it.
+ */
+export function flagOldHost(
+  handler: Required<Pick<ExportedHandler<Env>, "fetch">>,
+): Required<Pick<ExportedHandler<Env>, "fetch">> {
+  return {
+    fetch: (request, env, ctx): Response | Promise<Response> => {
+      if (isOldHost(request)) {
+        ctx.props = { ...ctx.props, oldHost: true };
+      }
+
+      return handler.fetch(request, env, ctx);
+    },
+  };
+}
+
 function providerOptions(env: Env): OAuthProviderOptions {
   return {
     apiRoute: ["/sse", "/mcp"],
     apiHandlers: {
-      "/sse": GoogleTagManagerMCPServer.serveSSE("/sse"),
-      "/mcp": createMcpApiHandler(env),
+      "/sse": flagOldHost(GoogleTagManagerMCPServer.serveSSE("/sse")),
+      "/mcp": flagOldHost(createMcpApiHandler(env)),
     },
     // @ts-ignore
     defaultHandler: apisHandler,
@@ -130,6 +163,11 @@ export default {
     };
 
     console.log("[HTTP] Incoming request", logBase);
+
+    // CORS preflights still pass, so a browser client can read the error.
+    if (request.method !== "OPTIONS" && isPastCutover(request)) {
+      return movedResponse(request);
+    }
 
     // `/mcp` is served statelessly: there is no SSE stream for a GET to open
     // and no session for a DELETE to end, so the MCP Streamable HTTP spec
