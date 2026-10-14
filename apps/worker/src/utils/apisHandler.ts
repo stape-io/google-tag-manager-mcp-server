@@ -46,7 +46,7 @@ app.get("/authorize", async (c) => {
   return renderApprovalDialog(c.req.raw, {
     client: await c.env.OAUTH_PROVIDER.lookupClient(clientId),
     server: {
-      name: "STAPE.AI",
+      name: "STAPE.IO",
       description: "",
     },
     state: { oauthReqInfo },
