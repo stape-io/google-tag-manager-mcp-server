@@ -66,7 +66,7 @@ jobs:
           GOOGLE_CLIENT_SECRET: op://google-tag-manager-mcp-server/GOOGLE_OAUTH/CLIENT_SECRET
           COOKIE_ENCRYPTION_KEY: op://google-tag-manager-mcp-server/COOKIE_ENCRYPTION_KEY/password
           CLOUDFLARE_API_TOKEN: op://google-tag-manager-mcp-server/CLOUDFLARE/API_TOKEN
-          CLOUDFLARE_ACCOUNT_ID: op://google-tag-manager-mcp-server/CLOUDFLARE/ACCOUNT_ID
+          CLOUDFLARE_ACCOUNT_ID_AI: op://google-tag-manager-mcp-server/CLOUDFLARE/ACCOUNT_ID_AI
           CLOUDFLARE_ACCOUNT_ID_IO: op://google-tag-manager-mcp-server/CLOUDFLARE/ACCOUNT_ID_IO
 
       - name: "Deploy to Cloudflare (gtm-mcp.stape.ai)"
@@ -74,7 +74,7 @@ jobs:
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID_AI }}
           workingDirectory: apps/worker
           secrets: |
             GOOGLE_CLIENT_ID
