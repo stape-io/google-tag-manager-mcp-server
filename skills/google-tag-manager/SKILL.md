@@ -5,7 +5,7 @@ description: Use when working with Google Tag Manager through the Stape GTM MCP 
 
 # Google Tag Manager via the Stape GTM MCP server
 
-Setup: hosted at `https://gtm-mcp.stape.ai/mcp` (Google OAuth in the browser), or locally with `npx -y google-tag-manager-mcp-server` and your own credentials. See the [README](https://github.com/stape-io/google-tag-manager-mcp-server#readme).
+Setup: hosted at `https://gtm-mcp.stape.io/mcp` (Google OAuth in the browser), or locally with `npx -y google-tag-manager-mcp-server` and your own credentials. See the [README](https://github.com/stape-io/google-tag-manager-mcp-server#readme).
 
 ## How the tools are shaped
 
