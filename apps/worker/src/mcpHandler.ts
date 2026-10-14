@@ -9,7 +9,7 @@ import {
 import { SERVER_INFO } from "./constants/serverInfo";
 import { McpAgentPropsModel } from "./models/McpAgentModel";
 import { removeMCPServerData } from "./tools/removeMCPServerData";
-import { HOST_NOTICE_INSTRUCTIONS, withHostNotice } from "./utils/hostNotice";
+import { hostNoticeInstructions, withHostNotice } from "./utils/hostNotice";
 
 /**
  * `OAuthProvider` decrypts the grant onto `ctx.props` before it calls any
@@ -62,7 +62,7 @@ export function createMcpApiHandler(
         })),
         serverInfo: { ...SERVER_INFO },
         ...(props.oldHost && {
-          serverOptions: { instructions: HOST_NOTICE_INSTRUCTIONS },
+          serverOptions: { instructions: hostNoticeInstructions() },
         }),
         // The default tool set, registered on the notice-wrapped server.
         tools: [

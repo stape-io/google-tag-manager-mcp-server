@@ -19,10 +19,8 @@ import { removeMCPServerData } from "./tools/removeMCPServerData";
 import {
   apisHandler,
   handleTokenExchangeCallback,
-  HOST_NOTICE_INSTRUCTIONS,
+  hostNoticeInstructions,
   isOldHost,
-  isPastCutover,
-  movedResponse,
   upstreamReauthErrorResponse,
   withHostNotice,
   withSseKeepalive,
@@ -60,7 +58,7 @@ export class GoogleTagManagerMCPServer extends McpAgent<
     if (props.oldHost) {
       this.server = new McpServer(
         { ...SERVER_INFO },
-        { instructions: HOST_NOTICE_INSTRUCTIONS },
+        { instructions: hostNoticeInstructions() },
       );
     }
 
@@ -163,15 +161,6 @@ export default {
     };
 
     console.log("[HTTP] Incoming request", logBase);
-
-    // Only the MCP routes: OAuth endpoints keep answering in their own format,
-    // and CORS preflights still pass, so a browser client can read the error.
-    const isMcpRoute =
-      url.pathname === "/mcp" || url.pathname.startsWith("/sse");
-
-    if (isMcpRoute && request.method !== "OPTIONS" && isPastCutover(request)) {
-      return movedResponse(request);
-    }
 
     // `/mcp` is served statelessly: there is no SSE stream for a GET to open
     // and no session for a DELETE to end, so the MCP Streamable HTTP spec

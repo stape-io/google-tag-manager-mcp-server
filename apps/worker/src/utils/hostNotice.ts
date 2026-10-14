@@ -1,10 +1,14 @@
 import type { CallToolResult, McpServer } from "@modelcontextprotocol/server";
 
 /**
- * `gtm-mcp.stape.ai` keeps working until the cutover, then answers every
- * request with a "moved" error. Until then, clients on it get a notice in the
- * `initialize` instructions and at the end of every tool result. The `.io`
- * deployment has its own OAuth store, so moving means a new Google sign-in.
+ * Clients still on `gtm-mcp.stape.ai` get a notice in the `initialize`
+ * instructions and at the end of every tool result. From the cutover, tools
+ * there stop running and return only the "moved" message. The protocol itself
+ * (and OAuth) keeps working on purpose: claude.ai and Claude Desktop
+ * connectors replace any protocol-level error with a generic "couldn't reach
+ * the server", so a tool result is the only place every client shows our text.
+ * The `.io` deployment has its own OAuth store, so moving means a new Google
+ * sign-in.
  */
 const OLD_HOST = "gtm-mcp.stape.ai";
 const NEW_URL = "https://gtm-mcp.stape.io/mcp";
@@ -12,18 +16,26 @@ export const CUTOVER_AT = Date.UTC(2026, 11, 1);
 
 export const HOST_NOTICE = `Notice from Stape: ${OLD_HOST} stops working on December 1, 2026 at 00:00 UTC. Change this MCP server's URL in your client config to ${NEW_URL}, then sign in with Google again when prompted.`;
 
-export const HOST_NOTICE_INSTRUCTIONS = `Tell the user this once per conversation: ${HOST_NOTICE}`;
+export const MOVED_NOTICE = `Notice from Stape: ${OLD_HOST} was shut down on December 1, 2026 at 00:00 UTC, so this tool no longer runs here. Change this MCP server's URL in your client config to ${NEW_URL}, then sign in with Google again when prompted.`;
+
+const isPastCutover = (): boolean => Date.now() >= CUTOVER_AT;
+
+/** Read when a server is built, so `/sse` keeps what it had at connect time. */
+export const hostNoticeInstructions = (): string =>
+  isPastCutover()
+    ? `Tell the user this before anything else: ${MOVED_NOTICE}`
+    : `Tell the user this once per conversation: ${HOST_NOTICE}`;
 
 export const isOldHost = (request: Request): boolean =>
   new URL(request.url).hostname === OLD_HOST;
 
-export const isPastCutover = (request: Request): boolean =>
-  isOldHost(request) && Date.now() >= CUTOVER_AT;
-
 /**
  * Wraps `server` so every tool registered through it appends the notice to its
- * result. Tools only ever call `registerTool`, so the rest of the server is
- * reached through the prototype unchanged.
+ * result, or, from the cutover, returns only the "moved" message. The date is
+ * checked per call, so a session open across the cutover switches by itself.
+ * Not `isError`: whether claude.ai hides error results behind a generic banner
+ * is unverified, and the text has to reach the model. Tools only ever call
+ * `registerTool`, so the rest of the server is reached through the prototype.
  */
 export const withHostNotice = (server: McpServer): McpServer => {
   const registerTool = server.registerTool.bind(server) as (
@@ -37,6 +49,10 @@ export const withHostNotice = (server: McpServer): McpServer => {
       handler: (...args: unknown[]) => Promise<CallToolResult>,
     ) =>
       registerTool(name, config, async (...args: unknown[]) => {
+        if (isPastCutover()) {
+          return { content: [{ type: "text", text: MOVED_NOTICE }] };
+        }
+
         const result = await handler(...args);
 
         return {
@@ -45,49 +61,4 @@ export const withHostNotice = (server: McpServer): McpServer => {
         };
       }),
   });
-};
-
-/**
- * The JSON-RPC error every request to the old host gets after the cutover.
- * A POST to `/mcp` gets it with a 200, so SDK clients (Claude Code,
- * mcp-remote) show the message itself; on a 4xx they show the raw body instead.
- * Everything else gets a 410: a GET answered 200 would be read as an event
- * stream, and a 200 on `/sse/message` would be dropped while the client waits
- * for the reply on the stream. The
- * Origin is echoed because this skips OAuthProvider, like the `/mcp` 405.
- */
-export const movedResponse = async (request: Request): Promise<Response> => {
-  let id: unknown = null;
-
-  try {
-    id = ((await request.clone().json()) as { id?: unknown })?.id ?? null;
-  } catch {
-    // No body (GET) or not JSON: answer with a null id.
-  }
-
-  const headers = new Headers();
-  const origin = request.headers.get("Origin");
-
-  if (origin) {
-    headers.set("Access-Control-Allow-Origin", origin);
-  }
-
-  return Response.json(
-    {
-      jsonrpc: "2.0",
-      id,
-      error: {
-        code: -32000,
-        message: `${OLD_HOST} was shut down on December 1, 2026 at 00:00 UTC. Moved to ${NEW_URL}: change the server URL in your MCP client config and sign in with Google again.`,
-      },
-    },
-    {
-      status:
-        request.method === "POST" &&
-        new URL(request.url).pathname.startsWith("/mcp")
-          ? 200
-          : 410,
-      headers,
-    },
-  );
 };

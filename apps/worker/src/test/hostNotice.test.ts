@@ -10,7 +10,8 @@ import { removeMCPServerData } from "../tools/removeMCPServerData";
 import {
   CUTOVER_AT,
   HOST_NOTICE,
-  HOST_NOTICE_INSTRUCTIONS,
+  hostNoticeInstructions,
+  MOVED_NOTICE,
   withHostNotice,
 } from "../utils/hostNotice";
 
@@ -135,7 +136,7 @@ describe("/mcp before the cutover", () => {
   it("adds instructions to initialize only for old-host props", async () => {
     expect(
       (await mcp(INITIALIZE, { ...PROPS, oldHost: true })).instructions,
-    ).toBe(HOST_NOTICE_INSTRUCTIONS);
+    ).toBe(hostNoticeInstructions());
     expect((await mcp(INITIALIZE, PROPS)).instructions).toBeUndefined();
   });
 
@@ -154,7 +155,7 @@ describe("/mcp before the cutover", () => {
 it("carries the notice on the v1 /sse server, as init() builds it for the old host", async () => {
   const server = new McpServer(
     { name: "google-tag-manager-mcp-server", version: "0.0.0-test" },
-    { instructions: HOST_NOTICE_INSTRUCTIONS },
+    { instructions: hostNoticeInstructions() },
   );
   const target = withHostNotice(server as unknown as McpServerV2);
 
@@ -174,7 +175,7 @@ it("carries the notice on the v1 /sse server, as init() builds it for the old ho
   ]);
 
   try {
-    expect(client.getInstructions()).toBe(HOST_NOTICE_INSTRUCTIONS);
+    expect(client.getInstructions()).toBe(hostNoticeInstructions());
 
     const result = await client.callTool({
       name: "gtm_auth_status",
@@ -185,6 +186,16 @@ it("carries the notice on the v1 /sse server, as init() builds it for the old ho
       type: "text",
       text: HOST_NOTICE,
     });
+
+    // A session open across the cutover switches on its next call.
+    vi.useFakeTimers({ now: CUTOVER_AT, toFake: ["Date"] });
+
+    const moved = await client.callTool({
+      name: "gtm_auth_status",
+      arguments: {},
+    });
+
+    expect(moved.content).toEqual([{ type: "text", text: MOVED_NOTICE }]);
   } finally {
     await client.close();
     await server.close();
@@ -196,86 +207,28 @@ describe("old host after the cutover", () => {
     vi.useFakeTimers({ now: CUTOVER_AT, toFake: ["Date"] });
   });
 
-  it("answers a POST with a moved error before OAuth, echoing id and Origin", async () => {
-    const response = await worker.fetch(
-      request("https://gtm-mcp.stape.ai", CALL_AUTH_STATUS) as never,
-      ENV,
-      ctx(),
-    );
-    const body = (await response.json()) as {
-      id: unknown;
-      error: { message: string };
-    };
-
-    expect(response.status).toBe(200);
-    expect(response.headers.get("access-control-allow-origin")).toBe(
-      "https://client.example",
-    );
-    expect(body).toMatchObject({ jsonrpc: "2.0", id: 7 });
-    expect(body.error.message).toContain("https://gtm-mcp.stape.io/mcp");
+  it("still connects, with the moved notice as instructions", async () => {
+    expect(
+      (await mcp(INITIALIZE, { ...PROPS, oldHost: true })).instructions,
+    ).toContain(MOVED_NOTICE);
   });
 
-  it("answers a bodyless GET with a null id", async () => {
-    const response = await worker.fetch(
-      request("https://gtm-mcp.stape.ai", undefined, "GET") as never,
-      ENV,
-      ctx(),
-    );
+  it("returns only the moved notice from tools, without calling Google", async () => {
+    const result = await mcp(CALL_AUTH_STATUS, { ...PROPS, oldHost: true });
 
-    expect(response.status).toBe(410);
-    expect(((await response.json()) as { id: unknown }).id).toBeNull();
-  });
-
-  it("answers /sse/message POSTs with a 410, so the send fails instead of hanging", async () => {
-    const response = await worker.fetch(
-      new Request("https://gtm-mcp.stape.ai/sse/message?sessionId=s", {
-        method: "POST",
-        body: JSON.stringify(CALL_AUTH_STATUS),
-      }) as never,
-      ENV,
-      ctx(),
-    );
-
-    expect(response.status).toBe(410);
-  });
-
-  it("leaves the OAuth endpoints to OAuthProvider", async () => {
-    const response = await worker.fetch(
-      new Request("https://gtm-mcp.stape.ai/token", {
-        method: "POST",
-        headers: { "content-type": "application/x-www-form-urlencoded" },
-        body: "grant_type=refresh_token&refresh_token=x&client_id=c",
-      }) as never,
-      ENV,
-      ctx(),
-    );
-
-    expect(await response.text()).not.toContain("jsonrpc");
-  });
-
-  it("lets CORS preflights through", async () => {
-    const response = await worker.fetch(
-      request("https://gtm-mcp.stape.ai", undefined, "OPTIONS") as never,
-      ENV,
-      ctx(),
-    );
-
-    expect(response.status).not.toBe(410);
+    expect(result).not.toHaveProperty("isError");
+    expect(result.content).toEqual([{ type: "text", text: MOVED_NOTICE }]);
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("leaves the new host alone", async () => {
-    const response = await worker.fetch(
-      request("https://gtm-mcp.stape.io", CALL_AUTH_STATUS) as never,
-      ENV,
-      ctx(),
-    );
+    const result = await mcp(CALL_AUTH_STATUS, PROPS);
 
-    expect(response.status).toBe(401);
+    expect(result.content).toHaveLength(1);
+    expect(JSON.stringify(result.content)).not.toContain("Notice from Stape");
   });
 
-  it("serves the old host until the moment before the cutover", async () => {
-    vi.setSystemTime(CUTOVER_AT - 1);
-
+  it("keeps OAuth in front of /mcp, so connectors can still sign in", async () => {
     const response = await worker.fetch(
       request("https://gtm-mcp.stape.ai", CALL_AUTH_STATUS) as never,
       ENV,
@@ -283,5 +236,15 @@ describe("old host after the cutover", () => {
     );
 
     expect(response.status).toBe(401);
+    expect(response.headers.get("www-authenticate")).toContain("Bearer");
+  });
+
+  it("still runs tools on the old host the moment before the cutover", async () => {
+    vi.setSystemTime(CUTOVER_AT - 1);
+
+    const result = await mcp(CALL_AUTH_STATUS, { ...PROPS, oldHost: true });
+
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(result.content.at(-1)).toEqual({ type: "text", text: HOST_NOTICE });
   });
 });
