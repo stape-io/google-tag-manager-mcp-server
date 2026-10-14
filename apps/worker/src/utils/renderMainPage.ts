@@ -107,7 +107,7 @@ export const renderMainPage = () => {
                 "args": [
                   "-y",
                   "mcp-remote",
-                  "https://gtm-mcp.stape.ai/sse"
+                  "https://gtm-mcp.stape.io/sse"
                 ]
               }
             }

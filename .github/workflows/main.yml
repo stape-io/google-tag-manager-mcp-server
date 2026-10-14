@@ -15,6 +15,7 @@ jobs:
   release:
     if: ${{ github.actor != 'stape-releaser[bot]' }}
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - uses: actions/checkout@v7
         with:
@@ -38,13 +39,15 @@ jobs:
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
           NPM_TOKEN: op://google-tag-manager-mcp-server/NPM_TOKEN/password
+          RELEASER_APP_ID: op://github-actions-shared/releaser/app_id
+          RELEASER_APP_KEY: op://github-actions-shared/releaser/app_key
 
       - name: Create GitHub App token
         id: gh_app
         uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ secrets.RELEASER_APP_ID }}
-          private-key: ${{ secrets.RELEASER_APP_KEY }}
+          app-id: ${{ env.RELEASER_APP_ID }}
+          private-key: ${{ env.RELEASER_APP_KEY }}
 
       - uses: changesets/action@v1
         with:

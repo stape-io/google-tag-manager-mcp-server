@@ -3,7 +3,7 @@ export const LLMS_TXT = `# MCP Server for Google Tag Manager
 
 > A Model Context Protocol (MCP) server for the Google Tag Manager API v2, maintained by Stape. It lets AI assistants read and manage GTM accounts, containers, workspaces, tags, triggers, variables, templates, versions and publishing.
 
-- Hosted server (Google OAuth handled for you): https://gtm-mcp.stape.ai/mcp (streamable HTTP; legacy SSE at /sse)
+- Hosted server (Google OAuth handled for you): https://gtm-mcp.stape.io/mcp (streamable HTTP; legacy SSE at /sse)
 - Local server over stdio with your own credentials: \`npx -y google-tag-manager-mcp-server\`
 - Every GTM resource is one tool with an \`action\` parameter (e.g. \`gtm_tag\` with create/get/list/update/remove/revert), so the tool list stays small.
 - Updates are full replacements: call 'get' first, send the complete object back with its fingerprint.
