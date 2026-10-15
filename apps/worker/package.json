@@ -10,8 +10,8 @@
     "build": "node ../../scripts/generate-version.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "dev": "wrangler dev --local-upstream localhost:8788",
-    "start": "wrangler dev --local-upstream localhost:8788",
+    "dev": "wrangler dev --local-upstream localhost:8788 --var SHOW_HOST_NOTICE:false",
+    "start": "wrangler dev --local-upstream localhost:8788 --var SHOW_HOST_NOTICE:false",
     "deploy": "wrangler deploy",
     "cf-typegen": "wrangler types --include-env=false"
   },

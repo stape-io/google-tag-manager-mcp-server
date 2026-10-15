@@ -14,6 +14,7 @@ import {
   getUpstreamAuthorizeUrl,
   Props,
 } from "./authorizeUtils";
+import { showsHostNotice } from "./hostNotice";
 import { renderMainPage } from "./renderMainPage";
 import { renderPrivacyPage } from "./renderPrivacyPage";
 import { renderTermsPage } from "./renderTermsPage";
@@ -46,7 +47,8 @@ app.get("/authorize", async (c) => {
   return renderApprovalDialog(c.req.raw, {
     client: await c.env.OAUTH_PROVIDER.lookupClient(clientId),
     server: {
-      name: "STAPE.IO",
+      // The host this dialog is served on.
+      name: showsHostNotice(c.env) ? "STAPE.AI" : "STAPE.IO",
       description: "",
     },
     state: { oauthReqInfo },

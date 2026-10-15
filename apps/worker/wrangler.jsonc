@@ -42,8 +42,8 @@
     "enabled": false
   },
   // Production on gtm-mcp.stape.ai announces the move to .io (see
-  // src/utils/hostNotice.ts); the environments below turn it off. Local
-  // `wrangler dev` runs this default env, so it shows the notice too.
+  // src/utils/hostNotice.ts); the environments below turn it off, and so does
+  // `npm run dev`. Plain `wrangler dev` runs this default env and shows it.
   "vars": {
     "SHOW_HOST_NOTICE": "true"
   },

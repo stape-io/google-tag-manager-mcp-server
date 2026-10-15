@@ -6,8 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CUTOVER_AT,
   HOST_NOTICE,
-  hostNoticeInstructions,
   MOVED_NOTICE,
+  SHUTDOWN_NOTICE,
   withHostNotice,
 } from "../utils/hostNotice";
 
@@ -23,6 +23,10 @@ vi.mock("agents/mcp", () => ({
 vi.mock("cloudflare:workers", () => ({ WorkerEntrypoint: class {} }));
 
 const { default: worker, GoogleTagManagerMCPServer } = await import("../index");
+
+// Literal, so a clock bug in hostNoticeInstructions() can't hide behind itself.
+const BEFORE_INSTRUCTIONS = `Tell the user this once per conversation: ${HOST_NOTICE}`;
+const AFTER_INSTRUCTIONS = `Tell the user this before anything else: ${SHUTDOWN_NOTICE}`;
 
 const REDIRECT_URI = "http://127.0.0.1:4305/oauth/callback";
 // Public clients must use PKCE.
@@ -214,6 +218,7 @@ async function mcp(
   accessToken: string,
   method: string,
   params: Record<string, unknown>,
+  headers: Record<string, string> = {},
 ): Promise<McpReply> {
   const response = await send(env, "/mcp", {
     method: "POST",
@@ -221,6 +226,7 @@ async function mcp(
       authorization: `Bearer ${accessToken}`,
       "content-type": "application/json",
       accept: "application/json, text/event-stream",
+      ...headers,
     },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
   });
@@ -247,6 +253,25 @@ const initialize = (env: Env, accessToken: string): Promise<McpReply> =>
     capabilities: {},
     clientInfo: { name: "host-notice-test", version: "0" },
   });
+
+// The 2026-07-28 era opens with this instead of initialize.
+const discover = (env: Env, accessToken: string): Promise<McpReply> =>
+  mcp(
+    env,
+    accessToken,
+    "server/discover",
+    {
+      _meta: {
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+        "io.modelcontextprotocol/clientInfo": {
+          name: "host-notice-test",
+          version: "0",
+        },
+        "io.modelcontextprotocol/clientCapabilities": {},
+      },
+    },
+    { "mcp-protocol-version": "2026-07-28", "mcp-method": "server/discover" },
+  );
 
 const callTool = (
   env: Env,
@@ -318,7 +343,10 @@ describe("before the cutover", () => {
     const { access_token } = await signIn(env);
 
     expect((await initialize(env, access_token)).result?.instructions).toBe(
-      hostNoticeInstructions(),
+      BEFORE_INSTRUCTIONS,
+    );
+    expect((await discover(env, access_token)).result?.instructions).toBe(
+      BEFORE_INSTRUCTIONS,
     );
 
     const { result } = await callTool(env, access_token, "gtm_auth_status");
@@ -337,6 +365,9 @@ describe("before the cutover", () => {
 
     expect(
       (await initialize(env, access_token)).result?.instructions,
+    ).toBeUndefined();
+    expect(
+      (await discover(env, access_token)).result?.instructions,
     ).toBeUndefined();
 
     const { result } = await callTool(env, access_token, "gtm_auth_status");
@@ -368,7 +399,7 @@ describe("after the cutover", () => {
     const { access_token } = await signIn(env);
 
     expect((await initialize(env, access_token)).result?.instructions).toBe(
-      `Tell the user this before anything else: ${MOVED_NOTICE}`,
+      AFTER_INSTRUCTIONS,
     );
   });
 
@@ -394,7 +425,7 @@ describe("after the cutover", () => {
     expect(result?.content).toEqual([{ type: "text", text: MOVED_NOTICE }]);
   });
 
-  it("keeps sign-out working, with the moved notice appended", async () => {
+  it("keeps sign-out working, with the shutdown notice appended", async () => {
     const env = oldDeployment();
     const { access_token } = await signIn(env);
 
@@ -404,7 +435,7 @@ describe("after the cutover", () => {
     expect(result?.content[0].text).toMatch(/^Signed out/);
     expect(lastText(result?.content)).toEqual({
       type: "text",
-      text: MOVED_NOTICE,
+      text: SHUTDOWN_NOTICE,
     });
     expect(googleCalls()).toContain("https://oauth2.googleapis.com/revoke");
     expect((await callTool(env, access_token, "gtm_auth_status")).status).toBe(
@@ -432,6 +463,39 @@ describe("after the cutover", () => {
 
     expect(response.status).toBe(401);
     expect(response.headers.get("www-authenticate")).toContain("Bearer");
+  });
+});
+
+describe("approval dialog", () => {
+  it.each([
+    ["the .ai deployment", oldDeployment, "STAPE.AI"],
+    ["the .io deployment", newDeployment, "STAPE.IO"],
+  ])("names %s", async (_label, deployment, name) => {
+    const env = deployment();
+    const registered = await send(env, "/register", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        redirect_uris: [REDIRECT_URI],
+        token_endpoint_auth_method: "none",
+      }),
+    });
+    const { client_id: clientId } = (await registered.json()) as {
+      client_id: string;
+    };
+    const query = new URLSearchParams({
+      response_type: "code",
+      client_id: clientId,
+      redirect_uri: REDIRECT_URI,
+      code_challenge: CODE_CHALLENGE,
+      code_challenge_method: "S256",
+      state: "s",
+    });
+
+    const page = await (await send(env, `/authorize?${query}`)).text();
+
+    expect(page).toContain(name);
+    expect(page).not.toContain(name === "STAPE.AI" ? "STAPE.IO" : "STAPE.AI");
   });
 });
 
@@ -475,7 +539,7 @@ describe("/sse, through the real init()", () => {
     const client = await connectSse(oldDeployment());
 
     try {
-      expect(client.getInstructions()).toBe(hostNoticeInstructions());
+      expect(client.getInstructions()).toBe(BEFORE_INSTRUCTIONS);
 
       const result = await client.callTool({
         name: "gtm_auth_status",
@@ -554,6 +618,28 @@ describe("withHostNotice", () => {
 
     expect(await handler()).toEqual({
       content: [{ type: "text", text: HOST_NOTICE }],
+    });
+  });
+
+  it("drops input and output schemas when registered after the cutover", () => {
+    vi.setSystemTime(CUTOVER_AT);
+    let config: Record<string, unknown> = {};
+    const server = {
+      registerTool: (_name: string, registered: typeof config) => {
+        config = registered;
+      },
+    } as unknown as McpServer;
+
+    withHostNotice(server).registerTool(
+      "t",
+      { description: "d", inputSchema: {}, outputSchema: {} } as never,
+      async () => ({ content: [] }),
+    );
+
+    expect(config).toEqual({
+      description: "d",
+      inputSchema: undefined,
+      outputSchema: undefined,
     });
   });
 
