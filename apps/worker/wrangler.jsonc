@@ -41,6 +41,12 @@
   "observability": {
     "enabled": false
   },
+  // Production on gtm-mcp.stape.ai announces the move to .io (see
+  // src/utils/hostNotice.ts); the environments below turn it off. Local
+  // `wrangler dev` runs this default env, so it shows the notice too.
+  "vars": {
+    "SHOW_HOST_NOTICE": "true"
+  },
   "dev": {
     "port": 8788
   },
@@ -50,6 +56,10 @@
   "env": {
     "dev": {
       "name": "google-tag-manager-mcp-server-dev",
+      // The host notice is for gtm-mcp.stape.ai only.
+      "vars": {
+        "SHOW_HOST_NOTICE": "false"
+      },
       "routes": [
         {
           "pattern": "gtm-mcp.stape.dev",
@@ -76,6 +86,10 @@
     // gcp/stape-production/google-tag-manager-mcp-server (oauth_io).
     "io": {
       "name": "google-tag-manager-mcp-server",
+      // The host notice is for gtm-mcp.stape.ai only.
+      "vars": {
+        "SHOW_HOST_NOTICE": "false"
+      },
       // The custom domain creates the DNS record and certificate. The route is
       // needed because the stape.io zone has a catch-all `*/*` route to
       // gtm-loader that runs before a custom-domain Worker and 301s unknown

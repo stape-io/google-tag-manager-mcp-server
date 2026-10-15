@@ -1,4 +1,5 @@
 import { GOOGLE_TOKEN_URL } from "google-tag-manager-mcp-core";
+import { isPastCutover, showsHostNotice } from "./hostNotice";
 
 /**
  * Constructs an authorization URL for an upstream service.
@@ -247,6 +248,14 @@ export async function handleTokenExchangeCallback(
   }
 
   if (grantType === "refresh_token") {
+    // After the cutover, tools on the old host only return the moved notice
+    // and never call Google. A failed Google refresh would send the user
+    // through Google sign-in again just to reach that notice, so keep issuing
+    // MCP tokens on the stored grant instead.
+    if (showsHostNotice(env) && isPastCutover()) {
+      return { accessTokenTTL: ACCESS_TOKEN_TTL };
+    }
+
     console.log("[TokenExchange] Checking Google token refresh...");
     const p = props as Props;
     if (!p?.refreshToken) {

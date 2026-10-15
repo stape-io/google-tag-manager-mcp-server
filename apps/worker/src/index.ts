@@ -20,7 +20,7 @@ import {
   apisHandler,
   handleTokenExchangeCallback,
   hostNoticeInstructions,
-  isOldHost,
+  showsHostNotice,
   upstreamReauthErrorResponse,
   withHostNotice,
   withSseKeepalive,
@@ -53,9 +53,11 @@ export class GoogleTagManagerMCPServer extends McpAgent<
       expiresAt: this.props?.expiresAt,
     }));
 
+    const notice = showsHostNotice(this.env);
+
     // `agents` connects `this.server` only after `init()` resolves, so it can
     // still be swapped for one that carries the old-host instructions.
-    if (props.oldHost) {
+    if (notice) {
       this.server = new McpServer(
         { ...SERVER_INFO },
         { instructions: hostNoticeInstructions() },
@@ -72,7 +74,7 @@ export class GoogleTagManagerMCPServer extends McpAgent<
     // legacySseRegistration.test.ts, which registers the real tool set on a
     // real v1 `McpServer` and lists it back over a v1 client.
     const legacyServer = this.server as unknown as McpServerV2;
-    const target = props.oldHost ? withHostNotice(legacyServer) : legacyServer;
+    const target = notice ? withHostNotice(legacyServer) : legacyServer;
 
     registerGtmTools(target, { auth });
     // The Durable Object's env never passes through OAuthProvider, so build
@@ -84,30 +86,12 @@ export class GoogleTagManagerMCPServer extends McpAgent<
   }
 }
 
-/**
- * OAuthProvider decrypts the grant onto `ctx.props` before calling an API
- * handler; flag old-host requests there so both routes' servers can see it.
- */
-export function flagOldHost(
-  handler: Required<Pick<ExportedHandler<Env>, "fetch">>,
-): Required<Pick<ExportedHandler<Env>, "fetch">> {
-  return {
-    fetch: (request, env, ctx): Response | Promise<Response> => {
-      if (isOldHost(request)) {
-        ctx.props = { ...ctx.props, oldHost: true };
-      }
-
-      return handler.fetch(request, env, ctx);
-    },
-  };
-}
-
 function providerOptions(env: Env): OAuthProviderOptions {
   return {
     apiRoute: ["/sse", "/mcp"],
     apiHandlers: {
-      "/sse": flagOldHost(GoogleTagManagerMCPServer.serveSSE("/sse")),
-      "/mcp": flagOldHost(createMcpApiHandler(env)),
+      "/sse": GoogleTagManagerMCPServer.serveSSE("/sse"),
+      "/mcp": createMcpApiHandler(env),
     },
     // @ts-ignore
     defaultHandler: apisHandler,
