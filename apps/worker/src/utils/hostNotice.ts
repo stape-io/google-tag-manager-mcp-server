@@ -22,7 +22,7 @@ export const CUTOVER_AT = Date.UTC(2026, 11, 1);
 // Keep in step with CUTOVER_AT.
 const CUTOVER_TEXT = "December 1, 2026 at 00:00 UTC";
 
-const HOW_TO_MOVE = `In this MCP server's URL in your client config, replace ${OLD_HOST} with ${NEW_HOST} (for example https://${NEW_HOST}/mcp), keeping the same path. Then sign in with Google again when prompted. If your organization manages this connector, ask an admin to change its URL.`;
+const HOW_TO_MOVE = `In this MCP server's URL in your client config, replace ${OLD_HOST} with ${NEW_HOST} and keep the path: https://${OLD_HOST}/mcp becomes https://${NEW_HOST}/mcp, and https://${OLD_HOST}/sse becomes https://${NEW_HOST}/sse. Then sign in with Google again when prompted. If your organization manages this connector, ask an admin to change its URL.`;
 
 export const HOST_NOTICE = `Notice from Stape: ${OLD_HOST} stops working on ${CUTOVER_TEXT}. ${HOW_TO_MOVE}`;
 
@@ -35,6 +35,10 @@ export const isPastCutover = (): boolean => Date.now() >= CUTOVER_AT;
 
 export const showsHostNotice = (env: Pick<Env, "SHOW_HOST_NOTICE">): boolean =>
   env.SHOW_HOST_NOTICE === "true";
+
+/** The notice as a user reads it, before or after the cutover. */
+export const hostNoticeText = (): string =>
+  isPastCutover() ? SHUTDOWN_NOTICE : HOST_NOTICE;
 
 /**
  * Read when a server is built. An `/sse` server keeps it until its Durable
@@ -49,11 +53,11 @@ export const hostNoticeInstructions = (): string =>
  * Wraps `server` so every tool registered through it appends the notice to its
  * result, or, from the cutover, returns only the "moved" message without
  * running. Sign-out keeps running after the cutover, so users can still revoke
- * what this deployment holds, and gets the shutdown notice appended. The date
- * is checked per call, so a session open
- * across the cutover switches by itself. Not `isError`: whether claude.ai hides
- * error results behind a generic banner is unverified, and the text has to
- * reach the model.
+ * what this deployment holds; its success text is then replaced, since it
+ * would send users to sign in again here. The date is checked per call, so a
+ * session open across the cutover switches by itself. Not `isError`: whether
+ * claude.ai hides error results behind a generic banner is unverified, and the
+ * text has to reach the model.
  *
  * The SDK validates arguments before it calls a handler, so a call rejected by
  * `inputSchema` never gets here. Before the cutover such errors go out without
@@ -74,20 +78,32 @@ export const withHostNotice = (server: McpServer): McpServer => {
     handler: (...args: unknown[]) => Promise<CallToolResult>,
   ): unknown => {
     const keepsRunning = name === TAG_MANAGER_REMOVE_MCP_SERVER_DATA;
+    // Read once: a handler registered without its schema must never run.
+    const stripped = isPastCutover() && !keepsRunning;
 
     return registerTool(
       name,
-      isPastCutover() && !keepsRunning
+      stripped
         ? { ...config, inputSchema: undefined, outputSchema: undefined }
         : config,
       async (...args: unknown[]) => {
         const moved = isPastCutover();
 
-        if (moved && !keepsRunning) {
+        if (stripped || (moved && !keepsRunning)) {
           return { content: [{ type: "text", text: MOVED_NOTICE }] };
         }
 
         const result = await handler(...args);
+
+        if (moved && !result.isError) {
+          return {
+            ...result,
+            content: [
+              { type: "text", text: `Signed out of ${OLD_HOST}.` },
+              { type: "text", text: SHUTDOWN_NOTICE },
+            ],
+          };
+        }
 
         return {
           ...result,

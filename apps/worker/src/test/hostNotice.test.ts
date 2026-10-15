@@ -376,6 +376,33 @@ describe("before the cutover", () => {
     expect(JSON.stringify(result)).not.toContain("Notice from Stape");
   });
 
+  // Documented gap: the SDK rejects these before the wrapper runs.
+  it("sends invalid-argument errors without the notice", async () => {
+    const env = oldDeployment();
+    const { access_token } = await signIn(env);
+
+    const { result } = await callTool(env, access_token, "gtm_account", {});
+
+    expect(result?.isError).toBe(true);
+    expect(JSON.stringify(result)).toContain("Input validation error");
+    expect(JSON.stringify(result)).not.toContain("Notice from Stape");
+  });
+
+  it("appends the notice to sign-out", async () => {
+    const env = oldDeployment();
+    const { access_token } = await signIn(env);
+
+    const { result } = await callTool(env, access_token, "gtm_remove_session");
+
+    expect(result?.content[0].text).toMatch(
+      /^Signed out of the GTM MCP server/,
+    );
+    expect(lastText(result?.content)).toEqual({
+      type: "text",
+      text: HOST_NOTICE,
+    });
+  });
+
   it("still refreshes Google on token refresh", async () => {
     const env = oldDeployment();
     const tokens = await signIn(env);
@@ -415,6 +442,26 @@ describe("after the cutover", () => {
     expect(google).not.toHaveBeenCalled();
   });
 
+  it("still lists every tool, without input schemas", async () => {
+    const listed = async (env: Env): Promise<McpTool[]> => {
+      const { access_token } = await signIn(env);
+      const { result } = await mcp(env, access_token, "tools/list", {});
+
+      return (result as unknown as { tools: McpTool[] }).tools;
+    };
+    type McpTool = { name: string; inputSchema: unknown };
+
+    const old = await listed(oldDeployment());
+    const current = await listed(newDeployment());
+
+    expect(old.map((tool) => tool.name)).toEqual(
+      current.map((tool) => tool.name),
+    );
+    for (const tool of old) {
+      expect(tool.inputSchema).toEqual({ type: "object", properties: {} });
+    }
+  });
+
   it("returns the moved notice for arguments the schema would reject", async () => {
     const env = oldDeployment();
     const { access_token } = await signIn(env);
@@ -431,12 +478,11 @@ describe("after the cutover", () => {
 
     const { result } = await callTool(env, access_token, "gtm_remove_session");
 
-    expect(result?.content).toHaveLength(2);
-    expect(result?.content[0].text).toMatch(/^Signed out/);
-    expect(lastText(result?.content)).toEqual({
-      type: "text",
-      text: SHUTDOWN_NOTICE,
-    });
+    // Not the usual "sign in again" text, which would point back here.
+    expect(result?.content).toEqual([
+      { type: "text", text: "Signed out of gtm-mcp.stape.ai." },
+      { type: "text", text: SHUTDOWN_NOTICE },
+    ]);
     expect(googleCalls()).toContain("https://oauth2.googleapis.com/revoke");
     expect((await callTool(env, access_token, "gtm_auth_status")).status).toBe(
       401,
@@ -467,11 +513,7 @@ describe("after the cutover", () => {
 });
 
 describe("approval dialog", () => {
-  it.each([
-    ["the .ai deployment", oldDeployment, "STAPE.AI"],
-    ["the .io deployment", newDeployment, "STAPE.IO"],
-  ])("names %s", async (_label, deployment, name) => {
-    const env = deployment();
+  async function approvalPage(env: Env): Promise<string> {
     const registered = await send(env, "/register", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -492,10 +534,32 @@ describe("approval dialog", () => {
       state: "s",
     });
 
-    const page = await (await send(env, `/authorize?${query}`)).text();
+    return (await send(env, `/authorize?${query}`)).text();
+  }
+
+  it.each([
+    ["the .ai deployment", oldDeployment, "STAPE.AI"],
+    ["the .io deployment", newDeployment, "STAPE.IO"],
+  ])("names %s", async (_label, deployment, name) => {
+    const page = await approvalPage(deployment());
 
     expect(page).toContain(name);
     expect(page).not.toContain(name === "STAPE.AI" ? "STAPE.IO" : "STAPE.AI");
+  });
+
+  it("shows the notice on the .ai deployment only", async () => {
+    vi.useFakeTimers({ now: CUTOVER_AT - 3_600_000, toFake: ["Date"] });
+    expect(await approvalPage(oldDeployment())).toContain(
+      "gtm-mcp.stape.ai stops working on December 1, 2026",
+    );
+    expect(await approvalPage(newDeployment())).not.toContain(
+      "Notice from Stape",
+    );
+
+    vi.setSystemTime(CUTOVER_AT);
+    expect(await approvalPage(oldDeployment())).toContain(
+      "gtm-mcp.stape.ai was shut down on December 1, 2026",
+    );
   });
 });
 
@@ -560,6 +624,16 @@ describe("/sse, through the real init()", () => {
       });
 
       expect(moved.content).toEqual([{ type: "text", text: MOVED_NOTICE }]);
+
+      // Documented gap: this server was built before the cutover, so the SDK
+      // still validates and rejects bad arguments without the notice.
+      const invalid = await client.callTool({
+        name: "gtm_account",
+        arguments: {},
+      });
+
+      expect(invalid.isError).toBe(true);
+      expect(JSON.stringify(invalid)).not.toContain("Notice from Stape");
     } finally {
       await client.close();
     }
@@ -570,6 +644,13 @@ describe("/sse, through the real init()", () => {
     const client = await connectSse(oldDeployment());
 
     try {
+      const { tools } = await client.listTools();
+
+      expect(tools.length).toBeGreaterThan(0);
+      for (const tool of tools) {
+        expect(tool.inputSchema).toEqual({ type: "object", properties: {} });
+      }
+
       const result = await client.callTool({
         name: "gtm_account",
         arguments: {},
@@ -599,6 +680,15 @@ describe("/sse, through the real init()", () => {
       await client.close();
     }
   });
+});
+
+// The notices spell the date and host out; this fails if they drift.
+it("states the same cutover as CUTOVER_AT, and the new URL", () => {
+  expect(new Date(CUTOVER_AT).toISOString()).toBe("2026-12-01T00:00:00.000Z");
+  for (const notice of [HOST_NOTICE, SHUTDOWN_NOTICE, MOVED_NOTICE]) {
+    expect(notice).toContain("December 1, 2026 at 00:00 UTC");
+    expect(notice).toContain("https://gtm-mcp.stape.io/mcp");
+  }
 });
 
 describe("withHostNotice", () => {
@@ -641,6 +731,26 @@ describe("withHostNotice", () => {
       inputSchema: undefined,
       outputSchema: undefined,
     });
+  });
+
+  it("never runs a handler that was registered without its schema", async () => {
+    vi.setSystemTime(CUTOVER_AT);
+    let handler = async (): Promise<unknown> => undefined;
+    const server = {
+      registerTool: (_name: string, _config: unknown, cb: typeof handler) => {
+        handler = cb;
+      },
+    } as unknown as McpServer;
+    const real = vi.fn(async () => ({ content: [] }));
+
+    withHostNotice(server).registerTool("t", {}, real);
+    // A clock that steps back across the cutover.
+    vi.setSystemTime(CUTOVER_AT - 1);
+
+    expect(await handler()).toEqual({
+      content: [{ type: "text", text: MOVED_NOTICE }],
+    });
+    expect(real).not.toHaveBeenCalled();
   });
 
   it("leaves everything other than tools on the server itself", () => {

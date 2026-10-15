@@ -14,7 +14,7 @@ import {
   getUpstreamAuthorizeUrl,
   Props,
 } from "./authorizeUtils";
-import { showsHostNotice } from "./hostNotice";
+import { hostNoticeText, showsHostNotice } from "./hostNotice";
 import { renderMainPage } from "./renderMainPage";
 import { renderPrivacyPage } from "./renderPrivacyPage";
 import { renderTermsPage } from "./renderTermsPage";
@@ -47,9 +47,10 @@ app.get("/authorize", async (c) => {
   return renderApprovalDialog(c.req.raw, {
     client: await c.env.OAUTH_PROVIDER.lookupClient(clientId),
     server: {
-      // The host this dialog is served on.
+      // STAPE.AI on gtm-mcp.stape.ai, the deployment with the host notice,
+      // which the dialog also shows the user.
       name: showsHostNotice(c.env) ? "STAPE.AI" : "STAPE.IO",
-      description: "",
+      description: showsHostNotice(c.env) ? hostNoticeText() : "",
     },
     state: { oauthReqInfo },
   });
