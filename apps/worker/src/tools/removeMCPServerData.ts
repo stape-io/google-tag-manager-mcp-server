@@ -6,7 +6,20 @@ import { McpAgentPropsModel } from "../models/McpAgentModel";
 
 export const removeMCPServerData = (
   server: McpServer,
-  { props, oauth }: { props: McpAgentPropsModel; oauth: OAuthHelpers },
+  {
+    props,
+    oauth,
+    revokeUpstream = true,
+  }: {
+    props: McpAgentPropsModel;
+    oauth: OAuthHelpers;
+    /**
+     * False on gtm-mcp.stape.ai: both deployments use the same Google OAuth
+     * client, and this deployment can't see the grants the user has on .io,
+     * which a Google revoke could sign out too.
+     */
+    revokeUpstream?: boolean;
+  },
 ): void => {
   server.registerTool(
     TAG_MANAGER_REMOVE_MCP_SERVER_DATA,
@@ -44,7 +57,7 @@ export const removeMCPServerData = (
           othersRemain = page.items.length > 0;
           cursor = page.cursor;
         } while (!othersRemain && cursor);
-        if (!othersRemain && props.refreshToken) {
+        if (revokeUpstream && !othersRemain && props.refreshToken) {
           await fetch("https://oauth2.googleapis.com/revoke", {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },

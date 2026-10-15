@@ -73,6 +73,7 @@ export function createMcpApiHandler(
         props,
         // Injected by OAuthProvider before it calls this API handler.
         oauth: (env as Env & { OAUTH_PROVIDER: OAuthHelpers }).OAUTH_PROVIDER,
+        revokeUpstream: !notice,
       });
 
       return server;

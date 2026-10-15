@@ -82,6 +82,7 @@ export class GoogleTagManagerMCPServer extends McpAgent<
     removeMCPServerData(target, {
       props,
       oauth: getOAuthApi(providerOptions(this.env), this.env),
+      revokeUpstream: !notice,
     });
   }
 }

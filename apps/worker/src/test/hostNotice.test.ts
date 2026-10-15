@@ -401,6 +401,16 @@ describe("before the cutover", () => {
       type: "text",
       text: HOST_NOTICE,
     });
+    expect(googleCalls()).not.toContain("https://oauth2.googleapis.com/revoke");
+  });
+
+  it("still revokes Google on .io sign-out", async () => {
+    const env = newDeployment();
+    const { access_token } = await signIn(env);
+
+    await callTool(env, access_token, "gtm_remove_session");
+
+    expect(googleCalls()).toContain("https://oauth2.googleapis.com/revoke");
   });
 
   it("still refreshes Google on token refresh", async () => {
@@ -483,7 +493,9 @@ describe("after the cutover", () => {
       { type: "text", text: "Signed out of gtm-mcp.stape.ai." },
       { type: "text", text: SHUTDOWN_NOTICE },
     ]);
-    expect(googleCalls()).toContain("https://oauth2.googleapis.com/revoke");
+    // Same Google client as .io, so a revoke here could sign the user out
+    // there too.
+    expect(googleCalls()).not.toContain("https://oauth2.googleapis.com/revoke");
     expect((await callTool(env, access_token, "gtm_auth_status")).status).toBe(
       401,
     );
@@ -513,6 +525,10 @@ describe("after the cutover", () => {
 });
 
 describe("approval dialog", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ now: CUTOVER_AT - 3_600_000, toFake: ["Date"] });
+  });
+
   async function approvalPage(env: Env): Promise<string> {
     const registered = await send(env, "/register", {
       method: "POST",
@@ -548,7 +564,6 @@ describe("approval dialog", () => {
   });
 
   it("shows the notice on the .ai deployment only", async () => {
-    vi.useFakeTimers({ now: CUTOVER_AT - 3_600_000, toFake: ["Date"] });
     expect(await approvalPage(oldDeployment())).toContain(
       "gtm-mcp.stape.ai stops working on December 1, 2026",
     );
@@ -598,6 +613,27 @@ describe("token refresh across the cutover", () => {
 });
 
 describe("/sse, through the real init()", () => {
+  it.each([
+    ["the .ai deployment", false, oldDeployment],
+    ["the .io deployment", true, newDeployment],
+  ])(
+    "signs out on %s, revoking at Google: %s",
+    async (_label, revokes, deployment) => {
+      vi.useFakeTimers({ now: CUTOVER_AT - 3_600_000, toFake: ["Date"] });
+      const client = await connectSse(deployment());
+
+      try {
+        await client.callTool({ name: "gtm_remove_session", arguments: {} });
+
+        expect(
+          googleCalls().includes("https://oauth2.googleapis.com/revoke"),
+        ).toBe(revokes);
+      } finally {
+        await client.close();
+      }
+    },
+  );
+
   it("carries the notice, and switches to the moved notice at the cutover", async () => {
     vi.useFakeTimers({ now: CUTOVER_AT - 3_600_000, toFake: ["Date"] });
     const client = await connectSse(oldDeployment());
