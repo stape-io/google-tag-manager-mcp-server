@@ -644,6 +644,8 @@ describe("/sse, through the real init()", () => {
     const client = await connectSse(oldDeployment());
 
     try {
+      expect(client.getInstructions()).toBe(AFTER_INSTRUCTIONS);
+
       const { tools } = await client.listTools();
 
       expect(tools.length).toBeGreaterThan(0);
