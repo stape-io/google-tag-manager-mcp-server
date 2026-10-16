@@ -6,7 +6,7 @@ import { ZoneSchema } from "../schemas/ZoneSchema.js";
 import {
   createErrorResponse,
   getTagManagerClient,
-  createGtmRuntime,
+  getServerGtmRuntime,
   log,
   paginateArray,
 } from "../utils/index.js";
@@ -24,7 +24,7 @@ const ITEMS_PER_PAGE = 20;
 
 export const zoneActions = (
   server: McpServer,
-  { auth, runtime = createGtmRuntime() }: GtmToolContext,
+  { auth, runtime = getServerGtmRuntime(server) }: GtmToolContext,
 ): void => {
   server.registerTool(
     "gtm_zone",

@@ -6,7 +6,7 @@ import { UserPermissionSchema } from "../schemas/UserPermissionSchema.js";
 import {
   createErrorResponse,
   getTagManagerClient,
-  createGtmRuntime,
+  getServerGtmRuntime,
   log,
   paginateArray,
 } from "../utils/index.js";
@@ -17,7 +17,7 @@ const ITEMS_PER_PAGE = 50;
 
 export const userPermissionActions = (
   server: McpServer,
-  { auth, runtime = createGtmRuntime() }: GtmToolContext,
+  { auth, runtime = getServerGtmRuntime(server) }: GtmToolContext,
 ): void => {
   server.registerTool(
     "gtm_user_permission",

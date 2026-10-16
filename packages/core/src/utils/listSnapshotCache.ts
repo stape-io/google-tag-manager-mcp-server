@@ -1,10 +1,10 @@
 import { tagmanager, tagmanager_v2 } from "@googleapis/tagmanager";
 import {
   classifyGtmQuota,
+  createObservedFetch,
   emitGtmUsage,
   GtmCall,
   GtmUsageObserver,
-  observeGtmFetch,
 } from "./gtmTelemetry.js";
 
 export const LIST_SNAPSHOT_TTL_MS = 30_000;
@@ -77,6 +77,8 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
   async read(request: GtmSnapshotRequest): Promise<GtmSnapshotResult> {
     if (!isGtmSnapshotPath(request.path))
       throw new Error("Unsupported GTM snapshot path.");
+    if (this.options.enabled === false)
+      return { items: await this.load(request), cache: "bypass" };
     this.prune();
     const digest = await crypto.subtle.digest(
       "SHA-256",
@@ -86,7 +88,7 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
       byte.toString(16).padStart(2, "0"),
     ).join("");
     const key = JSON.stringify([request.namespace, credential, request.path]);
-    const bypass = this.options.enabled === false || this.mutations.size > 0;
+    const bypass = this.mutations.size > 0;
     const entry = this.entries.get(key);
     if (!bypass && !request.fresh && entry && entry.expiresAt > Date.now()) {
       this.entries.delete(key);
@@ -95,7 +97,7 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
     }
     if (request.fresh) this.remove(key);
     const existing = this.pending.get(key);
-    if (existing && !bypass) {
+    if (existing && !bypass && !request.fresh) {
       emitGtmUsage(this.options.observer, {
         ...request.call,
         event: "snapshot_wait",
@@ -110,7 +112,13 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
           "GTM data changed during this list request. Retry the list.",
         );
       }
-      if (!bypass && this.mutations.size === 0) this.store(key, items);
+      // Superseded by a fresh read: storing would overwrite its newer snapshot.
+      if (
+        !bypass &&
+        this.mutations.size === 0 &&
+        this.pending.get(key) === fill
+      )
+        this.store(key, items);
       return items;
     });
     if (!bypass) this.pending.set(key, fill);
@@ -186,22 +194,13 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
         : resource === "triggers"
           ? "trigger"
           : "variable";
-    const attempts = new Map<string, number>();
     const client = tagmanager({
       version: "v2",
       headers: { Authorization: `Bearer ${request.token}` },
-      fetchImplementation: async (input, init) => {
-        const key = String(input);
-        const attempt = (attempts.get(key) ?? 0) + 1;
-        attempts.set(key, attempt);
-        return observeGtmFetch(
-          this.options.observer,
-          request.call,
-          attempt,
-          input,
-          init,
-        );
-      },
+      fetchImplementation: createObservedFetch(
+        this.options.observer,
+        request.call,
+      ),
       retryConfig: {
         shouldRetry: (error) => {
           const attempt = error.config?.retryConfig?.currentRetryAttempt ?? 0;

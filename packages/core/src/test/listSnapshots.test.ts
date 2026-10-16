@@ -6,6 +6,8 @@ import {
   useGoogleApiStub,
 } from "./googleApiStub.js";
 
+import { containerActions } from "../tools/containerActions.js";
+import { tagActions } from "../tools/tagActions.js";
 import { createGtmRuntime } from "../utils/createGtmRuntime.js";
 import {
   ListSnapshotCache,
@@ -347,5 +349,98 @@ describe("snapshot correctness", () => {
     });
     expect(result.isError).not.toBe(true);
     expect(api.calls).toHaveLength(1);
+  });
+
+  it("keeps lists that overlap a mutation working when snapshots are disabled", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    api.respond = async ({ method }): Promise<Response> => {
+      if (method === "GET") await gate;
+      return json({ tag: [{ name: "listed" }] });
+    };
+    const client = await open({
+      runtime: createGtmRuntime({ enabled: false }),
+    });
+    const pending = client.callTool({ name: "gtm_tag", arguments: listArgs });
+    await vi.waitFor(() => expect(api.calls).toHaveLength(1));
+    await client.callTool({
+      name: "gtm_tag",
+      arguments: { ...listArgs, action: "remove", tagId: "4" },
+    });
+    release();
+    expect((await pending).isError).not.toBe(true);
+  });
+
+  it("disables snapshots even when a backend is supplied", async () => {
+    const client = await open({
+      runtime: createGtmRuntime({
+        backend: new ListSnapshotCache(),
+        enabled: false,
+      }),
+    });
+    for (let index = 0; index < 2; index++)
+      await client.callTool({ name: "gtm_tag", arguments: listArgs });
+    expect(api.calls).toHaveLength(2);
+  });
+
+  it("does not answer a fresh read from a scan that started before it", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let first = true;
+    api.respond = async (): Promise<Response> => {
+      if (first) {
+        first = false;
+        await gate;
+        return json({ tag: [{ name: "old" }] });
+      }
+      return json({ tag: [{ name: "new" }] });
+    };
+    const client = await open();
+    const pending = client.callTool({ name: "gtm_tag", arguments: listArgs });
+    await vi.waitFor(() => expect(api.calls).toHaveLength(1));
+    const fresh = await client.callTool({
+      name: "gtm_tag",
+      arguments: { ...listArgs, fresh: true },
+    });
+    expect(JSON.stringify(fresh.content)).toContain("new");
+    release();
+    expect(JSON.stringify((await pending).content)).toContain("old");
+    const cached = await client.callTool({
+      name: "gtm_tag",
+      arguments: listArgs,
+    });
+    expect(JSON.stringify(cached.content)).toContain("new");
+    expect(api.calls).toHaveLength(2);
+  });
+
+  it("does not treat listing folder entities as a mutation", async () => {
+    const client = await open();
+    await client.callTool({ name: "gtm_tag", arguments: listArgs });
+    await client.callTool({
+      name: "gtm_folder",
+      arguments: { ...listArgs, action: "entities", folderId: "5" },
+    });
+    await client.callTool({ name: "gtm_tag", arguments: listArgs });
+    expect(api.calls.map((call) => call.method)).toEqual(["GET", "POST"]);
+  });
+
+  it("shares one runtime between tools registered directly on a server", async () => {
+    const client = await open({
+      tools: [
+        (server, { auth }): void => tagActions(server, { auth }),
+        (server, { auth }): void => containerActions(server, { auth }),
+      ],
+    });
+    await client.callTool({ name: "gtm_tag", arguments: listArgs });
+    await client.callTool({
+      name: "gtm_container",
+      arguments: { action: "remove", accountId: "1", containerId: "2" },
+    });
+    await client.callTool({ name: "gtm_tag", arguments: listArgs });
+    expect(api.calls.filter((call) => call.method === "GET")).toHaveLength(2);
   });
 });

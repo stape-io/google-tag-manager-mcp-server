@@ -5,7 +5,7 @@ import { AccountSchema } from "../schemas/AccountSchema.js";
 import {
   createErrorResponse,
   getTagManagerClient,
-  createGtmRuntime,
+  getServerGtmRuntime,
   log,
 } from "../utils/index.js";
 
@@ -15,7 +15,7 @@ const PayloadSchema = AccountSchema.omit({
 
 export const accountActions = (
   server: McpServer,
-  { auth, runtime = createGtmRuntime() }: GtmToolContext,
+  { auth, runtime = getServerGtmRuntime(server) }: GtmToolContext,
 ): void => {
   server.registerTool(
     "gtm_account",

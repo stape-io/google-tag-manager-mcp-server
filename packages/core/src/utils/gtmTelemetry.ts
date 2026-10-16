@@ -81,3 +81,28 @@ export async function observeGtmFetch(
     });
   }
 }
+
+export function describeGtmRequest(
+  input: Parameters<typeof fetch>[0],
+  init?: Parameters<typeof fetch>[1],
+): { method: string; url: string } {
+  const request = input instanceof Request ? input : undefined;
+  return {
+    method: (init?.method ?? request?.method ?? "GET").toUpperCase(),
+    url: request?.url ?? String(input),
+  };
+}
+
+export function createObservedFetch(
+  observer: GtmUsageObserver | undefined,
+  call: GtmCall,
+): typeof fetch {
+  const attempts = new Map<string, number>();
+  return (input, init) => {
+    const { method, url } = describeGtmRequest(input, init);
+    const key = `${method} ${url}`;
+    const attempt = (attempts.get(key) ?? 0) + 1;
+    attempts.set(key, attempt);
+    return observeGtmFetch(observer, call, attempt, input, init);
+  };
+}

@@ -6,7 +6,7 @@ import { VariableSchema } from "../schemas/VariableSchema.js";
 import {
   createErrorResponse,
   getTagManagerClient,
-  createGtmRuntime,
+  getServerGtmRuntime,
   log,
   paginateArray,
 } from "../utils/index.js";
@@ -24,7 +24,7 @@ const ITEMS_PER_PAGE = 20;
 
 export const variableActions = (
   server: McpServer,
-  { auth, runtime = createGtmRuntime() }: GtmToolContext,
+  { auth, runtime = getServerGtmRuntime(server) }: GtmToolContext,
 ): void => {
   server.registerTool(
     "gtm_variable",

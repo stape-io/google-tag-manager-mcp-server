@@ -6,7 +6,7 @@ import { ContainerVersionSchema } from "../schemas/ContainerVersionSchema.js";
 import {
   createErrorResponse,
   getTagManagerClient,
-  createGtmRuntime,
+  getServerGtmRuntime,
   ITEMS_PER_PAGE,
   log,
   processVersionData,
@@ -22,7 +22,7 @@ const PayloadSchema = ContainerVersionSchema.omit({
 
 export const versionActions = (
   server: McpServer,
-  { auth, runtime = createGtmRuntime() }: GtmToolContext,
+  { auth, runtime = getServerGtmRuntime(server) }: GtmToolContext,
 ): void => {
   server.registerTool(
     "gtm_version",

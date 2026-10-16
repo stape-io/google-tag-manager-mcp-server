@@ -5,7 +5,7 @@ import { GtmToolContext } from "../types/index.js";
 import {
   createErrorResponse,
   getTagManagerClient,
-  createGtmRuntime,
+  getServerGtmRuntime,
   log,
   paginateArray,
 } from "../utils/index.js";
@@ -15,7 +15,7 @@ const ITEMS_PER_PAGE = 50;
 
 export const versionHeaderActions = (
   server: McpServer,
-  { auth, runtime = createGtmRuntime() }: GtmToolContext,
+  { auth, runtime = getServerGtmRuntime(server) }: GtmToolContext,
 ): void => {
   server.registerTool(
     "gtm_version_header",

@@ -6,7 +6,7 @@ import {
 import { tools as defaultTools } from "./tools/index.js";
 import { GtmToolContext, GtmToolRegistration } from "./types/index.js";
 import { PACKAGE_VERSION } from "./version.js";
-import { createGtmRuntime } from "./utils/createGtmRuntime.js";
+import { getServerGtmRuntime } from "./utils/createGtmRuntime.js";
 
 export type CreateGtmMcpServerOptions = GtmToolContext & {
   serverInfo?: Partial<Implementation>;
@@ -23,7 +23,7 @@ export function registerGtmTools(
   context: GtmToolContext,
   registrations: GtmToolRegistration[] = defaultTools,
 ): McpServer {
-  const runtime = context.runtime ?? createGtmRuntime();
+  const runtime = context.runtime ?? getServerGtmRuntime(server);
   registrations.forEach((register) =>
     register(server, { ...context, runtime }),
   );
