@@ -1,4 +1,4 @@
-export const renderPrivacyPage = () => {
+export const renderPrivacyPage = (): string => {
   return `
     <!DOCTYPE html>
     <html lang="en">

@@ -59,7 +59,7 @@ export function createMcpApiHandler(
         })),
         serverInfo: { ...SERVER_INFO },
         extraTools: [
-          (server) =>
+          (server): void =>
             removeMCPServerData(server, {
               props,
               clearSnapshots: (): Promise<void> => runtime.clear(),

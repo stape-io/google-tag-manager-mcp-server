@@ -1,6 +1,5 @@
 ---
 "google-tag-manager-mcp-core": minor
-"gtm-mcp-worker": patch
 ---
 
 Reuse bounded, credential-isolated snapshots for tag, trigger, and variable lists across numeric pages, coalesce concurrent scans, and add a fresh-read option. Invalidate snapshots around mutations and expose pluggable cache and usage adapters for hosted servers.

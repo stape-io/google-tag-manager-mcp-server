@@ -5,8 +5,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // `cloudflare:workers`, which OAuthProvider only uses for an `instanceof`.
 vi.mock("agents/mcp", () => ({
   McpAgent: class {
-    static serveSSE() {
-      return { fetch: () => new Response() };
+    static serveSSE(): { fetch(): Response } {
+      return { fetch: (): Response => new Response() };
     }
   },
 }));
