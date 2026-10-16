@@ -56,9 +56,9 @@
   "env": {
     "dev": {
       "name": "google-tag-manager-mcp-server-dev",
-      // The host notice is for gtm-mcp.stape.ai only.
+      // TEST ONLY, never merge: shows the gtm-mcp.stape.ai notice on gtm-mcp.stape.dev.
       "vars": {
-        "SHOW_HOST_NOTICE": "false"
+        "SHOW_HOST_NOTICE": "true"
       },
       "routes": [
         {
