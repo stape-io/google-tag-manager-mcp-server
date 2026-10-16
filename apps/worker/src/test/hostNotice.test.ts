@@ -551,7 +551,10 @@ describe("after the cutover", () => {
 
     expect(response.status).toBe(410);
     expect(response.headers.get("location")).toBeNull();
-    expect(await response.text()).toContain(
+    const page = await response.text();
+
+    expect(page).toContain("<h1>gtm-mcp.stape.ai was shut down</h1>");
+    expect(page).toContain(
       "gtm-mcp.stape.ai was shut down on December 1, 2026",
     );
   });

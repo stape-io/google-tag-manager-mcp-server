@@ -18,7 +18,7 @@ import { TAG_MANAGER_REMOVE_MCP_SERVER_DATA } from "../constants/tools";
  * "true" in the default environment of wrangler.jsonc and "false" in the
  * others.
  */
-const OLD_HOST = "gtm-mcp.stape.ai";
+export const OLD_HOST = "gtm-mcp.stape.ai";
 const NEW_HOST = "gtm-mcp.stape.io";
 export const CUTOVER_AT = Date.UTC(2026, 11, 1);
 // Keep in step with CUTOVER_AT.

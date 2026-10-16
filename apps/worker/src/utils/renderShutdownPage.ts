@@ -1,4 +1,4 @@
-import { SHUTDOWN_NOTICE } from "./hostNotice";
+import { OLD_HOST, SHUTDOWN_NOTICE } from "./hostNotice";
 
 const escapeHtml = (text: string): string =>
   text
@@ -8,7 +8,7 @@ const escapeHtml = (text: string): string =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
-/** Shown instead of a Google sign-in on gtm-mcp.stape.ai after the cutover. */
+/** Shown instead of a Google sign-in on the old host after the cutover. */
 export const renderShutdownPage = (): string => `
     <!DOCTYPE html>
     <html lang="en">
@@ -16,7 +16,7 @@ export const renderShutdownPage = (): string => `
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex,nofollow" />
-    <title>gtm-mcp.stape.ai was shut down</title>
+    <title>${OLD_HOST} was shut down</title>
     <style>
           body {
               font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
@@ -35,7 +35,7 @@ export const renderShutdownPage = (): string => `
     </style>
     </head>
     <body>
-    <h1>gtm-mcp.stape.ai was shut down</h1>
+    <h1>${OLD_HOST} was shut down</h1>
     <p>${escapeHtml(SHUTDOWN_NOTICE)}</p>
     </body>
     </html>

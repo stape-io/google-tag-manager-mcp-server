@@ -249,9 +249,10 @@ export async function handleTokenExchangeCallback(
 
   if (grantType === "refresh_token") {
     // After the cutover, tools on the old host only return the moved notice
-    // and never call Google. A failed Google refresh would send the user
-    // through Google sign-in again just to reach that notice, so keep issuing
-    // MCP tokens on the stored grant instead.
+    // and never call Google. A failed Google refresh would force a new sign-in,
+    // which /authorize refuses after the cutover, so the session would lose the
+    // in-chat notice and sign-out. Keep issuing MCP tokens on the stored grant
+    // instead.
     if (showsHostNotice(env) && isPastCutover()) {
       return { accessTokenTTL: ACCESS_TOKEN_TTL };
     }
