@@ -1,5 +1,5 @@
 import { GOOGLE_TOKEN_URL } from "google-tag-manager-mcp-core";
-import { isPastCutover, showsHostNotice } from "./hostNotice";
+import { isShutDown } from "./hostNotice";
 
 /**
  * Constructs an authorization URL for an upstream service.
@@ -253,7 +253,7 @@ export async function handleTokenExchangeCallback(
     // which /authorize refuses after the cutover, so the session would lose the
     // in-chat notice and sign-out. Keep issuing MCP tokens on the stored grant
     // instead.
-    if (showsHostNotice(env) && isPastCutover()) {
+    if (isShutDown(env)) {
       return { accessTokenTTL: ACCESS_TOKEN_TTL };
     }
 

@@ -1,18 +1,13 @@
 import type { OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import { McpServer } from "@modelcontextprotocol/server";
 import { createMcpHandler, getMcpAuthContext } from "agents/mcp/server";
-import {
-  createStaticTokenAuth,
-  registerGtmTools,
-} from "google-tag-manager-mcp-core";
+import { createStaticTokenAuth } from "google-tag-manager-mcp-core";
 import { SERVER_INFO } from "./constants/serverInfo";
 import { McpAgentPropsModel } from "./models/McpAgentModel";
-import { removeMCPServerData } from "./tools/removeMCPServerData";
 import {
-  hostNoticeInstructions,
-  showsHostNotice,
-  withHostNotice,
-} from "./utils/hostNotice";
+  hostNoticeServerOptions,
+  registerWorkerTools,
+} from "./tools/registerWorkerTools";
 
 /**
  * `OAuthProvider` decrypts the grant onto `ctx.props` before it calls any
@@ -51,16 +46,14 @@ export function createMcpApiHandler(
   const handler = createMcpHandler(
     () => {
       const props = requireProps();
-      const notice = showsHostNotice(env);
       // Built here rather than with core's `createGtmMcpServer`, so the tools
       // can go through the notice wrapper, the same way `init()` does on /sse.
       const server = new McpServer(
         { ...SERVER_INFO },
-        notice ? { instructions: hostNoticeInstructions() } : undefined,
+        hostNoticeServerOptions(env),
       );
-      const target = notice ? withHostNotice(server) : server;
 
-      registerGtmTools(target, {
+      registerWorkerTools(server, env, {
         // Read at call time: a client that refreshes its grant mid-stream gets
         // fresh props on the next request, and each request builds its own
         // server instance anyway.
@@ -68,12 +61,9 @@ export function createMcpApiHandler(
           accessToken: props.accessToken,
           expiresAt: props.expiresAt,
         })),
-      });
-      removeMCPServerData(target, {
         props,
         // Injected by OAuthProvider before it calls this API handler.
         oauth: (env as Env & { OAUTH_PROVIDER: OAuthHelpers }).OAUTH_PROVIDER,
-        revokeUpstream: !notice,
       });
 
       return server;

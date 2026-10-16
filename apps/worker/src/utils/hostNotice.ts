@@ -28,6 +28,10 @@ const HOW_TO_MOVE = `In this MCP server's URL in your client config, replace ${O
 
 export const HOST_NOTICE = `Notice from Stape: ${OLD_HOST} stops working on ${CUTOVER_TEXT}. ${HOW_TO_MOVE}`;
 
+// Appended to every tool result, so kept to one line. The full HOW_TO_MOVE
+// stays in the instructions, the approval dialog and the shutdown page.
+export const TOOL_NOTICE = `Notice from Stape: ${OLD_HOST} stops working on ${CUTOVER_TEXT}. In this server's URL, replace ${OLD_HOST} with ${NEW_HOST} (same path), then sign in with Google again (org-managed connector: ask an admin).`;
+
 /** For server-level text and for sign-out, which still runs. */
 export const SHUTDOWN_NOTICE = `Notice from Stape: ${OLD_HOST} was shut down on ${CUTOVER_TEXT}. ${HOW_TO_MOVE}`;
 
@@ -37,6 +41,10 @@ export const isPastCutover = (): boolean => Date.now() >= CUTOVER_AT;
 
 export const showsHostNotice = (env: Pick<Env, "SHOW_HOST_NOTICE">): boolean =>
   env.SHOW_HOST_NOTICE === "true";
+
+/** The gtm-mcp.stape.ai deployment, from the cutover on. */
+export const isShutDown = (env: Pick<Env, "SHOW_HOST_NOTICE">): boolean =>
+  showsHostNotice(env) && isPastCutover();
 
 /**
  * Read when a server is built. An `/sse` server keeps it until its Durable
@@ -51,9 +59,10 @@ export const hostNoticeInstructions = (): string =>
  * Wraps `server` so every tool registered through it appends the notice to its
  * result, or, from the cutover, returns only the "moved" message without
  * running. Sign-out keeps running after the cutover, so users can still revoke
- * what this deployment holds; its success text is then replaced, since it
- * would send users to sign in again here. The date is checked per call, so a
- * session open across the cutover switches by itself. Not `isError`: whether
+ * what this deployment holds; it appends the shutdown notice to its own result
+ * (it words that result for the old host itself, see removeMCPServerData). The
+ * date is checked per call, so a session open across the cutover switches by
+ * itself. Not `isError`: whether
  * claude.ai hides error results behind a generic banner is unverified, and the
  * text has to reach the model.
  *
@@ -93,21 +102,11 @@ export const withHostNotice = (server: McpServer): McpServer => {
 
         const result = await handler(...args);
 
-        if (moved && !result.isError) {
-          return {
-            ...result,
-            content: [
-              { type: "text", text: `Signed out of ${OLD_HOST}.` },
-              { type: "text", text: SHUTDOWN_NOTICE },
-            ],
-          };
-        }
-
         return {
           ...result,
           content: [
             ...(result.content ?? []),
-            { type: "text", text: moved ? SHUTDOWN_NOTICE : HOST_NOTICE },
+            { type: "text", text: moved ? SHUTDOWN_NOTICE : TOOL_NOTICE },
           ],
         };
       },

@@ -14,7 +14,7 @@ import {
   getUpstreamAuthorizeUrl,
   Props,
 } from "./authorizeUtils";
-import { HOST_NOTICE, isPastCutover, showsHostNotice } from "./hostNotice";
+import { HOST_NOTICE, isShutDown, showsHostNotice } from "./hostNotice";
 import { renderMainPage } from "./renderMainPage";
 import { renderPrivacyPage } from "./renderPrivacyPage";
 import { renderShutdownPage } from "./renderShutdownPage";
@@ -34,7 +34,7 @@ const app = new Hono<{ Bindings: Env & { OAUTH_PROVIDER: OAuthHelpers } }>();
 // that started before the cutover. Existing grants keep refreshing.
 for (const path of ["/authorize", "/callback"]) {
   app.use(path, async (c, next) => {
-    if (showsHostNotice(c.env) && isPastCutover()) {
+    if (isShutDown(c.env)) {
       return c.html(renderShutdownPage(), 410);
     }
 

@@ -8,6 +8,7 @@ import {
   HOST_NOTICE,
   MOVED_NOTICE,
   SHUTDOWN_NOTICE,
+  TOOL_NOTICE,
   withHostNotice,
 } from "../utils/hostNotice";
 
@@ -387,7 +388,7 @@ describe("before the cutover", () => {
     expect(result?.content).toHaveLength(2);
     expect(lastText(result?.content)).toEqual({
       type: "text",
-      text: HOST_NOTICE,
+      text: TOOL_NOTICE,
     });
     expect(googleCalls()).toContain("https://oauth2.googleapis.com/tokeninfo");
   });
@@ -432,7 +433,7 @@ describe("before the cutover", () => {
     );
     expect(lastText(result?.content)).toEqual({
       type: "text",
-      text: HOST_NOTICE,
+      text: TOOL_NOTICE,
     });
     expect(googleCalls()).not.toContain("https://oauth2.googleapis.com/revoke");
   });
@@ -545,6 +546,19 @@ describe("after the cutover", () => {
     expect(JSON.stringify(result)).not.toContain("Notice from Stape");
   });
 
+  it("keeps the usual sign-out text on the .io deployment", async () => {
+    const env = newDeployment();
+    const { access_token } = await signIn(env);
+
+    const { result } = await callTool(env, access_token, "gtm_remove_session");
+
+    expect(result?.content).toHaveLength(1);
+    expect(result?.content[0].text).toMatch(
+      /^Signed out of the GTM MCP server/,
+    );
+    expect(googleCalls()).toContain("https://oauth2.googleapis.com/revoke");
+  });
+
   it("shows the shutdown page instead of starting a new sign-in", async () => {
     const env = oldDeployment();
     const response = await send(env, `/authorize?${await authorizeQuery(env)}`);
@@ -557,6 +571,36 @@ describe("after the cutover", () => {
     expect(page).toContain(
       "gtm-mcp.stape.ai was shut down on December 1, 2026",
     );
+  });
+
+  it("refuses an approval submitted after the cutover", async () => {
+    // A dialog opened before the cutover and approved after it posts here.
+    const response = await send(oldDeployment(), "/authorize", {
+      method: "POST",
+      body: new URLSearchParams({ state: "s" }),
+    });
+
+    expect(response.status).toBe(410);
+    expect(response.headers.get("location")).toBeNull();
+    expect(google).not.toHaveBeenCalled();
+  });
+
+  it("doesn't log the shutdown page as an error", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      for (const path of ["/authorize", "/callback"]) {
+        expect((await send(oldDeployment(), path)).status).toBe(410);
+      }
+      // Other failures still are.
+      expect((await send(oldDeployment(), "/no-such-page")).status).toBe(404);
+
+      expect(error.mock.calls.map(([, details]) => details?.path)).toEqual([
+        "/no-such-page",
+      ]);
+    } finally {
+      error.mockRestore();
+    }
   });
 
   it("doesn't finish a sign-in that started before the cutover", async () => {
@@ -690,7 +734,7 @@ describe("/sse, through the real init()", () => {
 
       expect(lastText(result.content)).toEqual({
         type: "text",
-        text: HOST_NOTICE,
+        text: TOOL_NOTICE,
       });
 
       // A session open across the cutover switches on its next call.
@@ -771,6 +815,19 @@ it("states the same cutover as CUTOVER_AT, and the new URL", () => {
   }
 });
 
+// It goes on every tool result until the cutover, so it stays one short line
+// that still says where to go and what to do.
+it("keeps the per-result notice to one complete line", () => {
+  expect(TOOL_NOTICE).not.toContain("\n");
+  expect(TOOL_NOTICE.length).toBeLessThan(300);
+  expect(TOOL_NOTICE).toContain("December 1, 2026 at 00:00 UTC");
+  expect(TOOL_NOTICE).toContain(
+    "replace gtm-mcp.stape.ai with gtm-mcp.stape.io",
+  );
+  expect(TOOL_NOTICE).toContain("sign in with Google again");
+  expect(TOOL_NOTICE).toContain("ask an admin");
+});
+
 describe("withHostNotice", () => {
   beforeEach(() => {
     vi.useFakeTimers({ now: CUTOVER_AT - 3_600_000, toFake: ["Date"] });
@@ -787,7 +844,31 @@ describe("withHostNotice", () => {
     withHostNotice(server).registerTool("t", {}, async () => ({}) as never);
 
     expect(await handler()).toEqual({
-      content: [{ type: "text", text: HOST_NOTICE }],
+      content: [{ type: "text", text: TOOL_NOTICE }],
+    });
+  });
+
+  it("leaves the result of the tool that keeps running to the tool itself", async () => {
+    vi.setSystemTime(CUTOVER_AT);
+    let handler = async (): Promise<unknown> => undefined;
+    const server = {
+      registerTool: (_name: string, _config: unknown, cb: typeof handler) => {
+        handler = cb;
+      },
+    } as unknown as McpServer;
+
+    withHostNotice(server).registerTool(
+      "gtm_remove_session",
+      {},
+      async () =>
+        ({ content: [{ type: "text", text: "its own text" }] }) as never,
+    );
+
+    expect(await handler()).toEqual({
+      content: [
+        { type: "text", text: "its own text" },
+        { type: "text", text: SHUTDOWN_NOTICE },
+      ],
     });
   });
 

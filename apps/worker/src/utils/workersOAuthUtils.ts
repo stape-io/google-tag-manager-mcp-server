@@ -679,7 +679,7 @@ export async function parseRedirectApproval(
  * @param unsafe - The unsafe string that might contain HTML
  * @returns A safe string with HTML special characters escaped
  */
-function sanitizeHtml(unsafe: string): string {
+export function sanitizeHtml(unsafe: string): string {
   return unsafe
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")

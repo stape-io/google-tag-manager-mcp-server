@@ -1,12 +1,5 @@
 import { OLD_HOST, SHUTDOWN_NOTICE } from "./hostNotice";
-
-const escapeHtml = (text: string): string =>
-  text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+import { sanitizeHtml } from "./workersOAuthUtils";
 
 /** Shown instead of a Google sign-in on the old host after the cutover. */
 export const renderShutdownPage = (): string => `
@@ -36,7 +29,7 @@ export const renderShutdownPage = (): string => `
     </head>
     <body>
     <h1>${OLD_HOST} was shut down</h1>
-    <p>${escapeHtml(SHUTDOWN_NOTICE)}</p>
+    <p>${sanitizeHtml(SHUTDOWN_NOTICE)}</p>
     </body>
     </html>
   `;
