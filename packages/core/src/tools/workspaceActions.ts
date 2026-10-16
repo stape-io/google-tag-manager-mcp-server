@@ -16,6 +16,7 @@ import { ZoneSchema } from "../schemas/ZoneSchema.js";
 import {
   createErrorResponse,
   getTagManagerClient,
+  getServerGtmRuntime,
   log,
   paginateArray,
 } from "../utils/index.js";
@@ -59,7 +60,7 @@ const ITEMS_PER_PAGE = 50;
 
 export const workspaceActions = (
   server: McpServer,
-  { auth }: GtmToolContext,
+  { auth, runtime = getServerGtmRuntime(server) }: GtmToolContext,
 ): void => {
   server.registerTool(
     "gtm_workspace",
@@ -159,8 +160,9 @@ export const workspaceActions = (
         }`,
       );
 
+      const invocation = runtime.startCall(auth, "gtm_workspace", action);
       try {
-        const tagmanager = await getTagManagerClient(auth);
+        const tagmanager = await getTagManagerClient(auth, invocation);
 
         switch (action) {
           case "create": {

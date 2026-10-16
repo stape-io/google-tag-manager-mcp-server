@@ -22,10 +22,14 @@
         "GoogleTagManagerMCPServer"
       ],
       "tag": "v1"
-    }
+    },
+    { "tag": "v2", "new_sqlite_classes": ["GtmReadCache"] }
   ],
+  "vars": { "GTM_SNAPSHOT_CACHE_ENABLED": "false" },
+  "analytics_engine_datasets": [{ "binding": "GTM_USAGE", "dataset": "gtm_mcp_usage_ai" }],
   "durable_objects": {
     "bindings": [
+      { "class_name": "GtmReadCache", "name": "GTM_READ_CACHE" },
       {
         "class_name": "GoogleTagManagerMCPServer",
         "name": "MCP_OBJECT"
@@ -49,6 +53,8 @@
   // own Durable Object and KV namespace. Everything else falls through from above.
   "env": {
     "dev": {
+      "vars": { "GTM_SNAPSHOT_CACHE_ENABLED": "true" },
+      "analytics_engine_datasets": [{ "binding": "GTM_USAGE", "dataset": "gtm_mcp_usage_dev" }],
       "name": "google-tag-manager-mcp-server-dev",
       "routes": [
         {
@@ -58,6 +64,7 @@
       ],
       "durable_objects": {
         "bindings": [
+          { "class_name": "GtmReadCache", "name": "GTM_READ_CACHE" },
           {
             "class_name": "GoogleTagManagerMCPServer",
             "name": "MCP_OBJECT"
@@ -75,6 +82,8 @@
     // stape.io zone. The KV namespace is managed in the terraform repo:
     // gcp/stape-production/google-tag-manager-mcp-server (oauth_io).
     "io": {
+      "vars": { "GTM_SNAPSHOT_CACHE_ENABLED": "false" },
+      "analytics_engine_datasets": [{ "binding": "GTM_USAGE", "dataset": "gtm_mcp_usage_io" }],
       "name": "google-tag-manager-mcp-server",
       // The custom domain creates the DNS record and certificate. The route is
       // needed because the stape.io zone has a catch-all `*/*` route to
@@ -92,6 +101,7 @@
       ],
       "durable_objects": {
         "bindings": [
+          { "class_name": "GtmReadCache", "name": "GTM_READ_CACHE" },
           {
             "class_name": "GoogleTagManagerMCPServer",
             "name": "MCP_OBJECT"

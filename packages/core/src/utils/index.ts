@@ -3,3 +3,6 @@ export * from "./createErrorResponse.js";
 export * from "./getTagManagerClient.js";
 export * from "./paginationUtils.js";
 export * from "./versionPaginationUtils.js";
+export * from "./createGtmRuntime.js";
+export * from "./listSnapshotCache.js";
+export * from "./gtmTelemetry.js";

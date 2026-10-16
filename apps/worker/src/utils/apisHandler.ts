@@ -70,7 +70,7 @@ async function redirectToGoogle(
   c: Context,
   oauthReqInfo: AuthRequest,
   headers: Record<string, string> = {},
-) {
+): Promise<Response> {
   console.log(`/redirectToGoogle oauthReqInfo`, oauthReqInfo);
 
   return new Response(null, {

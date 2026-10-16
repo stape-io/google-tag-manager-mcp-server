@@ -31,7 +31,7 @@ jobs:
 
       # Deploys from main have no other gate, so the bundle is proven here.
       - name: Bundle the Worker
-        run: npx wrangler deploy --dry-run
+        run: npx wrangler deploy --dry-run --env=""
         working-directory: apps/worker
         env:
           WRANGLER_SEND_METRICS: "false"

@@ -6,6 +6,7 @@ import { TagSchema } from "../schemas/TagSchema.js";
 import {
   createErrorResponse,
   getTagManagerClient,
+  getServerGtmRuntime,
   log,
   paginateArray,
 } from "../utils/index.js";
@@ -23,7 +24,7 @@ const ITEMS_PER_PAGE = 20;
 
 export const tagActions = (
   server: McpServer,
-  { auth }: GtmToolContext,
+  { auth, runtime = getServerGtmRuntime(server) }: GtmToolContext,
 ): void => {
   server.registerTool(
     "gtm_tag",
@@ -59,6 +60,10 @@ export const tagActions = (
           .describe(
             "The fingerprint for optimistic concurrency control. Required for 'update' and 'revert' actions.",
           ),
+        fresh: z
+          .boolean()
+          .default(false)
+          .describe("Bypass the cached list snapshot. Applies only to list."),
         page: z
           .number()
           .min(1)
@@ -86,11 +91,13 @@ export const tagActions = (
       fingerprint,
       page,
       itemsPerPage,
+      fresh,
     }) => {
       log(`Running tool: gtm_tag with action ${action}`);
 
+      const invocation = runtime.startCall(auth, "gtm_tag", action);
       try {
-        const tagmanager = await getTagManagerClient(auth);
+        const tagmanager = await getTagManagerClient(auth, invocation);
 
         switch (action) {
           case "create": {
@@ -129,22 +136,10 @@ export const tagActions = (
             };
           }
           case "list": {
-            let all: Schema$Tag[] = [];
-            let currentPageToken = "";
-
-            do {
-              const response =
-                await tagmanager.accounts.containers.workspaces.tags.list({
-                  parent: `accounts/${accountId}/containers/${containerId}/workspaces/${workspaceId}`,
-                  pageToken: currentPageToken,
-                });
-
-              if (response.data.tag) {
-                all = all.concat(response.data.tag);
-              }
-
-              currentPageToken = response.data.nextPageToken || "";
-            } while (currentPageToken);
+            const all = await invocation.listSnapshot(
+              `accounts/${accountId}/containers/${containerId}/workspaces/${workspaceId}/tags`,
+              fresh,
+            );
 
             const paginatedResult = paginateArray(all, page, itemsPerPage);
 

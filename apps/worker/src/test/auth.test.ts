@@ -27,7 +27,7 @@ const PROPS: Props = {
   refreshToken: "google-refresh",
 };
 
-const nowSeconds = () => Math.floor(Date.now() / 1000);
+const nowSeconds = (): number => Math.floor(Date.now() / 1000);
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -82,10 +82,13 @@ describe("refresh_token exchange", () => {
   });
 
   it.each([
-    ["Google answers 503", async () => new Response("busy", { status: 503 })],
+    [
+      "Google answers 503",
+      async (): Promise<Response> => new Response("busy", { status: 503 }),
+    ],
     [
       "the network fails",
-      async () => {
+      async (): Promise<never> => {
         throw new TypeError("fetch failed");
       },
     ],
@@ -202,41 +205,48 @@ describe("/callback", () => {
 });
 
 describe("gtm_remove_session", () => {
-  function fakeOAuth() {
-    const grants = [
+  class FakeOAuth {
+    grants = [
       { id: "g-this-1", clientId: "client-1", userId: "user-1" },
       { id: "g-this-2", clientId: "client-1", userId: "user-1" },
       { id: "g-desktop", clientId: "client-2", userId: "user-1" },
       { id: "g-cursor", clientId: "client-3", userId: "user-1" },
     ];
-    return {
-      grants,
-      listUserGrants: vi.fn<
-        (
-          userId: string,
-          options?: { limit?: number; cursor?: string },
-        ) => Promise<{ items: typeof grants; cursor?: string }>
-      >(async () => ({ items: [...grants] })),
-      revokeGrant: vi.fn(async (id: string) => {
-        grants.splice(
-          grants.findIndex((g) => g.id === id),
-          1,
-        );
-      }),
-      deleteClient: vi.fn(async () => {}),
-    };
+    listUserGrants = vi.fn<
+      (
+        userId: string,
+        options?: { limit?: number; cursor?: string },
+      ) => Promise<{ items: FakeOAuth["grants"]; cursor?: string }>
+    >(async () => ({ items: [...this.grants] }));
+    revokeGrant = vi.fn(async (id: string) => {
+      this.grants.splice(
+        this.grants.findIndex((g) => g.id === id),
+        1,
+      );
+    });
+    deleteClient = vi.fn(async () => {});
   }
 
   type ToolResult = { isError?: boolean; content?: { text: string }[] };
 
-  async function callTool(oauth: ReturnType<typeof fakeOAuth>) {
+  async function callTool(
+    oauth: FakeOAuth,
+    clearSnapshots?: () => Promise<void>,
+  ): Promise<ToolResult> {
     let handler: () => Promise<ToolResult> = async () => ({});
     const server = {
-      registerTool: (_name: string, _config: unknown, cb: typeof handler) => {
+      registerTool: (
+        _name: string,
+        _config: unknown,
+        cb: typeof handler,
+      ): void => {
         handler = cb;
       },
     };
-    removeMCPServerData(server as never, { props: PROPS, oauth } as never);
+    removeMCPServerData(
+      server as never,
+      { props: PROPS, oauth, clearSnapshots } as never,
+    );
     return handler();
   }
 
@@ -244,7 +254,7 @@ describe("gtm_remove_session", () => {
   // the Google token itself, logging out every other client.
   it("signs out only the calling client", async () => {
     vi.stubGlobal("fetch", vi.fn());
-    const oauth = fakeOAuth();
+    const oauth = new FakeOAuth();
 
     const result = await callTool(oauth);
 
@@ -253,12 +263,24 @@ describe("gtm_remove_session", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it("still revokes grants when the snapshot cache is unavailable", async () => {
+    const oauth = new FakeOAuth();
+    const result = await callTool(oauth, async () => {
+      throw new Error("Cache unavailable");
+    });
+    expect(result.isError).toBeFalsy();
+    expect(oauth.grants.map((grant) => grant.id)).toEqual([
+      "g-desktop",
+      "g-cursor",
+    ]);
+  });
+
   // With nothing else of this user left on the server, full cleanup can't log
   // anyone out, so hand Google its token back too.
   it("revokes Google access when no other client is signed in", async () => {
     const fetchMock = vi.fn(async () => new Response(null, { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
-    const oauth = fakeOAuth();
+    const oauth = new FakeOAuth();
     oauth.grants.splice(2);
 
     const result = await callTool(oauth);
@@ -278,7 +300,7 @@ describe("gtm_remove_session", () => {
     vi.stubGlobal("fetch", async () => {
       throw new TypeError("fetch failed");
     });
-    const oauth = fakeOAuth();
+    const oauth = new FakeOAuth();
     oauth.grants.splice(2);
 
     const result = await callTool(oauth);
@@ -292,7 +314,7 @@ describe("gtm_remove_session", () => {
   it("keeps Google access when another client's grant is on a later page", async () => {
     const fetchMock = vi.fn(async () => new Response(null, { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
-    const oauth = fakeOAuth();
+    const oauth = new FakeOAuth();
     oauth.listUserGrants.mockImplementation(async (_userId, options) =>
       options?.cursor === undefined
         ? { items: [], cursor: "next-page" }
@@ -312,7 +334,7 @@ describe("gtm_remove_session", () => {
   // knows it.
   it("keeps the client registration so the client can sign in again", async () => {
     vi.stubGlobal("fetch", vi.fn());
-    const oauth = fakeOAuth();
+    const oauth = new FakeOAuth();
 
     await callTool(oauth);
 
@@ -324,7 +346,7 @@ describe("gtm_remove_session", () => {
   it("doesn't tell the user to delete local auth files", async () => {
     vi.stubGlobal("fetch", vi.fn());
 
-    const result = await callTool(fakeOAuth());
+    const result = await callTool(new FakeOAuth());
 
     expect(result.content?.[0]?.text).not.toMatch(/rm |\.mcp-auth/);
   });

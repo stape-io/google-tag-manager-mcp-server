@@ -7,6 +7,7 @@ import {
 import { SERVER_INFO } from "./constants/serverInfo";
 import { McpAgentPropsModel } from "./models/McpAgentModel";
 import { removeMCPServerData } from "./tools/removeMCPServerData";
+import { createHostedGtmRuntime } from "./createHostedGtmRuntime";
 
 /**
  * `OAuthProvider` decrypts the grant onto `ctx.props` before it calls any
@@ -45,8 +46,10 @@ export function createMcpApiHandler(
   const handler = createMcpHandler(
     () => {
       const props = requireProps();
+      const runtime = createHostedGtmRuntime(env, props);
 
       return createGtmMcpServer({
+        runtime,
         // Read at call time: a client that refreshes its grant mid-stream gets
         // fresh props on the next request, and each request builds its own
         // server instance anyway.
@@ -56,9 +59,10 @@ export function createMcpApiHandler(
         })),
         serverInfo: { ...SERVER_INFO },
         extraTools: [
-          (server) =>
+          (server): void =>
             removeMCPServerData(server, {
               props,
+              clearSnapshots: (): Promise<void> => runtime.clear(),
               // Injected by OAuthProvider before it calls this API handler.
               oauth: (env as Env & { OAUTH_PROVIDER: OAuthHelpers })
                 .OAUTH_PROVIDER,
