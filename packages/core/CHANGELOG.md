@@ -1,5 +1,11 @@
 # google-tag-manager-mcp-core
 
+## 3.0.1
+
+### Patch Changes
+
+- f3d3f4b: Publish through npm trusted publishing (OIDC). Releases now come with npm provenance attestations; there are no functional changes.
+
 ## 3.0.0
 
 ### Major Changes

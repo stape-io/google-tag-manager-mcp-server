@@ -1,6 +1,6 @@
 {
   "name": "google-tag-manager-mcp-core",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Reusable Google Tag Manager MCP tools, schemas and pluggable auth providers",
   "license": "Apache-2.0",
   "author": "stape-io",
