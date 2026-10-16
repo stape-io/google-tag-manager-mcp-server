@@ -229,14 +229,20 @@ describe("gtm_remove_session", () => {
 
   type ToolResult = { isError?: boolean; content?: { text: string }[] };
 
-  async function callTool(oauth: ReturnType<typeof fakeOAuth>) {
+  async function callTool(
+    oauth: ReturnType<typeof fakeOAuth>,
+    clearSnapshots?: () => Promise<void>,
+  ) {
     let handler: () => Promise<ToolResult> = async () => ({});
     const server = {
       registerTool: (_name: string, _config: unknown, cb: typeof handler) => {
         handler = cb;
       },
     };
-    removeMCPServerData(server as never, { props: PROPS, oauth } as never);
+    removeMCPServerData(
+      server as never,
+      { props: PROPS, oauth, clearSnapshots } as never,
+    );
     return handler();
   }
 
@@ -251,6 +257,18 @@ describe("gtm_remove_session", () => {
     expect(result.isError).toBeFalsy();
     expect(oauth.grants.map((g) => g.id)).toEqual(["g-desktop", "g-cursor"]);
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("still revokes grants when the snapshot cache is unavailable", async () => {
+    const oauth = fakeOAuth();
+    const result = await callTool(oauth, async () => {
+      throw new Error("Cache unavailable");
+    });
+    expect(result.isError).toBeFalsy();
+    expect(oauth.grants.map((grant) => grant.id)).toEqual([
+      "g-desktop",
+      "g-cursor",
+    ]);
   });
 
   // With nothing else of this user left on the server, full cleanup can't log

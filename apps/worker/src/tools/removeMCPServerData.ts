@@ -6,7 +6,15 @@ import { McpAgentPropsModel } from "../models/McpAgentModel";
 
 export const removeMCPServerData = (
   server: McpServer,
-  { props, oauth }: { props: McpAgentPropsModel; oauth: OAuthHelpers },
+  {
+    props,
+    oauth,
+    clearSnapshots,
+  }: {
+    props: McpAgentPropsModel;
+    oauth: OAuthHelpers;
+    clearSnapshots?: () => Promise<void>;
+  },
 ): void => {
   server.registerTool(
     TAG_MANAGER_REMOVE_MCP_SERVER_DATA,
@@ -16,6 +24,9 @@ export const removeMCPServerData = (
     },
     async () => {
       try {
+        await clearSnapshots?.().catch(() => {
+          console.warn("[gtm_remove_session] Snapshot cache clear failed");
+        });
         // Only this client's grants: the user's other clients (Desktop,
         // Cursor, ...) have their own and must stay signed in.
         let cursor: string | undefined;

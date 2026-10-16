@@ -1102,6 +1102,11 @@
           "description": "The fingerprint for optimistic concurrency control. Required for 'update' and 'revert' actions.",
           "type": "string"
         },
+        "fresh": {
+          "default": false,
+          "description": "Bypass the cached list snapshot. Applies only to list.",
+          "type": "boolean"
+        },
         "itemsPerPage": {
           "default": 20,
           "description": "Number of items to return per page (1-20). Default: 20. Use lower values if experiencing response issues.",
@@ -1635,6 +1640,11 @@
           "description": "The fingerprint for optimistic concurrency control. Required for 'update' and 'revert' actions.",
           "type": "string"
         },
+        "fresh": {
+          "default": false,
+          "description": "Bypass the cached list snapshot. Applies only to list.",
+          "type": "boolean"
+        },
         "itemsPerPage": {
           "default": 20,
           "description": "Number of items to return per page (1-20). Default: 20. Use lower values if experiencing response issues.",
@@ -1935,6 +1945,11 @@
         "fingerprint": {
           "description": "The fingerprint for optimistic concurrency control. Required for 'update' and 'revert' actions.",
           "type": "string"
+        },
+        "fresh": {
+          "default": false,
+          "description": "Bypass the cached list snapshot. Applies only to list.",
+          "type": "boolean"
         },
         "itemsPerPage": {
           "default": 20,

@@ -1,4 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/server";
+import type { GtmRuntime } from "../utils/createGtmRuntime.js";
 
 /** Called on every tool invocation: implementations cache and refresh internally. */
 export interface GtmAuthProvider {
@@ -7,6 +8,7 @@ export interface GtmAuthProvider {
 
 export type GtmToolContext = {
   auth: GtmAuthProvider;
+  runtime?: GtmRuntime;
 };
 
 export type GtmToolRegistration = (

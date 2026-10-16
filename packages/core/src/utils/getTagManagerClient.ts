@@ -1,17 +1,20 @@
 import { tagmanager } from "@googleapis/tagmanager";
 import { GtmAuthProvider } from "../types/index.js";
 import { log } from "./log.js";
+import type { GtmInvocation } from "./createGtmRuntime.js";
 
 export type TagManagerClient = ReturnType<typeof tagmanager>;
 
 export async function getTagManagerClient(
   auth: GtmAuthProvider,
+  invocation?: GtmInvocation,
 ): Promise<TagManagerClient> {
   try {
     const token = await auth.getAccessToken();
 
     return tagmanager({
       version: "v2",
+      fetchImplementation: invocation?.fetch,
       headers: {
         Authorization: `Bearer ${token}`,
       },

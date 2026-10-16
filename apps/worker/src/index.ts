@@ -14,6 +14,8 @@ import {
 import { SERVER_INFO } from "./constants/serverInfo";
 import { UNAUTHORIZED_HINT } from "./constants/tools";
 import { createMcpApiHandler } from "./mcpHandler";
+import { createHostedGtmRuntime } from "./createHostedGtmRuntime";
+export { GtmReadCache } from "./GtmReadCache";
 import { McpAgentPropsModel } from "./models/McpAgentModel";
 import { removeMCPServerData } from "./tools/removeMCPServerData";
 import {
@@ -61,11 +63,13 @@ export class GoogleTagManagerMCPServer extends McpAgent<
     // real v1 `McpServer` and lists it back over a v1 client.
     const legacyServer = this.server as unknown as McpServerV2;
 
-    registerGtmTools(legacyServer, { auth });
+    const runtime = createHostedGtmRuntime(this.env, props);
+    registerGtmTools(legacyServer, { auth, runtime });
     // The Durable Object's env never passes through OAuthProvider, so build
     // the helpers from the same options instead of relying on injection.
     removeMCPServerData(legacyServer, {
       props,
+      clearSnapshots: (): Promise<void> => runtime.clear(),
       oauth: getOAuthApi(providerOptions(this.env), this.env),
     });
   }

@@ -6,6 +6,7 @@ import { FolderSchema } from "../schemas/FolderSchema.js";
 import {
   createErrorResponse,
   getTagManagerClient,
+  createGtmRuntime,
   log,
   paginateArray,
 } from "../utils/index.js";
@@ -23,7 +24,7 @@ const ITEMS_PER_PAGE = 50;
 
 export const folderActions = (
   server: McpServer,
-  { auth }: GtmToolContext,
+  { auth, runtime = createGtmRuntime() }: GtmToolContext,
 ): void => {
   server.registerTool(
     "gtm_folder",
@@ -123,8 +124,9 @@ export const folderActions = (
     }) => {
       log(`Running tool: gtm_folder with action ${action}`);
 
+      const invocation = runtime.startCall(auth, "gtm_folder", action);
       try {
-        const tagmanager = await getTagManagerClient(auth);
+        const tagmanager = await getTagManagerClient(auth, invocation);
 
         switch (action) {
           case "create": {

@@ -6,6 +6,7 @@ import { TriggerSchema } from "../schemas/TriggerSchema.js";
 import {
   createErrorResponse,
   getTagManagerClient,
+  createGtmRuntime,
   log,
   paginateArray,
 } from "../utils/index.js";
@@ -23,7 +24,7 @@ const ITEMS_PER_PAGE = 20;
 
 export const triggerActions = (
   server: McpServer,
-  { auth }: GtmToolContext,
+  { auth, runtime = createGtmRuntime() }: GtmToolContext,
 ): void => {
   server.registerTool(
     "gtm_trigger",
@@ -63,6 +64,10 @@ export const triggerActions = (
           .describe(
             "The fingerprint for optimistic concurrency control. Required for 'update' and 'revert' actions.",
           ),
+        fresh: z
+          .boolean()
+          .default(false)
+          .describe("Bypass the cached list snapshot. Applies only to list."),
         page: z
           .number()
           .min(1)
@@ -90,11 +95,13 @@ export const triggerActions = (
       fingerprint,
       page,
       itemsPerPage,
+      fresh,
     }) => {
       log(`Running tool: gtm_trigger with action ${action}`);
 
+      const invocation = runtime.startCall(auth, "gtm_trigger", action);
       try {
-        const tagmanager = await getTagManagerClient(auth);
+        const tagmanager = await getTagManagerClient(auth, invocation);
 
         switch (action) {
           case "create": {
@@ -133,22 +140,10 @@ export const triggerActions = (
             };
           }
           case "list": {
-            let all: Schema$Trigger[] = [];
-            let currentPageToken = "";
-
-            do {
-              const response =
-                await tagmanager.accounts.containers.workspaces.triggers.list({
-                  parent: `accounts/${accountId}/containers/${containerId}/workspaces/${workspaceId}`,
-                  pageToken: currentPageToken,
-                });
-
-              if (response.data.trigger) {
-                all = all.concat(response.data.trigger);
-              }
-
-              currentPageToken = response.data.nextPageToken || "";
-            } while (currentPageToken);
+            const all = await invocation.listSnapshot(
+              `accounts/${accountId}/containers/${containerId}/workspaces/${workspaceId}/triggers`,
+              fresh,
+            );
 
             const paginatedResult = paginateArray(all, page, itemsPerPage);
 

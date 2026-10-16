@@ -6,6 +6,7 @@ import { ClientSchema } from "../schemas/ClientSchema.js";
 import {
   createErrorResponse,
   getTagManagerClient,
+  createGtmRuntime,
   log,
   paginateArray,
 } from "../utils/index.js";
@@ -23,7 +24,7 @@ const ITEMS_PER_PAGE = 50;
 
 export const clientActions = (
   server: McpServer,
-  { auth }: GtmToolContext,
+  { auth, runtime = createGtmRuntime() }: GtmToolContext,
 ): void => {
   server.registerTool(
     "gtm_client",
@@ -93,8 +94,9 @@ export const clientActions = (
     }) => {
       log(`Running tool: gtm_client with action ${action}`);
 
+      const invocation = runtime.startCall(auth, "gtm_client", action);
       try {
-        const tagmanager = await getTagManagerClient(auth);
+        const tagmanager = await getTagManagerClient(auth, invocation);
 
         switch (action) {
           case "create": {

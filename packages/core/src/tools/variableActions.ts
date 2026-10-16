@@ -6,6 +6,7 @@ import { VariableSchema } from "../schemas/VariableSchema.js";
 import {
   createErrorResponse,
   getTagManagerClient,
+  createGtmRuntime,
   log,
   paginateArray,
 } from "../utils/index.js";
@@ -23,7 +24,7 @@ const ITEMS_PER_PAGE = 20;
 
 export const variableActions = (
   server: McpServer,
-  { auth }: GtmToolContext,
+  { auth, runtime = createGtmRuntime() }: GtmToolContext,
 ): void => {
   server.registerTool(
     "gtm_variable",
@@ -65,6 +66,10 @@ export const variableActions = (
           .describe(
             "The fingerprint for optimistic concurrency control. Required for 'update' and 'revert' actions.",
           ),
+        fresh: z
+          .boolean()
+          .default(false)
+          .describe("Bypass the cached list snapshot. Applies only to list."),
         page: z
           .number()
           .min(1)
@@ -92,11 +97,13 @@ export const variableActions = (
       fingerprint,
       page,
       itemsPerPage,
+      fresh,
     }) => {
       log(`Running tool: gtm_variable with action ${action}`);
 
+      const invocation = runtime.startCall(auth, "gtm_variable", action);
       try {
-        const tagmanager = await getTagManagerClient(auth);
+        const tagmanager = await getTagManagerClient(auth, invocation);
 
         switch (action) {
           case "create": {
@@ -135,22 +142,10 @@ export const variableActions = (
             };
           }
           case "list": {
-            let all: Schema$Variable[] = [];
-            let currentPageToken = "";
-
-            do {
-              const response =
-                await tagmanager.accounts.containers.workspaces.variables.list({
-                  parent: `accounts/${accountId}/containers/${containerId}/workspaces/${workspaceId}`,
-                  pageToken: currentPageToken,
-                });
-
-              if (response.data.variable) {
-                all = all.concat(response.data.variable);
-              }
-
-              currentPageToken = response.data.nextPageToken || "";
-            } while (currentPageToken);
+            const all = await invocation.listSnapshot(
+              `accounts/${accountId}/containers/${containerId}/workspaces/${workspaceId}/variables`,
+              fresh,
+            );
 
             const paginatedResult = paginateArray(all, page, itemsPerPage);
 

@@ -4,6 +4,7 @@ import { GtmToolContext } from "../types/index.js";
 import {
   createErrorResponse,
   getTagManagerClient,
+  createGtmRuntime,
   log,
   paginateArray,
 } from "../utils/index.js";
@@ -12,7 +13,7 @@ const ITEMS_PER_PAGE = 50;
 
 export const destinationActions = (
   server: McpServer,
-  { auth }: GtmToolContext,
+  { auth, runtime = createGtmRuntime() }: GtmToolContext,
 ): void => {
   server.registerTool(
     "gtag_destination",
@@ -49,8 +50,9 @@ export const destinationActions = (
     async ({ accountId, containerId, page, itemsPerPage }) => {
       log(`Running tool: gtag_destination with action list`);
 
+      const invocation = runtime.startCall(auth, "gtag_destination", "list");
       try {
-        const tagmanager = await getTagManagerClient(auth);
+        const tagmanager = await getTagManagerClient(auth, invocation);
 
         const response = await tagmanager.accounts.containers.destinations.list(
           {
