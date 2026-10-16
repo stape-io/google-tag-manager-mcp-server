@@ -5,12 +5,14 @@ import { TAG_MANAGER_REMOVE_MCP_SERVER_DATA } from "../constants/tools";
  * Clients still on `gtm-mcp.stape.ai` get a notice in the `initialize`
  * instructions and at the end of tool results (see `withHostNotice` for the
  * ones it can't reach). From the cutover, tools there stop running and return
- * only the "moved" message, except sign-out. The protocol itself
- * (and OAuth) keeps working on purpose: claude.ai and Claude Desktop
+ * only the "moved" message, except sign-out. The protocol itself, and OAuth
+ * for existing grants, keep working on purpose: claude.ai and Claude Desktop
  * connectors replace any protocol-level error with a generic "couldn't reach
  * the server", so a tool result is the only place every client shows our text.
- * The `.io` deployment has its own OAuth store, so moving means a new Google
- * sign-in.
+ * New sign-ins stop at the cutover: the user is in the browser by then, so
+ * `/authorize` shows the shutdown notice as a page instead of asking Google
+ * for access this host would never use (see apisHandler.ts). The `.io`
+ * deployment has its own OAuth store, so moving means a new Google sign-in.
  *
  * Only the `.ai` deployment turns this on: the `SHOW_HOST_NOTICE` var is
  * "true" in the default environment of wrangler.jsonc and "false" in the
@@ -35,10 +37,6 @@ export const isPastCutover = (): boolean => Date.now() >= CUTOVER_AT;
 
 export const showsHostNotice = (env: Pick<Env, "SHOW_HOST_NOTICE">): boolean =>
   env.SHOW_HOST_NOTICE === "true";
-
-/** The notice as a user reads it, before or after the cutover. */
-export const hostNoticeText = (): string =>
-  isPastCutover() ? SHUTDOWN_NOTICE : HOST_NOTICE;
 
 /**
  * Read when a server is built. An `/sse` server keeps it until its Durable

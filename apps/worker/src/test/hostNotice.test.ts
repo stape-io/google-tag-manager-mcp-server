@@ -193,6 +193,39 @@ async function signIn(env: Env): Promise<Tokens> {
   return { clientId, ...((await tokens.json()) as Omit<Tokens, "clientId">) };
 }
 
+/** A registered client's /authorize query, as an MCP client would send it. */
+async function authorizeQuery(env: Env): Promise<URLSearchParams> {
+  const registered = await send(env, "/register", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      redirect_uris: [REDIRECT_URI],
+      token_endpoint_auth_method: "none",
+    }),
+  });
+  const { client_id: clientId } = (await registered.json()) as {
+    client_id: string;
+  };
+
+  return new URLSearchParams({
+    response_type: "code",
+    client_id: clientId,
+    redirect_uri: REDIRECT_URI,
+    code_challenge: CODE_CHALLENGE,
+    code_challenge_method: "S256",
+    state: "s",
+  });
+}
+
+/** Signs in a minute before the cutover, then moves the clock to it. */
+async function signInBeforeCutover(env: Env): Promise<Tokens> {
+  vi.setSystemTime(CUTOVER_AT - 60_000);
+  const tokens = await signIn(env);
+  vi.setSystemTime(CUTOVER_AT);
+
+  return tokens;
+}
+
 async function refresh(env: Env, tokens: Tokens): Promise<Response> {
   return send(env, "/token", {
     method: "POST",
@@ -431,9 +464,9 @@ describe("after the cutover", () => {
     vi.useFakeTimers({ now: CUTOVER_AT, toFake: ["Date"] });
   });
 
-  it("still signs in and connects, with the moved notice as instructions", async () => {
+  it("keeps existing sessions connected, with the shutdown instructions", async () => {
     const env = oldDeployment();
-    const { access_token } = await signIn(env);
+    const { access_token } = await signInBeforeCutover(env);
 
     expect((await initialize(env, access_token)).result?.instructions).toBe(
       AFTER_INSTRUCTIONS,
@@ -442,7 +475,7 @@ describe("after the cutover", () => {
 
   it("returns only the moved notice from tools, without calling Google", async () => {
     const env = oldDeployment();
-    const { access_token } = await signIn(env);
+    const { access_token } = await signInBeforeCutover(env);
     google.mockClear();
 
     const { result } = await callTool(env, access_token, "gtm_auth_status");
@@ -454,7 +487,7 @@ describe("after the cutover", () => {
 
   it("still lists every tool, without input schemas", async () => {
     const listed = async (env: Env): Promise<McpTool[]> => {
-      const { access_token } = await signIn(env);
+      const { access_token } = await signInBeforeCutover(env);
       const { result } = await mcp(env, access_token, "tools/list", {});
 
       return (result as unknown as { tools: McpTool[] }).tools;
@@ -474,7 +507,7 @@ describe("after the cutover", () => {
 
   it("returns the moved notice for arguments the schema would reject", async () => {
     const env = oldDeployment();
-    const { access_token } = await signIn(env);
+    const { access_token } = await signInBeforeCutover(env);
 
     const { result } = await callTool(env, access_token, "gtm_account", {});
 
@@ -484,7 +517,7 @@ describe("after the cutover", () => {
 
   it("keeps sign-out working, with the shutdown notice appended", async () => {
     const env = oldDeployment();
-    const { access_token } = await signIn(env);
+    const { access_token } = await signInBeforeCutover(env);
 
     const { result } = await callTool(env, access_token, "gtm_remove_session");
 
@@ -512,7 +545,39 @@ describe("after the cutover", () => {
     expect(JSON.stringify(result)).not.toContain("Notice from Stape");
   });
 
-  it("keeps OAuth in front of /mcp, so connectors can still sign in", async () => {
+  it("shows the shutdown page instead of starting a new sign-in", async () => {
+    const env = oldDeployment();
+    const response = await send(env, `/authorize?${await authorizeQuery(env)}`);
+
+    expect(response.status).toBe(410);
+    expect(response.headers.get("location")).toBeNull();
+    expect(await response.text()).toContain(
+      "gtm-mcp.stape.ai was shut down on December 1, 2026",
+    );
+  });
+
+  it("doesn't finish a sign-in that started before the cutover", async () => {
+    const env = oldDeployment();
+    const state = btoa(
+      JSON.stringify({ clientId: "client-1", redirectUri: REDIRECT_URI }),
+    );
+
+    const response = await send(
+      env,
+      `/callback?code=google-code&state=${state}`,
+    );
+
+    expect(response.status).toBe(410);
+    expect(google).not.toHaveBeenCalled();
+  });
+
+  it("still signs in on the .io deployment", async () => {
+    const { access_token } = await signIn(newDeployment());
+
+    expect(access_token).toBeTruthy();
+  });
+
+  it("keeps OAuth in front of /mcp, so existing grants still refresh", async () => {
     const response = await send(oldDeployment(), "/mcp", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -529,29 +594,8 @@ describe("approval dialog", () => {
     vi.useFakeTimers({ now: CUTOVER_AT - 3_600_000, toFake: ["Date"] });
   });
 
-  async function approvalPage(env: Env): Promise<string> {
-    const registered = await send(env, "/register", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        redirect_uris: [REDIRECT_URI],
-        token_endpoint_auth_method: "none",
-      }),
-    });
-    const { client_id: clientId } = (await registered.json()) as {
-      client_id: string;
-    };
-    const query = new URLSearchParams({
-      response_type: "code",
-      client_id: clientId,
-      redirect_uri: REDIRECT_URI,
-      code_challenge: CODE_CHALLENGE,
-      code_challenge_method: "S256",
-      state: "s",
-    });
-
-    return (await send(env, `/authorize?${query}`)).text();
-  }
+  const approvalPage = async (env: Env): Promise<string> =>
+    (await send(env, `/authorize?${await authorizeQuery(env)}`)).text();
 
   it.each([
     ["the .ai deployment", oldDeployment, "STAPE.AI"],
@@ -563,17 +607,12 @@ describe("approval dialog", () => {
     expect(page).not.toContain(name === "STAPE.AI" ? "STAPE.IO" : "STAPE.AI");
   });
 
-  it("shows the notice on the .ai deployment only", async () => {
+  it("shows the notice on the .ai deployment only, before the cutover", async () => {
     expect(await approvalPage(oldDeployment())).toContain(
       "gtm-mcp.stape.ai stops working on December 1, 2026",
     );
     expect(await approvalPage(newDeployment())).not.toContain(
       "Notice from Stape",
-    );
-
-    vi.setSystemTime(CUTOVER_AT);
-    expect(await approvalPage(oldDeployment())).toContain(
-      "gtm-mcp.stape.ai was shut down on December 1, 2026",
     );
   });
 });
