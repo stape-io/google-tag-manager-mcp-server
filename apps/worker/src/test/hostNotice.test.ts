@@ -567,10 +567,17 @@ describe("after the cutover", () => {
     expect(response.headers.get("location")).toBeNull();
     const page = await response.text();
 
+    // Everything SHUTDOWN_NOTICE tells the user, laid out as steps.
     expect(page).toContain("<h1>gtm-mcp.stape.ai was shut down</h1>");
+    expect(page).toContain("Shut down on December 1, 2026 at 00:00 UTC");
     expect(page).toContain(
-      "gtm-mcp.stape.ai was shut down on December 1, 2026",
+      '<code class="new">https://gtm-mcp.stape.io/mcp</code>',
     );
+    expect(page).toContain(
+      '<code class="new">https://gtm-mcp.stape.io/sse</code>',
+    );
+    expect(page).toContain("Sign in with Google again");
+    expect(page).toContain("ask an admin to change its URL");
   });
 
   it("refuses an approval submitted after the cutover", async () => {

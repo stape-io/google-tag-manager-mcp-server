@@ -19,10 +19,10 @@ import { TAG_MANAGER_REMOVE_MCP_SERVER_DATA } from "../constants/tools";
  * others.
  */
 export const OLD_HOST = "gtm-mcp.stape.ai";
-const NEW_HOST = "gtm-mcp.stape.io";
+export const NEW_HOST = "gtm-mcp.stape.io";
 export const CUTOVER_AT = Date.UTC(2026, 11, 1);
 // Keep in step with CUTOVER_AT.
-const CUTOVER_TEXT = "December 1, 2026 at 00:00 UTC";
+export const CUTOVER_TEXT = "December 1, 2026 at 00:00 UTC";
 
 const HOW_TO_MOVE = `In this MCP server's URL in your client config, replace ${OLD_HOST} with ${NEW_HOST} and keep the path: https://${OLD_HOST}/mcp becomes https://${NEW_HOST}/mcp, and https://${OLD_HOST}/sse becomes https://${NEW_HOST}/sse. Then sign in with Google again when prompted. If your organization manages this connector, ask an admin to change its URL.`;
 
