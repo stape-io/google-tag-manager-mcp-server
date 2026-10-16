@@ -20,7 +20,7 @@ import { TAG_MANAGER_REMOVE_MCP_SERVER_DATA } from "../constants/tools";
  */
 export const OLD_HOST = "gtm-mcp.stape.ai";
 const NEW_HOST = "gtm-mcp.stape.io";
-export const CUTOVER_AT = Date.UTC(2026, 11, 1);
+export const CUTOVER_AT = Date.UTC(2026, 9, 1); // TEST ONLY, never merge: real date is Date.UTC(2026, 11, 1)
 // Keep in step with CUTOVER_AT.
 const CUTOVER_TEXT = "December 1, 2026 at 00:00 UTC";
 
