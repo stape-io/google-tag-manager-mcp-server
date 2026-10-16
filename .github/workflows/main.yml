@@ -10,6 +10,9 @@ concurrency: release-${{ github.ref }}
 permissions:
   contents: write
   pull-requests: write
+  # npm trusted publishing: npm exchanges the job's OIDC token for a
+  # short-lived publish credential, so no NPM_TOKEN is stored anywhere.
+  id-token: write
 
 jobs:
   release:
@@ -38,7 +41,6 @@ jobs:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          NPM_TOKEN: op://google-tag-manager-mcp-server/NPM_TOKEN/password
           RELEASER_APP_ID: op://github-actions-shared/releaser/app_id
           RELEASER_APP_KEY: op://github-actions-shared/releaser/app_key
 
@@ -57,4 +59,3 @@ jobs:
           title: "chore: version packages"
         env:
           GITHUB_TOKEN: ${{ steps.gh_app.outputs.token }}
-          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
