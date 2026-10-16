@@ -189,6 +189,8 @@ export interface ApprovalDialogOptions {
     name: string;
     logo?: string;
     description?: string;
+    /** Trusted HTML shown below the approval card, not escaped. */
+    noticeHtml?: string;
   };
   /**
    * Arbitrary state data to pass through the approval flow
@@ -582,6 +584,7 @@ export function renderApprovalDialog(
               </div>
             </form>
           </div>
+          ${server.noticeHtml ?? ""}
         </div>
         <footer>
           <a href="/privacy">Privacy Policy</a>

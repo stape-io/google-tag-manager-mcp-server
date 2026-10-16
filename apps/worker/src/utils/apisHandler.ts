@@ -14,9 +14,10 @@ import {
   getUpstreamAuthorizeUrl,
   Props,
 } from "./authorizeUtils";
-import { HOST_NOTICE, isShutDown, showsHostNotice } from "./hostNotice";
+import { isShutDown, showsHostNotice } from "./hostNotice";
 import { renderMainPage } from "./renderMainPage";
 import { renderPrivacyPage } from "./renderPrivacyPage";
+import { renderHostNoticeHtml } from "./renderMoveSteps";
 import { renderShutdownPage } from "./renderShutdownPage";
 import { renderTermsPage } from "./renderTermsPage";
 import {
@@ -66,7 +67,7 @@ app.get("/authorize", async (c) => {
       // STAPE.AI on gtm-mcp.stape.ai, the deployment with the host notice,
       // which the dialog also shows the user.
       name: showsHostNotice(c.env) ? "STAPE.AI" : "STAPE.IO",
-      description: showsHostNotice(c.env) ? HOST_NOTICE : "",
+      noticeHtml: showsHostNotice(c.env) ? renderHostNoticeHtml() : undefined,
     },
     state: { oauthReqInfo },
   });

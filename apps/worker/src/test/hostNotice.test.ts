@@ -662,12 +662,16 @@ describe("approval dialog", () => {
   });
 
   it("shows the notice on the .ai deployment only, before the cutover", async () => {
-    expect(await approvalPage(oldDeployment())).toContain(
-      "gtm-mcp.stape.ai stops working on December 1, 2026",
+    const oldPage = await approvalPage(oldDeployment());
+
+    expect(oldPage).toContain(
+      "gtm-mcp.stape.ai stops working on December 1, 2026 at 00:00 UTC",
     );
-    expect(await approvalPage(newDeployment())).not.toContain(
-      "Notice from Stape",
+    expect(oldPage).toContain(
+      '<code class="new">https://gtm-mcp.stape.io/mcp</code>',
     );
+    expect(oldPage).toContain("Sign in with Google again");
+    expect(await approvalPage(newDeployment())).not.toContain("host-notice");
   });
 });
 
