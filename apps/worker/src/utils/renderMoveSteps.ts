@@ -12,7 +12,6 @@ export const MOVE_STEPS_STYLE = `
               --move-code-background: #f3f4f6;
               --move-accent: #0070f3;
               --move-accent-text: #fff;
-              --move-old: #6b7280;
               --move-new: #047857;
               --move-new-background: #d1fae5;
               text-align: left;
@@ -67,14 +66,6 @@ export const MOVE_STEPS_STYLE = `
               overflow-wrap: anywhere;
           }
 
-          .move-steps p code {
-              padding: 1px 6px;
-              border-radius: 4px;
-              background: var(--move-code-background);
-              color: var(--move-text);
-              white-space: nowrap;
-          }
-
           .move-steps .url-change {
               border: 1px solid var(--move-border);
               border-radius: 8px;
@@ -97,10 +88,6 @@ export const MOVE_STEPS_STYLE = `
               font-weight: 600;
               text-transform: uppercase;
               letter-spacing: 0.05em;
-              color: var(--move-old);
-          }
-
-          .move-steps .tag-new {
               color: var(--move-new);
           }
 
@@ -157,10 +144,11 @@ export const renderMoveSteps = (): string => `
             <p>In your MCP client config, change this server's URL to:</p>
             <div class="url-change">
               <div class="url-row">
-                <span class="tag tag-new">New</span>
+                <span class="tag">New</span>
                 <code class="new">${NEW_URL}</code>
               </div>
             </div>
+            <p>If the config sets the transport to SSE, change it to Streamable HTTP too.</p>
           </li>
           <li>
             <h2>Sign in with Google again</h2>

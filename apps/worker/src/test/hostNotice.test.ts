@@ -11,6 +11,7 @@ import {
   TOOL_NOTICE,
   withHostNotice,
 } from "../utils/hostNotice";
+import { renderMainPage } from "../utils/renderMainPage";
 import { renderHostNoticeHtml } from "../utils/renderMoveSteps";
 import { renderShutdownPage } from "../utils/renderShutdownPage";
 
@@ -863,9 +864,25 @@ it("never points users to /sse", () => {
     MOVED_NOTICE,
     renderHostNoticeHtml(),
     renderShutdownPage(),
+    renderMainPage(),
   ]) {
     expect(notice).not.toContain("/sse");
     expect(notice).toContain("https://gtm-mcp.stape.io/mcp");
+  }
+});
+
+// /mcp is Streamable HTTP only and answers a GET with 405, so a client set to
+// the SSE transport can't connect after a URL swap alone.
+it("tells clients set to SSE to switch to Streamable HTTP", () => {
+  for (const notice of [
+    HOST_NOTICE,
+    TOOL_NOTICE,
+    SHUTDOWN_NOTICE,
+    MOVED_NOTICE,
+    renderHostNoticeHtml(),
+    renderShutdownPage(),
+  ]) {
+    expect(notice).toMatch(/SSE.*Streamable HTTP/s);
   }
 });
 

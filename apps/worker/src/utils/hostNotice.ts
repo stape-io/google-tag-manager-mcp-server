@@ -27,13 +27,13 @@ export const CUTOVER_TEXT = "December 1, 2026 at 00:00 UTC";
 // Everyone moves to /mcp, whichever route they are on now.
 export const NEW_URL = `https://${NEW_HOST}/mcp`;
 
-const HOW_TO_MOVE = `In your client config, change this MCP server's URL to ${NEW_URL}. Then sign in with Google again when prompted. If your organization manages this connector, ask an admin to change its URL.`;
+const HOW_TO_MOVE = `In your client config, change this MCP server's URL to ${NEW_URL}; if the config sets the transport to SSE, change it to Streamable HTTP too. Then sign in with Google again when prompted. If your organization manages this connector, ask an admin to change its URL.`;
 
 export const HOST_NOTICE = `Notice from Stape: ${OLD_HOST} stops working on ${CUTOVER_TEXT}. ${HOW_TO_MOVE}`;
 
 // Appended to every tool result, so kept to one line. The full HOW_TO_MOVE
 // stays in the instructions, the approval dialog and the shutdown page.
-export const TOOL_NOTICE = `Notice from Stape: ${OLD_HOST} stops working on ${CUTOVER_TEXT}. Change this server's URL to ${NEW_URL}, then sign in with Google again (org-managed connector: ask an admin).`;
+export const TOOL_NOTICE = `Notice from Stape: ${OLD_HOST} stops working on ${CUTOVER_TEXT}. Change this server's URL to ${NEW_URL} (transport SSE: switch to Streamable HTTP), then sign in with Google again (org-managed connector: ask an admin).`;
 
 /** For server-level text and for sign-out, which still runs. */
 export const SHUTDOWN_NOTICE = `Notice from Stape: ${OLD_HOST} was shut down on ${CUTOVER_TEXT}. ${HOW_TO_MOVE}`;
