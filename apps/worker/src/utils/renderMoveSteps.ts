@@ -1,4 +1,4 @@
-import { CUTOVER_TEXT, NEW_HOST, OLD_HOST } from "./hostNotice";
+import { CUTOVER_TEXT, NEW_HOST, NEW_URL, OLD_HOST } from "./hostNotice";
 
 // HOW_TO_MOVE laid out for reading in a browser, shared by the shutdown page and
 // the approval dialog. Everything interpolated here is a constant, so nothing
@@ -108,11 +108,6 @@ export const MOVE_STEPS_STYLE = `
               white-space: nowrap;
           }
 
-          .move-steps .old {
-              color: var(--move-old);
-              text-decoration: line-through;
-          }
-
           .move-steps .new {
               padding: 1px 6px;
               border-radius: 4px;
@@ -153,27 +148,19 @@ export const MOVE_STEPS_STYLE = `
           }
 `;
 
-const urlChange = (path: string): string => `
-            <div class="url-change">
-              <div class="url-row">
-                <span class="tag">Old</span>
-                <code class="old">https://${OLD_HOST}${path}</code>
-              </div>
-              <div class="url-row">
-                <span class="tag tag-new">New</span>
-                <code class="new">https://${NEW_HOST}${path}</code>
-              </div>
-            </div>`;
-
 /** The steps themselves; the page includes MOVE_STEPS_STYLE. */
 export const renderMoveSteps = (): string => `
       <div class="move-steps">
         <ol>
           <li>
             <h2>Change the server URL</h2>
-            <p>In your MCP client config, replace <code>${OLD_HOST}</code> with <code>${NEW_HOST}</code> and keep the path.</p>
-            ${urlChange("/mcp")}
-            ${urlChange("/sse")}
+            <p>In your MCP client config, change this server's URL to:</p>
+            <div class="url-change">
+              <div class="url-row">
+                <span class="tag tag-new">New</span>
+                <code class="new">${NEW_URL}</code>
+              </div>
+            </div>
           </li>
           <li>
             <h2>Sign in with Google again</h2>
@@ -192,7 +179,7 @@ export const renderHostNoticeHtml = (): string => `
           ${MOVE_STEPS_STYLE}
 
           .host-notice {
-              margin: 24px 0 0;
+              margin: 0 0 24px;
               padding: 24px;
               border: 1px solid #fed7aa;
               border-radius: 8px;
@@ -229,6 +216,6 @@ export const renderHostNoticeHtml = (): string => `
       </style>
       <div class="host-notice">
         <p class="host-notice-title">${OLD_HOST} stops working on ${CUTOVER_TEXT}</p>
-        <p class="host-notice-lead">This MCP server is moving to <strong>${NEW_HOST}</strong>. Update your MCP client before then.</p>
+        <p class="host-notice-lead">This MCP server is moving to <strong>${NEW_HOST}</strong>. Update your MCP client before then. To avoid signing in twice, cancel and connect your client to ${NEW_HOST} now.</p>
         ${renderMoveSteps()}
       </div>`;

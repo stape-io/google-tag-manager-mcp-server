@@ -490,7 +490,8 @@ export function renderApprovalDialog(
             
             ${serverDescription ? `<p class="description">${serverDescription}</p>` : ""}
           </div>
-          
+          ${server.noticeHtml ?? ""}
+
           <div class="card">
             
             <h2 class="alert"><strong>${clientName || "A new MCP Client"}</strong> is requesting access</h1>
@@ -584,7 +585,6 @@ export function renderApprovalDialog(
               </div>
             </form>
           </div>
-          ${server.noticeHtml ?? ""}
         </div>
         <footer>
           <a href="/privacy">Privacy Policy</a>
@@ -682,7 +682,7 @@ export async function parseRedirectApproval(
  * @param unsafe - The unsafe string that might contain HTML
  * @returns A safe string with HTML special characters escaped
  */
-export function sanitizeHtml(unsafe: string): string {
+function sanitizeHtml(unsafe: string): string {
   return unsafe
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")

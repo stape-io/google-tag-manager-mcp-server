@@ -183,13 +183,13 @@ export default {
       // 405 is the protocol working. Logging it as an error buries the
       // failures worth finding. The same goes for the shutdown page that
       // gtm-mcp.stape.ai serves from the cutover (see apisHandler.ts).
-      const isProtocolProbe =
+      const isExpected =
         isMcpNoStream ||
         (response.status === 401 && url.pathname === "/mcp") ||
         (response.status === 410 &&
           (url.pathname === "/authorize" || url.pathname === "/callback"));
 
-      if (response.status >= 400 && !isProtocolProbe) {
+      if (response.status >= 400 && !isExpected) {
         console.error("[HTTP] Error response", {
           requestId,
           status: response.status,

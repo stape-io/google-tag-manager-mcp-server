@@ -11,6 +11,8 @@ import {
   TOOL_NOTICE,
   withHostNotice,
 } from "../utils/hostNotice";
+import { renderHostNoticeHtml } from "../utils/renderMoveSteps";
+import { renderShutdownPage } from "../utils/renderShutdownPage";
 
 // See mcpMethods.test.ts: the real entrypoint minus what Node cannot load.
 // The `McpAgent` stand-in is an empty base, so `init()` runs for real.
@@ -573,9 +575,7 @@ describe("after the cutover", () => {
     expect(page).toContain(
       '<code class="new">https://gtm-mcp.stape.io/mcp</code>',
     );
-    expect(page).toContain(
-      '<code class="new">https://gtm-mcp.stape.io/sse</code>',
-    );
+    expect(page).not.toContain("/sse");
     expect(page).toContain("Sign in with Google again");
     expect(page).toContain("ask an admin to change its URL");
   });
@@ -672,6 +672,21 @@ describe("approval dialog", () => {
     );
     expect(oldPage).toContain("Sign in with Google again");
     expect(await approvalPage(newDeployment())).not.toContain("host-notice");
+  });
+
+  it("puts the notice above the Approve button", async () => {
+    const page = await approvalPage(oldDeployment());
+    const notice = page.indexOf('<div class="host-notice">');
+
+    expect(notice).toBeGreaterThan(-1);
+    expect(notice).toBeLessThan(page.indexOf('<div class="card">'));
+    expect(notice).toBeLessThan(page.indexOf("Approve</button>"));
+  });
+
+  it("tells the user the quicker path: connect to .io now", async () => {
+    expect(await approvalPage(oldDeployment())).toContain(
+      "To avoid signing in twice, cancel and connect your client to gtm-mcp.stape.io now.",
+    );
   });
 });
 
@@ -833,10 +848,25 @@ it("keeps the per-result notice to one complete line", () => {
   expect(TOOL_NOTICE.length).toBeLessThan(300);
   expect(TOOL_NOTICE).toContain("December 1, 2026 at 00:00 UTC");
   expect(TOOL_NOTICE).toContain(
-    "replace gtm-mcp.stape.ai with gtm-mcp.stape.io",
+    "Change this server's URL to https://gtm-mcp.stape.io/mcp",
   );
   expect(TOOL_NOTICE).toContain("sign in with Google again");
   expect(TOOL_NOTICE).toContain("ask an admin");
+});
+
+// Everyone is sent to /mcp, including users who are on /sse today.
+it("never points users to /sse", () => {
+  for (const notice of [
+    HOST_NOTICE,
+    TOOL_NOTICE,
+    SHUTDOWN_NOTICE,
+    MOVED_NOTICE,
+    renderHostNoticeHtml(),
+    renderShutdownPage(),
+  ]) {
+    expect(notice).not.toContain("/sse");
+    expect(notice).toContain("https://gtm-mcp.stape.io/mcp");
+  }
 });
 
 describe("withHostNotice", () => {
