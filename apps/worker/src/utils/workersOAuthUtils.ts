@@ -189,6 +189,8 @@ export interface ApprovalDialogOptions {
     name: string;
     logo?: string;
     description?: string;
+    /** Trusted HTML shown below the approval card, not escaped. */
+    noticeHtml?: string;
   };
   /**
    * Arbitrary state data to pass through the approval flow
@@ -488,7 +490,8 @@ export function renderApprovalDialog(
             
             ${serverDescription ? `<p class="description">${serverDescription}</p>` : ""}
           </div>
-          
+          ${server.noticeHtml ?? ""}
+
           <div class="card">
             
             <h2 class="alert"><strong>${clientName || "A new MCP Client"}</strong> is requesting access</h1>
