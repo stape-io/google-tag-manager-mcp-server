@@ -1,4 +1,8 @@
-import { GtmGoogleError, ListSnapshotCache } from "google-tag-manager-mcp-core";
+import {
+  GtmGoogleError,
+  type GtmSnapshotRequest,
+  ListSnapshotCache,
+} from "google-tag-manager-mcp-core";
 import { z } from "zod";
 import { createWorkerUsageObserver } from "./gtmUsage";
 
@@ -15,7 +19,7 @@ const Operation = z.discriminatedUnion("operation", [
         action: z.string(),
         callId: z.string(),
       }),
-    }),
+    }) satisfies z.ZodType<GtmSnapshotRequest>,
   }),
   z.object({ operation: z.literal("beginMutation") }),
   z.object({ operation: z.literal("endMutation"), id: z.string() }),

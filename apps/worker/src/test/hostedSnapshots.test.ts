@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createHostedGtmRuntime } from "../createHostedGtmRuntime";
 import { GtmReadCache } from "../GtmReadCache";
 import { createMcpApiHandler } from "../mcpHandler";
 import { CUTOVER_AT, TOOL_NOTICE } from "../utils/hostNotice";
@@ -167,6 +168,56 @@ describe("hosted snapshot cache", () => {
     const result = await call(args, { ...props, expiresAt: 1 });
     expect(result.result?.isError).toBe(true);
     expect(google).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to an uncached scan when the cache object is unreachable", async () => {
+    const google = vi.fn(async () => Response.json({ tag: [] }));
+    vi.stubGlobal("fetch", google);
+    const unreachable = {
+      ...env,
+      GTM_READ_CACHE: {
+        idFromName: (name: string) => name,
+        get: () => ({
+          fetch: async (): Promise<Response> => {
+            throw new Error("Network connection lost.");
+          },
+        }),
+      },
+    } as unknown as Env;
+    const result = await call(args, props, "gtm_tag", unreachable);
+    expect(result.result?.isError).not.toBe(true);
+    expect(google).toHaveBeenCalledTimes(1);
+  });
+
+  it("takes a new cache stub after one has failed", async () => {
+    const google = vi.fn(async () => Response.json({ tag: [] }));
+    vi.stubGlobal("fetch", google);
+    const cache = new GtmReadCache({} as DurableObjectState, env);
+    let gets = 0;
+    const flaky = {
+      ...env,
+      GTM_READ_CACHE: {
+        idFromName: (name: string) => name,
+        get: () =>
+          gets++ === 0
+            ? {
+                fetch: async (): Promise<Response> => {
+                  throw new Error("Network connection lost.");
+                },
+              }
+            : {
+                fetch: (input: string, init: RequestInit): Promise<Response> =>
+                  cache.fetch(new Request(input, init)),
+              },
+      },
+    } as unknown as Env;
+    const runtime = createHostedGtmRuntime(flaky, props);
+    const auth = { getAccessToken: async (): Promise<string> => "token" };
+    for (let index = 0; index < 3; index++)
+      await runtime
+        .startCall(auth, "gtm_tag", "list")
+        .listSnapshot("accounts/1/containers/2/workspaces/3/tags", false);
+    expect(google).toHaveBeenCalledTimes(2);
   });
 
   it("supports a rollout switch without consulting the hosted cache", async () => {

@@ -1,5 +1,7 @@
 export type GtmQuotaKind = "daily" | "rate" | "unknown" | "none";
 
+export type GtmCacheOutcome = "hit" | "miss" | "coalesced" | "bypass";
+
 export interface GtmCall {
   tool: string;
   action: string;
@@ -17,7 +19,7 @@ export interface GtmUsageEvent extends GtmCall {
   durationMs?: number;
   attempt?: number;
   quota?: GtmQuotaKind;
-  cache?: "hit" | "miss" | "coalesced" | "bypass";
+  cache?: GtmCacheOutcome;
 }
 
 export type GtmUsageObserver = (event: GtmUsageEvent) => void;

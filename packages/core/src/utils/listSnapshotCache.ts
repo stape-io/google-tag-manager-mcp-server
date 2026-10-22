@@ -3,6 +3,7 @@ import {
   classifyGtmQuota,
   createObservedFetch,
   emitGtmUsage,
+  GtmCacheOutcome,
   GtmCall,
   GtmUsageObserver,
 } from "./gtmTelemetry.js";
@@ -10,6 +11,12 @@ import {
 export const LIST_SNAPSHOT_TTL_MS = 30_000;
 export const LIST_SNAPSHOT_MAX_ENTRIES = 20;
 export const LIST_SNAPSHOT_MAX_BYTES = 8 * 1024 * 1024;
+
+const LIST_FIELDS = {
+  tags: "tag",
+  triggers: "trigger",
+  variables: "variable",
+} as const;
 
 export type GtmSnapshotItem =
   | tagmanager_v2.Schema$Tag
@@ -26,7 +33,7 @@ export interface GtmSnapshotRequest {
 
 export interface GtmSnapshotResult {
   items: GtmSnapshotItem[];
-  cache: "hit" | "miss" | "coalesced" | "bypass";
+  cache: GtmCacheOutcome;
 }
 
 export interface GtmSnapshotBackend {
@@ -107,23 +114,22 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
 
     const generation = this.generation;
     const fill = this.load(request).then((items) => {
+      if (bypass) return items;
       if (generation !== this.generation) {
         throw new Error(
           "GTM data changed during this list request. Retry the list.",
         );
       }
       // Superseded by a fresh read: storing would overwrite its newer snapshot.
-      if (
-        !bypass &&
-        this.mutations.size === 0 &&
-        this.pending.get(key) === fill
-      )
-        this.store(key, items);
+      if (this.pending.get(key) === fill) this.store(key, items);
       return items;
     });
     if (!bypass) this.pending.set(key, fill);
     try {
-      return { items: await fill, cache: bypass ? "bypass" : "miss" };
+      return {
+        items: await fill,
+        cache: bypass || request.fresh ? "bypass" : "miss",
+      };
     } finally {
       if (this.pending.get(key) === fill) this.pending.delete(key);
     }
@@ -186,14 +192,9 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
   }
 
   private async load(request: GtmSnapshotRequest): Promise<GtmSnapshotItem[]> {
-    const resource = request.path.split("/").at(-1);
+    const resource = request.path.split("/").at(-1) as keyof typeof LIST_FIELDS;
     const parent = request.path.slice(0, request.path.lastIndexOf("/"));
-    const field =
-      resource === "tags"
-        ? "tag"
-        : resource === "triggers"
-          ? "trigger"
-          : "variable";
+    const field = LIST_FIELDS[resource];
     const client = tagmanager({
       version: "v2",
       headers: { Authorization: `Bearer ${request.token}` },

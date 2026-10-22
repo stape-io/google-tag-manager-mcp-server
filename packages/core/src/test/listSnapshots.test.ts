@@ -443,4 +443,51 @@ describe("snapshot correctness", () => {
     await client.callTool({ name: "gtm_tag", arguments: listArgs });
     expect(api.calls.filter((call) => call.method === "GET")).toHaveLength(2);
   });
+
+  it("keeps a list that starts during a mutation working after the mutation ends", async () => {
+    let releaseDelete!: () => void;
+    const deleteGate = new Promise<void>((resolve) => {
+      releaseDelete = resolve;
+    });
+    let releaseList!: () => void;
+    const listGate = new Promise<void>((resolve) => {
+      releaseList = resolve;
+    });
+    api.respond = async ({ method }): Promise<Response> => {
+      await (method === "DELETE" ? deleteGate : listGate);
+      return json({ tag: [{ name: "listed" }] });
+    };
+    const client = await open();
+    const mutation = client.callTool({
+      name: "gtm_tag",
+      arguments: { ...listArgs, action: "remove", tagId: "4" },
+    });
+    await vi.waitFor(() => expect(api.calls).toHaveLength(1));
+    const pending = client.callTool({ name: "gtm_tag", arguments: listArgs });
+    await vi.waitFor(() => expect(api.calls).toHaveLength(2));
+    releaseDelete();
+    await mutation;
+    releaseList();
+    const result = await pending;
+    expect(result.isError).not.toBe(true);
+    expect(JSON.stringify(result.content)).toContain("listed");
+    await client.callTool({ name: "gtm_tag", arguments: listArgs });
+    expect(api.calls.filter((call) => call.method === "GET")).toHaveLength(2);
+  });
+
+  it("records a fresh read as a snapshot bypass", async () => {
+    const events: GtmUsageEvent[] = [];
+    const client = await open({
+      runtime: createGtmRuntime({ observer: (event) => events.push(event) }),
+    });
+    await client.callTool({
+      name: "gtm_tag",
+      arguments: { ...listArgs, fresh: true },
+    });
+    expect(
+      events
+        .filter((event) => event.event === "snapshot")
+        .map((event) => event.cache),
+    ).toEqual(["bypass"]);
+  });
 });
