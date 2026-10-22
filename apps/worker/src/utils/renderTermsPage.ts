@@ -1,4 +1,4 @@
-export const renderTermsPage = () => {
+export const renderTermsPage = (): string => {
   return `
     <!DOCTYPE html>
     <html lang="en">

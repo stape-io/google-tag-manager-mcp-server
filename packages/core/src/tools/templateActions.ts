@@ -6,6 +6,7 @@ import { CustomTemplateSchema } from "../schemas/CustomTemplateSchema.js";
 import {
   createErrorResponse,
   getTagManagerClient,
+  getServerGtmRuntime,
   log,
   paginateArray,
 } from "../utils/index.js";
@@ -23,7 +24,7 @@ const ITEMS_PER_PAGE = 20;
 
 export const templateActions = (
   server: McpServer,
-  { auth }: GtmToolContext,
+  { auth, runtime = getServerGtmRuntime(server) }: GtmToolContext,
 ): void => {
   server.registerTool(
     "gtm_template",
@@ -131,8 +132,9 @@ export const templateActions = (
     }) => {
       log(`Running tool: gtm_template with action ${action}`);
 
+      const invocation = runtime.startCall(auth, "gtm_template", action);
       try {
-        const tagmanager = await getTagManagerClient(auth);
+        const tagmanager = await getTagManagerClient(auth, invocation);
 
         switch (action) {
           case "create": {

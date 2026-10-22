@@ -22,10 +22,13 @@
         "GoogleTagManagerMCPServer"
       ],
       "tag": "v1"
-    }
+    },
+    { "tag": "v2", "new_sqlite_classes": ["GtmReadCache"] }
   ],
+  "analytics_engine_datasets": [{ "binding": "GTM_USAGE", "dataset": "gtm_mcp_usage_ai" }],
   "durable_objects": {
     "bindings": [
+      { "class_name": "GtmReadCache", "name": "GTM_READ_CACHE" },
       {
         "class_name": "GoogleTagManagerMCPServer",
         "name": "MCP_OBJECT"
@@ -45,7 +48,8 @@
   // src/utils/hostNotice.ts); the environments below turn it off, and so does
   // `npm run dev`. Plain `wrangler dev` runs this default env and shows it.
   "vars": {
-    "SHOW_HOST_NOTICE": "true"
+    "SHOW_HOST_NOTICE": "true",
+    "GTM_SNAPSHOT_CACHE_ENABLED": "false"
   },
   "dev": {
     "port": 8788
@@ -55,10 +59,12 @@
   // own Durable Object and KV namespace. Everything else falls through from above.
   "env": {
     "dev": {
+      "analytics_engine_datasets": [{ "binding": "GTM_USAGE", "dataset": "gtm_mcp_usage_dev" }],
       "name": "google-tag-manager-mcp-server-dev",
       // The host notice is for gtm-mcp.stape.ai only.
       "vars": {
-        "SHOW_HOST_NOTICE": "false"
+        "SHOW_HOST_NOTICE": "false",
+        "GTM_SNAPSHOT_CACHE_ENABLED": "true"
       },
       "routes": [
         {
@@ -68,6 +74,7 @@
       ],
       "durable_objects": {
         "bindings": [
+          { "class_name": "GtmReadCache", "name": "GTM_READ_CACHE" },
           {
             "class_name": "GoogleTagManagerMCPServer",
             "name": "MCP_OBJECT"
@@ -85,10 +92,12 @@
     // stape.io zone. The KV namespace is managed in the terraform repo:
     // gcp/stape-production/google-tag-manager-mcp-server (oauth_io).
     "io": {
+      "analytics_engine_datasets": [{ "binding": "GTM_USAGE", "dataset": "gtm_mcp_usage_io" }],
       "name": "google-tag-manager-mcp-server",
       // The host notice is for gtm-mcp.stape.ai only.
       "vars": {
-        "SHOW_HOST_NOTICE": "false"
+        "SHOW_HOST_NOTICE": "false",
+        "GTM_SNAPSHOT_CACHE_ENABLED": "false"
       },
       // The custom domain creates the DNS record and certificate. The route is
       // needed because the stape.io zone has a catch-all `*/*` route to
@@ -106,6 +115,7 @@
       ],
       "durable_objects": {
         "bindings": [
+          { "class_name": "GtmReadCache", "name": "GTM_READ_CACHE" },
           {
             "class_name": "GoogleTagManagerMCPServer",
             "name": "MCP_OBJECT"

@@ -4,6 +4,7 @@ import {
   type GtmAuthProvider,
   registerGtmTools,
 } from "google-tag-manager-mcp-core";
+import { createHostedGtmRuntime } from "../createHostedGtmRuntime";
 import { McpAgentPropsModel } from "../models/McpAgentModel";
 import {
   hostNoticeInstructions,
@@ -45,6 +46,12 @@ export function registerWorkerTools(
   const oldHost = showsHostNotice(env);
   const target = oldHost ? withHostNotice(server) : server;
 
-  registerGtmTools(target, { auth });
-  removeMCPServerData(target, { props, oauth, oldHost });
+  const runtime = createHostedGtmRuntime(env, props);
+  registerGtmTools(target, { auth, runtime });
+  removeMCPServerData(target, {
+    props,
+    oauth,
+    oldHost,
+    clearSnapshots: (): Promise<void> => runtime.clear(),
+  });
 }

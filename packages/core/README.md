@@ -73,6 +73,16 @@ const auth: GtmAuthProvider = {
 
 `getAccessToken()` is called on every tool invocation, so providers should cache and refresh internally. `createCachedTokenSource()` is exported for that: it reuses a token until just before it expires and collapses concurrent refreshes into one request.
 
+## List snapshots
+
+`gtm_tag`, `gtm_trigger`, and `gtm_variable` reuse a complete list snapshot across numeric pages. `page`, `itemsPerPage`, and exact pagination totals retain their existing meaning. `fresh: true` bypasses stored snapshots and in-flight scans; resource `get` calls always reach Google.
+
+The default snapshot lifetime and retention limits are exported from [`listSnapshotCache.ts`](src/utils/listSnapshotCache.ts). Reads do not extend expiration. Concurrent reads of the same list share one upstream scan. Failed and incomplete scans are not cached.
+
+Snapshots are isolated by credential and resource path. The auth provider is called before every read, including cache hits. Mutations invalidate the runtime's snapshots before and after the Google request, including failed requests. A read that starts while a mutation is in flight bypasses snapshots; any other read that races an invalidation returns an error rather than republishing old data. Changes made outside this runtime, including GTM permission changes, become visible when the snapshot expires or the caller requests `fresh: true`.
+
+`createGtmRuntime()` provides an in-process backend for the CLI. A host can supply a `GtmSnapshotBackend` and a `GtmUsageObserver` through the optional `runtime` property of `createGtmMcpServer()` or `registerGtmTools()`. A supplied backend reports its own scan events (Google attempts and waits), so construct it with the same observer, for example `new ListSnapshotCache({ observer })`. A stateless host must reuse the backend across requests. Observers receive allowlisted tool, cache, timing, status, and quota-category fields; they receive no credentials or GTM payloads.
+
 ## Built-in auth providers
 
 | Provider | Use it when |

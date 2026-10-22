@@ -13,6 +13,7 @@ import {
 import { SERVER_INFO } from "./constants/serverInfo";
 import { UNAUTHORIZED_HINT } from "./constants/tools";
 import { createMcpApiHandler } from "./mcpHandler";
+export { GtmReadCache } from "./GtmReadCache";
 import { McpAgentPropsModel } from "./models/McpAgentModel";
 import {
   hostNoticeServerOptions,
@@ -34,7 +35,7 @@ export class GoogleTagManagerMCPServer extends McpAgent<
 > {
   server = new McpServer({ ...SERVER_INFO });
 
-  async init() {
+  async init(): Promise<void> {
     console.log("[MCP] init() called");
 
     const props = this.props;
@@ -91,9 +92,8 @@ function providerOptions(env: Env): OAuthProviderOptions {
     authorizeEndpoint: "/authorize",
     tokenEndpoint: "/token",
     clientRegistrationEndpoint: "/register",
-    tokenExchangeCallback: async (options) => {
-      return handleTokenExchangeCallback(options, env);
-    },
+    tokenExchangeCallback: (options) =>
+      handleTokenExchangeCallback(options, env),
   };
 }
 
@@ -122,7 +122,11 @@ function mcpMethodNotAllowed(request: Request): Response {
 }
 
 export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext) {
+  async fetch(
+    request: Request,
+    env: Env,
+    ctx: ExecutionContext,
+  ): Promise<Response> {
     const startedAt = Date.now();
     const url = new URL(request.url);
     const requestId = crypto.randomUUID();

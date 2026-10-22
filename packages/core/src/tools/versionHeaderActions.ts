@@ -5,6 +5,7 @@ import { GtmToolContext } from "../types/index.js";
 import {
   createErrorResponse,
   getTagManagerClient,
+  getServerGtmRuntime,
   log,
   paginateArray,
 } from "../utils/index.js";
@@ -14,7 +15,7 @@ const ITEMS_PER_PAGE = 50;
 
 export const versionHeaderActions = (
   server: McpServer,
-  { auth }: GtmToolContext,
+  { auth, runtime = getServerGtmRuntime(server) }: GtmToolContext,
 ): void => {
   server.registerTool(
     "gtm_version_header",
@@ -65,8 +66,9 @@ export const versionHeaderActions = (
     }) => {
       log(`Running tool: gtm_version_header with action ${action}`);
 
+      const invocation = runtime.startCall(auth, "gtm_version_header", action);
       try {
-        const tagmanager = await getTagManagerClient(auth);
+        const tagmanager = await getTagManagerClient(auth, invocation);
 
         switch (action) {
           case "list": {
