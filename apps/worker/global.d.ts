@@ -11,6 +11,8 @@ declare namespace Cloudflare {
     COOKIE_ENCRYPTION_KEY: "";
     HOSTED_DOMAIN: "";
     WORKER_HOST: "";
+    /** "true" only on gtm-mcp.stape.ai (see src/utils/hostNotice.ts). */
+    SHOW_HOST_NOTICE?: string;
     MCP_OBJECT: DurableObjectNamespace<
       import("./src/index").GoogleTagManagerMCPServer
     >;

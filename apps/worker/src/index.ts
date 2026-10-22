@@ -8,16 +8,17 @@ import type { McpServer as McpServerV2 } from "@modelcontextprotocol/server";
 import { McpAgent } from "agents/mcp";
 import {
   createStaticTokenAuth,
-  registerGtmTools,
   setUnauthorizedHint,
 } from "google-tag-manager-mcp-core";
 import { SERVER_INFO } from "./constants/serverInfo";
 import { UNAUTHORIZED_HINT } from "./constants/tools";
 import { createMcpApiHandler } from "./mcpHandler";
-import { createHostedGtmRuntime } from "./createHostedGtmRuntime";
 export { GtmReadCache } from "./GtmReadCache";
 import { McpAgentPropsModel } from "./models/McpAgentModel";
-import { removeMCPServerData } from "./tools/removeMCPServerData";
+import {
+  hostNoticeServerOptions,
+  registerWorkerTools,
+} from "./tools/registerWorkerTools";
 import {
   apisHandler,
   handleTokenExchangeCallback,
@@ -52,6 +53,14 @@ export class GoogleTagManagerMCPServer extends McpAgent<
       expiresAt: this.props?.expiresAt,
     }));
 
+    // `agents` connects `this.server` only after `init()` resolves, so it can
+    // still be swapped for one that carries the old-host instructions.
+    const serverOptions = hostNoticeServerOptions(this.env);
+
+    if (serverOptions) {
+      this.server = new McpServer({ ...SERVER_INFO }, serverOptions);
+    }
+
     // Type-only bridge, no runtime change: McpAgent is feature-frozen on SDK
     // v1, so `this.server` is a v1 `McpServer`, while core and
     // removeMCPServerData are now typed against v2's. The two classes are
@@ -61,15 +70,11 @@ export class GoogleTagManagerMCPServer extends McpAgent<
     // inputSchema (@modelcontextprotocol/sdk/server/zod-compat). Proven by
     // legacySseRegistration.test.ts, which registers the real tool set on a
     // real v1 `McpServer` and lists it back over a v1 client.
-    const legacyServer = this.server as unknown as McpServerV2;
-
-    const runtime = createHostedGtmRuntime(this.env, props);
-    registerGtmTools(legacyServer, { auth, runtime });
-    // The Durable Object's env never passes through OAuthProvider, so build
-    // the helpers from the same options instead of relying on injection.
-    removeMCPServerData(legacyServer, {
+    registerWorkerTools(this.server as unknown as McpServerV2, this.env, {
+      auth,
       props,
-      clearSnapshots: (): Promise<void> => runtime.clear(),
+      // The Durable Object's env never passes through OAuthProvider, so build
+      // the helpers from the same options instead of relying on injection.
       oauth: getOAuthApi(providerOptions(this.env), this.env),
     });
   }
@@ -180,11 +185,15 @@ export default {
       // Every client opens with an unauthenticated probe to discover where to
       // authorize, and probes GET for an optional stream, so a 401 or that
       // 405 is the protocol working. Logging it as an error buries the
-      // failures worth finding.
-      const isProtocolProbe =
-        isMcpNoStream || (response.status === 401 && url.pathname === "/mcp");
+      // failures worth finding. The same goes for the shutdown page that
+      // gtm-mcp.stape.ai serves from the cutover (see apisHandler.ts).
+      const isExpected =
+        isMcpNoStream ||
+        (response.status === 401 && url.pathname === "/mcp") ||
+        (response.status === 410 &&
+          (url.pathname === "/authorize" || url.pathname === "/callback"));
 
-      if (response.status >= 400 && !isProtocolProbe) {
+      if (response.status >= 400 && !isExpected) {
         console.error("[HTTP] Error response", {
           requestId,
           status: response.status,

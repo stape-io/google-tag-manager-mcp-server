@@ -33,7 +33,8 @@ const PROPS = {
   name: "Test User",
   email: "test@example.com",
   accessToken: "test-access-token",
-  expiresAt: Date.now() + 3_600_000,
+  // Unix seconds, as createStaticTokenAuth compares them.
+  expiresAt: Math.floor(Date.now() / 1000) + 3_600,
   clientId: "client-1",
 };
 

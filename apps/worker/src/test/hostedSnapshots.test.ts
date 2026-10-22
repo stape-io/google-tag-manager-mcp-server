@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GtmReadCache } from "../GtmReadCache";
 import { createMcpApiHandler } from "../mcpHandler";
+import { CUTOVER_AT, TOOL_NOTICE } from "../utils/hostNotice";
 
 type ToolReply = {
   result?: { isError?: boolean; content: { text: string }[] };
@@ -92,6 +93,7 @@ afterEach(() => {
   records.length = 0;
   objectNames.length = 0;
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe("hosted snapshot cache", () => {
@@ -176,4 +178,38 @@ describe("hosted snapshot cache", () => {
     expect(google).toHaveBeenCalledTimes(2);
     expect(objects.size).toBe(0);
   });
+
+  it.each(["false", "true"])(
+    "preserves shared snapshots and sign-out invalidation with host notice %s",
+    async (showHostNotice) => {
+      vi.useFakeTimers({ now: CUTOVER_AT - 3_600_000, toFake: ["Date"] });
+      const grant = { ...props, expiresAt: CUTOVER_AT / 1000 + 3600 };
+      const workerEnv = {
+        ...env,
+        SHOW_HOST_NOTICE: showHostNotice,
+        OAUTH_PROVIDER: {
+          listUserGrants: vi.fn(async () => ({ items: [] })),
+        },
+      };
+      const google = vi.fn(async () => Response.json({ tag: [] }));
+      vi.stubGlobal("fetch", google);
+
+      const first = await call(args, grant, "gtm_tag", workerEnv);
+      const second = await call(args, grant, "gtm_tag", workerEnv);
+      expect(first.result?.isError).not.toBe(true);
+      expect(second.result?.isError).not.toBe(true);
+      expect(second.result?.content).toHaveLength(
+        showHostNotice === "true" ? 2 : 1,
+      );
+      if (showHostNotice === "true")
+        expect(second.result?.content.at(-1)?.text).toBe(TOOL_NOTICE);
+      expect(google).toHaveBeenCalledTimes(1);
+      expect(objects.size).toBe(1);
+
+      const signedOut = await call({}, grant, "gtm_remove_session", workerEnv);
+      expect(signedOut.result?.isError).not.toBe(true);
+      await call(args, grant, "gtm_tag", workerEnv);
+      expect(google).toHaveBeenCalledTimes(2);
+    },
+  );
 });

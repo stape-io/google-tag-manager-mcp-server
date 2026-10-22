@@ -3,16 +3,26 @@ import { McpServer } from "@modelcontextprotocol/server";
 import { createErrorResponse } from "google-tag-manager-mcp-core";
 import { TAG_MANAGER_REMOVE_MCP_SERVER_DATA } from "../constants/tools";
 import { McpAgentPropsModel } from "../models/McpAgentModel";
+import { isPastCutover, OLD_HOST } from "../utils/hostNotice";
 
 export const removeMCPServerData = (
   server: McpServer,
   {
     props,
     oauth,
+    oldHost = false,
     clearSnapshots,
   }: {
     props: McpAgentPropsModel;
     oauth: OAuthHelpers;
+    /**
+     * True on gtm-mcp.stape.ai. Both deployments use the same Google OAuth
+     * client, and this deployment can't see the grants the user has on .io,
+     * which a Google revoke could sign out too, so it never revokes at Google.
+     * From the cutover its success text also stops sending users to sign in
+     * again here.
+     */
+    oldHost?: boolean;
     clearSnapshots?: () => Promise<void>;
   },
 ): void => {
@@ -57,7 +67,7 @@ export const removeMCPServerData = (
           othersRemain = page.items.length > 0;
           cursor = page.cursor;
         } while (!othersRemain && cursor);
-        if (!othersRemain && props.refreshToken) {
+        if (!oldHost && !othersRemain && props.refreshToken) {
           await fetch("https://oauth2.googleapis.com/revoke", {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -74,6 +84,12 @@ export const removeMCPServerData = (
         );
       } finally {
         await snapshotsCleared;
+      }
+
+      if (oldHost && isPastCutover()) {
+        return {
+          content: [{ type: "text", text: `Signed out of ${OLD_HOST}.` }],
+        };
       }
 
       return {

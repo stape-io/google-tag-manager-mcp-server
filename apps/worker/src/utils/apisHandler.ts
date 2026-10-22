@@ -14,8 +14,11 @@ import {
   getUpstreamAuthorizeUrl,
   Props,
 } from "./authorizeUtils";
+import { isShutDown, showsHostNotice } from "./hostNotice";
 import { renderMainPage } from "./renderMainPage";
 import { renderPrivacyPage } from "./renderPrivacyPage";
+import { renderHostNoticeHtml } from "./renderMoveSteps";
+import { renderShutdownPage } from "./renderShutdownPage";
 import { renderTermsPage } from "./renderTermsPage";
 import {
   clientIdAlreadyApproved,
@@ -24,6 +27,21 @@ import {
 } from "./workersOAuthUtils";
 
 const app = new Hono<{ Bindings: Env & { OAUTH_PROVIDER: OAuthHelpers } }>();
+
+// After the cutover, gtm-mcp.stape.ai starts no new sign-ins: its tools only
+// return the moved notice, so a Google sign-in would ask for Tag Manager access
+// and store a refresh token for nothing. The user is looking at the browser at
+// this point, so tell them there. `/callback` is covered too, for a sign-in
+// that started before the cutover. Existing grants keep refreshing.
+for (const path of ["/authorize", "/callback"]) {
+  app.use(path, async (c, next) => {
+    if (isShutDown(c.env)) {
+      return c.html(renderShutdownPage(), 410);
+    }
+
+    await next();
+  });
+}
 
 app.get("/authorize", async (c) => {
   const oauthReqInfo = await c.env.OAUTH_PROVIDER.parseAuthRequest(c.req.raw);
@@ -46,8 +64,10 @@ app.get("/authorize", async (c) => {
   return renderApprovalDialog(c.req.raw, {
     client: await c.env.OAUTH_PROVIDER.lookupClient(clientId),
     server: {
-      name: "STAPE.AI",
-      description: "",
+      // STAPE.AI on gtm-mcp.stape.ai, the deployment with the host notice,
+      // which the dialog also shows the user.
+      name: showsHostNotice(c.env) ? "STAPE.AI" : "STAPE.IO",
+      noticeHtml: showsHostNotice(c.env) ? renderHostNoticeHtml() : undefined,
     },
     state: { oauthReqInfo },
   });

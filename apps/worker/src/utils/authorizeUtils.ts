@@ -3,6 +3,7 @@ import type {
   TokenExchangeCallbackResult,
 } from "@cloudflare/workers-oauth-provider";
 import { GOOGLE_TOKEN_URL } from "google-tag-manager-mcp-core";
+import { isShutDown } from "./hostNotice";
 
 /**
  * Constructs an authorization URL for an upstream service.
@@ -262,6 +263,15 @@ export async function handleTokenExchangeCallback(
   }
 
   if (grantType === "refresh_token") {
+    // After the cutover, tools on the old host only return the moved notice
+    // and never call Google. A failed Google refresh would force a new sign-in,
+    // which /authorize refuses after the cutover, so the session would lose the
+    // in-chat notice and sign-out. Keep issuing MCP tokens on the stored grant
+    // instead.
+    if (isShutDown(env)) {
+      return { accessTokenTTL: ACCESS_TOKEN_TTL };
+    }
+
     console.log("[TokenExchange] Checking Google token refresh...");
     const p = props as Props;
     if (!p?.refreshToken) {

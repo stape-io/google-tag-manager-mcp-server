@@ -25,7 +25,6 @@
     },
     { "tag": "v2", "new_sqlite_classes": ["GtmReadCache"] }
   ],
-  "vars": { "GTM_SNAPSHOT_CACHE_ENABLED": "false" },
   "analytics_engine_datasets": [{ "binding": "GTM_USAGE", "dataset": "gtm_mcp_usage_ai" }],
   "durable_objects": {
     "bindings": [
@@ -45,6 +44,13 @@
   "observability": {
     "enabled": false
   },
+  // Production on gtm-mcp.stape.ai announces the move to .io (see
+  // src/utils/hostNotice.ts); the environments below turn it off, and so does
+  // `npm run dev`. Plain `wrangler dev` runs this default env and shows it.
+  "vars": {
+    "SHOW_HOST_NOTICE": "true",
+    "GTM_SNAPSHOT_CACHE_ENABLED": "false"
+  },
   "dev": {
     "port": 8788
   },
@@ -53,9 +59,13 @@
   // own Durable Object and KV namespace. Everything else falls through from above.
   "env": {
     "dev": {
-      "vars": { "GTM_SNAPSHOT_CACHE_ENABLED": "true" },
       "analytics_engine_datasets": [{ "binding": "GTM_USAGE", "dataset": "gtm_mcp_usage_dev" }],
       "name": "google-tag-manager-mcp-server-dev",
+      // The host notice is for gtm-mcp.stape.ai only.
+      "vars": {
+        "SHOW_HOST_NOTICE": "false",
+        "GTM_SNAPSHOT_CACHE_ENABLED": "true"
+      },
       "routes": [
         {
           "pattern": "gtm-mcp.stape.dev",
@@ -82,9 +92,13 @@
     // stape.io zone. The KV namespace is managed in the terraform repo:
     // gcp/stape-production/google-tag-manager-mcp-server (oauth_io).
     "io": {
-      "vars": { "GTM_SNAPSHOT_CACHE_ENABLED": "false" },
       "analytics_engine_datasets": [{ "binding": "GTM_USAGE", "dataset": "gtm_mcp_usage_io" }],
       "name": "google-tag-manager-mcp-server",
+      // The host notice is for gtm-mcp.stape.ai only.
+      "vars": {
+        "SHOW_HOST_NOTICE": "false",
+        "GTM_SNAPSHOT_CACHE_ENABLED": "false"
+      },
       // The custom domain creates the DNS record and certificate. The route is
       // needed because the stape.io zone has a catch-all `*/*` route to
       // gtm-loader that runs before a custom-domain Worker and 301s unknown
