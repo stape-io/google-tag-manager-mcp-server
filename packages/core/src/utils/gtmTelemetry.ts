@@ -1,3 +1,5 @@
+import type { tagmanager_v2 } from "@googleapis/tagmanager";
+
 export type GtmQuotaKind = "daily" | "rate" | "unknown" | "none";
 
 export type GtmCacheOutcome = "hit" | "miss" | "coalesced" | "bypass";
@@ -51,60 +53,54 @@ export function classifyGtmQuota(status: number, body: unknown): GtmQuotaKind {
     : "none";
 }
 
-export async function observeGtmFetch(
+type GtmClientOptions = ConstructorParameters<
+  typeof tagmanager_v2.Tagmanager
+>[0];
+export type GtmRequestAdapter = NonNullable<GtmClientOptions["adapter"]>;
+
+export const gtmRetryConfig: GtmClientOptions["retryConfig"] = {
+  shouldRetry: (error) => {
+    const attempt = error.config?.retryConfig?.currentRetryAttempt ?? 0;
+    const status = error.response?.status ?? 0;
+    if (error.config?.signal?.aborted || error.code === "AbortError")
+      return false;
+    if (classifyGtmQuota(status, error.response?.data) === "daily")
+      return false;
+    return (
+      attempt < (status === 0 ? 2 : 3) &&
+      (status === 0 ||
+        status === 408 ||
+        status === 429 ||
+        (status >= 500 && status <= 599))
+    );
+  },
+};
+
+export function createObservedGtmAdapter(
   observer: GtmUsageObserver | undefined,
   call: GtmCall,
-  attempt: number,
-  input: Parameters<typeof fetch>[0],
-  init?: Parameters<typeof fetch>[1],
-): Promise<Response> {
-  const startedAt = Date.now();
-  let status = 0;
-  let quota: GtmQuotaKind = "none";
-  try {
-    const response = await fetch(input, init);
-    status = response.status;
-    if (status === 403 || status === 429) {
-      const body: unknown = await response
-        .clone()
-        .json()
-        .catch(() => null);
-      quota = classifyGtmQuota(status, body);
+): GtmRequestAdapter {
+  return async (options, defaultAdapter) => {
+    const startedAt = Date.now();
+    let status = 0;
+    let quota: GtmQuotaKind = "none";
+    try {
+      const response = await defaultAdapter(options);
+      status = response.status;
+      quota = classifyGtmQuota(status, response.data);
+      if (quota === "daily") {
+        options.retryConfig = { ...options.retryConfig, retry: 0 };
+      }
+      return response;
+    } finally {
+      emitGtmUsage(observer, {
+        ...call,
+        event: "google_attempt",
+        status,
+        quota,
+        attempt: (options.retryConfig?.currentRetryAttempt ?? 0) + 1,
+        durationMs: Date.now() - startedAt,
+      });
     }
-    return response;
-  } finally {
-    emitGtmUsage(observer, {
-      ...call,
-      event: "google_attempt",
-      status,
-      quota,
-      attempt,
-      durationMs: Date.now() - startedAt,
-    });
-  }
-}
-
-export function describeGtmRequest(
-  input: Parameters<typeof fetch>[0],
-  init?: Parameters<typeof fetch>[1],
-): { method: string; url: string } {
-  const request = input instanceof Request ? input : undefined;
-  return {
-    method: (init?.method ?? request?.method ?? "GET").toUpperCase(),
-    url: request?.url ?? String(input),
-  };
-}
-
-export function createObservedFetch(
-  observer: GtmUsageObserver | undefined,
-  call: GtmCall,
-): typeof fetch {
-  const attempts = new Map<string, number>();
-  return (input, init) => {
-    const { method, url } = describeGtmRequest(input, init);
-    const key = `${method} ${url}`;
-    const attempt = (attempts.get(key) ?? 0) + 1;
-    attempts.set(key, attempt);
-    return observeGtmFetch(observer, call, attempt, input, init);
   };
 }

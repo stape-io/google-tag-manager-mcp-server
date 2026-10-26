@@ -8,7 +8,6 @@ import {
   getTagManagerClient,
   getServerGtmRuntime,
   log,
-  paginateArray,
 } from "../utils/index.js";
 import Schema$Variable = tagmanager_v2.Schema$Variable;
 
@@ -103,6 +102,22 @@ export const variableActions = (
 
       const invocation = runtime.startCall(auth, "gtm_variable", action);
       try {
+        if (action === "list") {
+          const result = await invocation.listPage(
+            `accounts/${accountId}/containers/${containerId}/workspaces/${workspaceId}/variables`,
+            fresh,
+            page,
+            itemsPerPage,
+          );
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(result, null, 2),
+              },
+            ],
+          };
+        }
         const tagmanager = await getTagManagerClient(auth, invocation);
 
         switch (action) {
@@ -138,23 +153,6 @@ export const variableActions = (
             return {
               content: [
                 { type: "text", text: JSON.stringify(response.data, null, 2) },
-              ],
-            };
-          }
-          case "list": {
-            const all = await invocation.listSnapshot(
-              `accounts/${accountId}/containers/${containerId}/workspaces/${workspaceId}/variables`,
-              fresh,
-            );
-
-            const paginatedResult = paginateArray(all, page, itemsPerPage);
-
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify(paginatedResult, null, 2),
-                },
               ],
             };
           }

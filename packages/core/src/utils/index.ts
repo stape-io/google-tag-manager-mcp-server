@@ -6,3 +6,4 @@ export * from "./versionPaginationUtils.js";
 export * from "./createGtmRuntime.js";
 export * from "./listSnapshotCache.js";
 export * from "./gtmTelemetry.js";
+export * from "./gtmCacheTimeout.js";

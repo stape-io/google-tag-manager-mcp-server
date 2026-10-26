@@ -1,7 +1,8 @@
 import { tagmanager, tagmanager_v2 } from "@googleapis/tagmanager";
+import { paginateArray, type PaginationResult } from "./paginationUtils.js";
 import {
-  classifyGtmQuota,
-  createObservedFetch,
+  createObservedGtmAdapter,
+  gtmRetryConfig,
   emitGtmUsage,
   GtmCacheOutcome,
   GtmCall,
@@ -36,7 +37,17 @@ export interface GtmSnapshotResult {
   cache: GtmCacheOutcome;
 }
 
+export interface GtmSnapshotPageRequest extends GtmSnapshotRequest {
+  page: number;
+  itemsPerPage: number;
+}
+
+export interface GtmSnapshotPageResult extends PaginationResult<GtmSnapshotItem> {
+  cache: GtmCacheOutcome;
+}
+
 export interface GtmSnapshotBackend {
+  readPage?(request: GtmSnapshotPageRequest): Promise<GtmSnapshotPageResult>;
   read(request: GtmSnapshotRequest): Promise<GtmSnapshotResult>;
   beginMutation(): Promise<string>;
   endMutation(id: string): Promise<void>;
@@ -115,11 +126,7 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
     const generation = this.generation;
     const fill = this.load(request).then((items) => {
       if (bypass) return items;
-      if (generation !== this.generation) {
-        throw new Error(
-          "GTM data changed during this list request. Retry the list.",
-        );
-      }
+      if (generation !== this.generation) return items;
       // Superseded by a fresh read: storing would overwrite its newer snapshot.
       if (this.pending.get(key) === fill) this.store(key, items);
       return items;
@@ -128,11 +135,24 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
     try {
       return {
         items: await fill,
-        cache: bypass || request.fresh ? "bypass" : "miss",
+        cache:
+          bypass || request.fresh || generation !== this.generation
+            ? "bypass"
+            : "miss",
       };
     } finally {
       if (this.pending.get(key) === fill) this.pending.delete(key);
     }
+  }
+
+  async readPage(
+    request: GtmSnapshotPageRequest,
+  ): Promise<GtmSnapshotPageResult> {
+    const { items, cache } = await this.read(request);
+    return {
+      ...paginateArray(items, request.page, request.itemsPerPage),
+      cache,
+    };
   }
 
   async beginMutation(): Promise<string> {
@@ -198,27 +218,8 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
     const client = tagmanager({
       version: "v2",
       headers: { Authorization: `Bearer ${request.token}` },
-      fetchImplementation: createObservedFetch(
-        this.options.observer,
-        request.call,
-      ),
-      retryConfig: {
-        shouldRetry: (error) => {
-          const attempt = error.config?.retryConfig?.currentRetryAttempt ?? 0;
-          const status = error.response?.status ?? 0;
-          if (error.config?.signal?.aborted || error.code === "AbortError")
-            return false;
-          if (classifyGtmQuota(status, error.response?.data) === "daily")
-            return false;
-          return (
-            attempt < (status === 0 ? 2 : 3) &&
-            (status === 0 ||
-              status === 408 ||
-              status === 429 ||
-              (status >= 500 && status <= 599))
-          );
-        },
-      },
+      adapter: createObservedGtmAdapter(this.options.observer, request.call),
+      retryConfig: gtmRetryConfig,
     });
     const items: GtmSnapshotItem[] = [];
     const seen = new Set<string>();

@@ -4,6 +4,7 @@ import {
   type GtmRuntime,
   type GtmSnapshotBackend,
   type GtmSnapshotResult,
+  type GtmSnapshotPageResult,
   ListSnapshotCache,
 } from "google-tag-manager-mcp-core";
 import { McpAgentPropsModel } from "./models/McpAgentModel";
@@ -63,6 +64,13 @@ export function createHostedGtmRuntime(
         (error: unknown) => {
           if (!(error instanceof GtmCacheUnavailableError)) throw error;
           return direct.read(request);
+        },
+      ),
+    readPage: (request) =>
+      send<GtmSnapshotPageResult>({ operation: "readPage", request }).catch(
+        (error: unknown) => {
+          if (!(error instanceof GtmCacheUnavailableError)) throw error;
+          return direct.readPage(request);
         },
       ),
     beginMutation: () => send<string>({ operation: "beginMutation" }),

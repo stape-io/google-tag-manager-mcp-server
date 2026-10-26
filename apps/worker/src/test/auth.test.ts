@@ -275,6 +275,21 @@ describe("gtm_remove_session", () => {
     ]);
   });
 
+  it("finishes sign-out when clearing snapshots hangs", async () => {
+    vi.useFakeTimers();
+    const oauth = new FakeOAuth();
+    const done = vi.fn();
+    const pending = callTool(oauth, () => new Promise<never>(() => {}));
+    pending.then(done, () => {});
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(done).toHaveBeenCalled();
+    expect((await pending).isError).not.toBe(true);
+    expect(oauth.grants.map((grant) => grant.id)).toEqual([
+      "g-desktop",
+      "g-cursor",
+    ]);
+  });
+
   // With nothing else of this user left on the server, full cleanup can't log
   // anyone out, so hand Google its token back too.
   it("revokes Google access when no other client is signed in", async () => {

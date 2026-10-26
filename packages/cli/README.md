@@ -76,6 +76,10 @@ Expires within the hour and is not refreshed — debugging only.
 
 Optionally, `GTM_SCOPES` overrides the requested scopes (space or comma separated). The default set covers everything the tools do, from reading containers to publishing versions.
 
+## List caching
+
+The CLI caches tag, trigger, and variable lists for 30 seconds by default. Set `GTM_SNAPSHOT_CACHE_ENABLED=false` in the MCP server's environment to disable caching. Changes made in the GTM UI can remain invisible until expiry; `fresh: true` forces a new list scan. Resource `get` calls always reach Google.
+
 ## Tools
 
 One tool per GTM resource, each taking an `action` parameter (`list`, `get`, `create`, `update`, `remove`, …):

@@ -3,6 +3,7 @@ import { serveStdio } from "@modelcontextprotocol/server/stdio";
 import {
   createAuthFromEnv,
   createGtmMcpServer,
+  createGtmRuntime,
   resolveAuthMode,
   setLogSink,
 } from "google-tag-manager-mcp-core";
@@ -26,6 +27,9 @@ function main(): void {
     () =>
       createGtmMcpServer({
         auth,
+        runtime: createGtmRuntime({
+          enabled: process.env.GTM_SNAPSHOT_CACHE_ENABLED !== "false",
+        }),
         serverInfo: { name: PACKAGE_NAME, version: PACKAGE_VERSION },
       }),
     {

@@ -6,20 +6,22 @@ import {
 import { z } from "zod";
 import { createWorkerUsageObserver } from "./gtmUsage";
 
+const SnapshotRequest = z.object({
+  path: z.string(),
+  token: z.string().min(1),
+  namespace: z.string(),
+  fresh: z.boolean(),
+  call: z.object({ tool: z.string(), action: z.string(), callId: z.string() }),
+}) satisfies z.ZodType<GtmSnapshotRequest>;
+
 const Operation = z.discriminatedUnion("operation", [
+  z.object({ operation: z.literal("read"), request: SnapshotRequest }),
   z.object({
-    operation: z.literal("read"),
-    request: z.object({
-      path: z.string(),
-      token: z.string().min(1),
-      namespace: z.string(),
-      fresh: z.boolean(),
-      call: z.object({
-        tool: z.string(),
-        action: z.string(),
-        callId: z.string(),
-      }),
-    }) satisfies z.ZodType<GtmSnapshotRequest>,
+    operation: z.literal("readPage"),
+    request: SnapshotRequest.extend({
+      page: z.number().min(1),
+      itemsPerPage: z.number().min(1),
+    }),
   }),
   z.object({ operation: z.literal("beginMutation") }),
   z.object({ operation: z.literal("endMutation"), id: z.string() }),
@@ -42,6 +44,10 @@ export class GtmReadCache {
         case "read":
           return Response.json({
             result: await this.cache.read(input.request),
+          });
+        case "readPage":
+          return Response.json({
+            result: await this.cache.readPage(input.request),
           });
         case "beginMutation":
           return Response.json({ result: await this.cache.beginMutation() });

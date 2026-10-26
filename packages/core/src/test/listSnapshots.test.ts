@@ -221,36 +221,39 @@ describe("snapshot correctness", () => {
     },
   );
 
-  it("rejects an in-flight pre-mutation snapshot instead of republishing it", async () => {
-    let release!: () => void;
-    const gate = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    let first = true;
-    api.respond = async ({ method }): Promise<Response> => {
-      if (method === "GET" && first) {
-        first = false;
-        await gate;
-        return json({ tag: [{ name: "old" }] });
-      }
-      return json({ tag: [{ name: "new" }] });
-    };
-    const client = await open();
-    const pending = client.callTool({ name: "gtm_tag", arguments: listArgs });
-    await vi.waitFor(() => expect(api.calls).toHaveLength(1));
-    await client.callTool({
-      name: "gtm_tag",
-      arguments: { ...listArgs, action: "remove", tagId: "4" },
-    });
-    release();
-    expect((await pending).isError).toBe(true);
-    const result = await client.callTool({
-      name: "gtm_tag",
-      arguments: listArgs,
-    });
-    expect(JSON.stringify(result.content)).toContain("new");
-    expect(api.calls).toHaveLength(3);
-  });
+  it.each(["2", "999"])(
+    "returns an overlapping list without caching it after a mutation in container %s",
+    async (containerId) => {
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      let first = true;
+      api.respond = async ({ method }): Promise<Response> => {
+        if (method === "GET" && first) {
+          first = false;
+          await gate;
+          return json({ tag: [{ name: "old" }] });
+        }
+        return json({ tag: [{ name: "new" }] });
+      };
+      const client = await open();
+      const pending = client.callTool({ name: "gtm_tag", arguments: listArgs });
+      await vi.waitFor(() => expect(api.calls).toHaveLength(1));
+      await client.callTool({
+        name: "gtm_tag",
+        arguments: { ...listArgs, containerId, action: "remove", tagId: "4" },
+      });
+      release();
+      expect((await pending).isError).not.toBe(true);
+      const result = await client.callTool({
+        name: "gtm_tag",
+        arguments: listArgs,
+      });
+      expect(JSON.stringify(result.content)).toContain("new");
+      expect(api.calls).toHaveLength(3);
+    },
+  );
 
   it("discards partial scans and failed pending fetches", async () => {
     let fail = true;
@@ -489,5 +492,123 @@ describe("snapshot correctness", () => {
         .filter((event) => event.event === "snapshot")
         .map((event) => event.cache),
     ).toEqual(["bypass"]);
+  });
+
+  it.each(["tag", "trigger", "variable"])(
+    "looks up credentials once per %s list, including cache hits",
+    async (resource) => {
+      const getAccessToken = vi.fn(async () => "token");
+      const client = await open({ auth: { getAccessToken } });
+      for (let index = 0; index < 2; index++)
+        await client.callTool({ name: "gtm_" + resource, arguments: listArgs });
+      expect(getAccessToken).toHaveBeenCalledTimes(2);
+      expect(api.calls).toHaveLength(1);
+    },
+  );
+
+  it("does not retry a daily quota failure on a resource get", async () => {
+    api.respond = (): Response =>
+      json({ error: { message: "Quota exceeded for Queries per day" } }, 429);
+    const client = await open();
+    expect(
+      (
+        await client.callTool({
+          name: "gtm_tag",
+          arguments: { ...listArgs, action: "get", tagId: "4" },
+        })
+      ).isError,
+    ).toBe(true);
+    expect(api.calls).toHaveLength(1);
+  });
+
+  it.each(["beginMutation", "endMutation"] as const)(
+    "keeps writes working when %s rejects",
+    async (method) => {
+      const backend = new ListSnapshotCache();
+      vi.spyOn(backend, method).mockRejectedValue(
+        new Error("Cache unavailable"),
+      );
+      const client = await open({ runtime: createGtmRuntime({ backend }) });
+      const result = await client.callTool({
+        name: "gtm_tag",
+        arguments: { ...listArgs, action: "remove", tagId: "4" },
+      });
+      expect(result.isError).not.toBe(true);
+      expect(api.calls).toHaveLength(1);
+    },
+  );
+
+  it.each(["beginMutation", "endMutation", "read"] as const)(
+    "bounds a hanging cache %s call",
+    async (method) => {
+      const backend = new ListSnapshotCache();
+      const stuck = vi
+        .spyOn(backend, method)
+        .mockImplementation(() => new Promise<never>(() => {}));
+      const client = await open({ runtime: createGtmRuntime({ backend }) });
+      vi.useFakeTimers();
+      try {
+        const done = vi.fn();
+        const pending = client.callTool({
+          name: "gtm_tag",
+          arguments:
+            method === "read"
+              ? listArgs
+              : { ...listArgs, action: "remove", tagId: "4" },
+        });
+        pending.then(done, () => {});
+        await vi.waitFor(() => expect(stuck).toHaveBeenCalled());
+        await vi.advanceTimersByTimeAsync(30_000);
+        expect(done).toHaveBeenCalled();
+        expect((await pending).isError).not.toBe(true);
+        expect(api.calls).toHaveLength(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
+
+  it("paginates a custom backend that only implements full snapshot reads", async () => {
+    api.respond = (): Response =>
+      json({
+        tag: Array.from({ length: 40 }, (_, index) => ({
+          name: String(index),
+        })),
+      });
+    const cache = new ListSnapshotCache();
+    const client = await open({
+      runtime: createGtmRuntime({
+        backend: {
+          read: (request) => cache.read(request),
+          beginMutation: () => cache.beginMutation(),
+          endMutation: (id) => cache.endMutation(id),
+          clear: () => cache.clear(),
+        },
+      }),
+    });
+    const result = await client.callTool({
+      name: "gtm_tag",
+      arguments: { ...listArgs, page: 2 },
+    });
+    const payload = JSON.parse((result.content as { text: string }[])[0].text);
+    expect(payload.data).toHaveLength(20);
+    expect(payload.data[0].name).toBe("20");
+    expect(payload.pagination.totalItems).toBe(40);
+  });
+
+  it("preserves the SDK policy of not retrying a failed POST", async () => {
+    api.respond = (): Response =>
+      json({ error: { message: "Unavailable" } }, 503);
+    const client = await open();
+    const result = await client.callTool({
+      name: "gtm_tag",
+      arguments: {
+        ...listArgs,
+        action: "create",
+        createOrUpdateConfig: { name: "test", type: "html" },
+      },
+    });
+    expect(result.isError).toBe(true);
+    expect(api.calls).toHaveLength(1);
   });
 });

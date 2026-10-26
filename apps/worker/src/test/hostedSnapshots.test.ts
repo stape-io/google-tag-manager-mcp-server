@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { createHostedGtmRuntime } from "../createHostedGtmRuntime";
 import { GtmReadCache } from "../GtmReadCache";
 import { createMcpApiHandler } from "../mcpHandler";
@@ -10,6 +10,7 @@ type ToolReply = {
 };
 
 const records: unknown[] = [];
+const cacheReplies: string[] = [];
 const objects = new Map<string, GtmReadCache>();
 const objectNames: string[] = [];
 const env = {
@@ -27,8 +28,13 @@ const env = {
       if (!objects.has(name))
         objects.set(name, new GtmReadCache({} as DurableObjectState, env));
       return {
-        fetch: (input: string, init: RequestInit) =>
-          objects.get(name)!.fetch(new Request(input, init)),
+        fetch: async (input: string, init: RequestInit): Promise<Response> => {
+          const response = await objects
+            .get(name)!
+            .fetch(new Request(input, init));
+          cacheReplies.push(await response.clone().text());
+          return response;
+        },
       };
     },
   },
@@ -89,9 +95,17 @@ const args = {
   workspaceId: "3",
 };
 
+beforeEach(() => {
+  vi.stubGlobal("window", {
+    fetch: (...args: Parameters<typeof fetch>): Promise<Response> =>
+      globalThis.fetch(...args),
+  });
+});
+
 afterEach(() => {
   objects.clear();
   records.length = 0;
+  cacheReplies.length = 0;
   objectNames.length = 0;
   vi.unstubAllGlobals();
   vi.useRealTimers();
@@ -263,4 +277,31 @@ describe("hosted snapshot cache", () => {
       expect(google).toHaveBeenCalledTimes(2);
     },
   );
+
+  it("transfers only the requested page while keeping exact totals on cache hits", async () => {
+    const google = vi.fn(async () =>
+      Response.json({
+        tag: Array.from({ length: 100 }, (_, index) => ({
+          name: String(index),
+        })),
+      }),
+    );
+    vi.stubGlobal("fetch", google);
+    for (const page of [3, 4]) {
+      const reply = await call({ ...args, page, itemsPerPage: 5 });
+      const result = JSON.parse(reply.result!.content[0].text);
+      expect(result.data).toHaveLength(5);
+      expect(result.data[0].name).toBe(String((page - 1) * 5));
+      expect(result.pagination.totalItems).toBe(100);
+      expect(result.pagination.totalPages).toBe(20);
+    }
+    expect(google).toHaveBeenCalledTimes(1);
+    expect(cacheReplies).toHaveLength(2);
+    for (const payload of cacheReplies) {
+      const { result } = JSON.parse(payload);
+      expect(result.data).toHaveLength(5);
+      expect(result).not.toHaveProperty("items");
+      expect(result.pagination.totalItems).toBe(100);
+    }
+  });
 });

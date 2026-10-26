@@ -14,7 +14,7 @@ export async function getTagManagerClient(
 
     return tagmanager({
       version: "v2",
-      fetchImplementation: invocation?.fetch,
+      adapter: invocation?.adapter,
       headers: {
         Authorization: `Bearer ${token}`,
       },
