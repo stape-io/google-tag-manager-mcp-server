@@ -76,9 +76,29 @@ export default {
         clearTimeout(timer);
       }
     }
-    return createMcpApiHandler(env).fetch!(
+    const delayMs = Number(
+      request.headers.get("x-station-coordinator-delay") ?? 0,
+    );
+    let handlerEnv = env;
+    if (delayMs > 0 && delayMs <= 500 && env.GTM_REQUEST_COORDINATOR) {
+      const namespace = env.GTM_REQUEST_COORDINATOR;
+      handlerEnv = {
+        ...env,
+        GTM_REQUEST_COORDINATOR: {
+          idFromName: (name: string) => namespace.idFromName(name),
+          get: (id: DurableObjectId) => ({
+            fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+              const response = await namespace.get(id).fetch(input, init);
+              await new Promise((resolve) => setTimeout(resolve, delayMs));
+              return response;
+            },
+          }),
+        } as unknown as DurableObjectNamespace,
+      };
+    }
+    return createMcpApiHandler(handlerEnv).fetch!(
       request,
-      env,
+      handlerEnv,
       Object.assign(ctx, { props }),
     );
   },

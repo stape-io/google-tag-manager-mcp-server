@@ -1,7 +1,12 @@
 import { tagmanager, tagmanager_v2 } from "@googleapis/tagmanager";
 import { paginateArray, type PaginationResult } from "./paginationUtils.js";
 import type { GtmRequestScheduler } from "./gtmRequestScheduler.js";
-import { createScheduledGtmAdapter } from "./gtmScheduledAdapter.js";
+import {
+  createScheduledGtmAdapter,
+  GTM_REQUEST_DEADLINE_MS,
+} from "./gtmScheduledAdapter.js";
+import { GtmSchedulingError, withGtmAbort } from "./gtmRequestScheduler.js";
+import { GTM_NO_RETRY_CONFIG } from "./gtmRequestPolicy.js";
 import {
   createObservedGtmAdapter,
   gtmRetryConfig,
@@ -53,7 +58,7 @@ export interface GtmSnapshotPageResult extends PaginationResult<GtmSnapshotItem>
 export interface GtmSnapshotBackend {
   readPage?(request: GtmSnapshotPageRequest): Promise<GtmSnapshotPageResult>;
   read(request: GtmSnapshotRequest): Promise<GtmSnapshotResult>;
-  beginMutation(): Promise<string>;
+  beginMutation(id?: string): Promise<string>;
   endMutation(id: string): Promise<void>;
   clear(): Promise<void>;
 }
@@ -80,6 +85,7 @@ interface SnapshotEntry {
 }
 
 interface PendingSnapshot {
+  key: string;
   promise: Promise<GtmSnapshotItem[]>;
   controller: AbortController;
   waiters: number;
@@ -89,6 +95,7 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
   private entries = new Map<string, SnapshotEntry>();
   private pending = new Map<string, PendingSnapshot>();
   private mutations = new Map<string, number>();
+  private endedMutations = new Map<string, number>();
   private generation = 0;
   private bytes = 0;
 
@@ -104,7 +111,16 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
   ) {}
 
   async read(request: GtmSnapshotRequest): Promise<GtmSnapshotResult> {
+    const result = await this.readInternal(request);
+    return { ...result, items: structuredClone(result.items) };
+  }
+
+  private async readInternal(
+    request: GtmSnapshotRequest,
+  ): Promise<GtmSnapshotResult> {
     request.signal?.throwIfAborted();
+    if (request.deadline !== undefined && request.deadline <= Date.now())
+      throw new GtmSchedulingError("deadline");
     if (!isGtmSnapshotPath(request.path))
       throw new Error("Unsupported GTM snapshot path.");
     if (this.options.enabled === false)
@@ -118,6 +134,9 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
       byte.toString(16).padStart(2, "0"),
     ).join("");
     const key = JSON.stringify([request.namespace, credential, request.path]);
+    request.signal?.throwIfAborted();
+    if (request.deadline !== undefined && request.deadline <= Date.now())
+      throw new GtmSchedulingError("deadline");
     const bypass = this.mutations.size > 0;
     const entry = this.entries.get(key);
     if (!bypass && !request.fresh && entry && entry.expiresAt > Date.now()) {
@@ -127,24 +146,44 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
     }
     if (request.fresh) this.remove(key);
     const existing = this.pending.get(key);
-    if (existing && !bypass && !request.fresh) {
+    if (
+      existing &&
+      !existing.controller.signal.aborted &&
+      !bypass &&
+      !request.fresh
+    ) {
       emitGtmUsage(this.options.observer, {
         ...request.call,
         event: "snapshot_wait",
       });
       return {
-        items: await this.waitFor(existing, request.signal),
+        items: await this.waitFor(existing, request),
         cache: "coalesced",
       };
     }
 
     const generation = this.generation;
     const fill: PendingSnapshot = {
+      key,
       controller: new AbortController(),
       waiters: 0,
       promise: undefined!,
     };
-    fill.promise = this.load({ ...request, signal: fill.controller.signal })
+    // The producer has its own bounded scan budget. Each subscriber enforces
+    // its own deadline without cancelling readers who still have time left.
+    const scanDeadline = Date.now() + GTM_REQUEST_DEADLINE_MS;
+    const scanTimer = setTimeout(
+      () => fill.controller.abort(new GtmSchedulingError("deadline")),
+      GTM_REQUEST_DEADLINE_MS,
+    );
+    fill.promise = withGtmAbort(
+      this.load({
+        ...request,
+        deadline: scanDeadline,
+        signal: fill.controller.signal,
+      }),
+      fill.controller.signal,
+    )
       .then((items) => {
         if (bypass || fill.controller.signal.aborted) return items;
         if (generation !== this.generation) return items;
@@ -153,11 +192,12 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
         return items;
       })
       .finally(() => {
+        clearTimeout(scanTimer);
         if (this.pending.get(key) === fill) this.pending.delete(key);
       });
     if (!bypass) this.pending.set(key, fill);
     return {
-      items: await this.waitFor(fill, request.signal),
+      items: await this.waitFor(fill, request),
       cache:
         bypass || request.fresh || generation !== this.generation
           ? "bypass"
@@ -167,43 +207,64 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
 
   private async waitFor(
     fill: PendingSnapshot,
-    signal?: AbortSignal,
+    request: GtmSnapshotRequest,
   ): Promise<GtmSnapshotItem[]> {
     fill.waiters++;
-    let abort: (() => void) | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const controller = new AbortController();
+    const signal = request.signal
+      ? AbortSignal.any([controller.signal, request.signal])
+      : controller.signal;
+    if (request.deadline !== undefined) {
+      if (request.deadline <= Date.now())
+        controller.abort(new GtmSchedulingError("deadline"));
+      else
+        timer = setTimeout(
+          () => controller.abort(new GtmSchedulingError("deadline")),
+          request.deadline - Date.now(),
+        );
+    }
     try {
-      if (!signal) return await fill.promise;
-      return await new Promise((resolve, reject) => {
-        abort = (): void => reject(signal.reason);
-        signal.addEventListener("abort", abort, { once: true });
-        fill.promise.then(resolve, reject);
-        if (signal.aborted) abort();
-      });
+      return await withGtmAbort(fill.promise, signal);
     } finally {
-      if (abort) signal?.removeEventListener("abort", abort);
-      if (--fill.waiters === 0) fill.controller.abort();
+      clearTimeout(timer);
+      if (--fill.waiters === 0) {
+        // Detach before aborting: producer rejection/cleanup may be delayed.
+        if (this.pending.get(fill.key) === fill) this.pending.delete(fill.key);
+        fill.controller.abort();
+      }
     }
   }
 
   async readPage(
     request: GtmSnapshotPageRequest,
   ): Promise<GtmSnapshotPageResult> {
-    const { items, cache } = await this.read(request);
+    const { items, cache } = await this.readInternal(request);
     return {
-      ...paginateArray(items, request.page, request.itemsPerPage),
+      ...structuredClone(
+        paginateArray(items, request.page, request.itemsPerPage),
+      ),
       cache,
     };
   }
 
-  async beginMutation(): Promise<string> {
+  async beginMutation(id: string = crypto.randomUUID()): Promise<string> {
+    this.prune();
+    // Correlated control retries and late starts are idempotent.
+    if (this.endedMutations.has(id) || this.mutations.has(id)) return id;
     this.invalidate();
-    const id = crypto.randomUUID();
+    // end can arrive first when a hosted start request is delayed.
     this.mutations.set(id, Date.now() + 120_000);
     return id;
   }
 
   async endMutation(id: string): Promise<void> {
+    this.prune();
+    if (this.endedMutations.has(id)) return;
     this.mutations.delete(id);
+    this.endedMutations.set(id, Date.now() + 120_000);
+    if (this.endedMutations.size > 1_000)
+      this.endedMutations.delete(this.endedMutations.keys().next().value!);
     this.invalidate();
   }
 
@@ -224,6 +285,8 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
       if (entry.expiresAt <= now) this.remove(key);
     for (const [id, expiry] of this.mutations)
       if (expiry <= now) this.mutations.delete(id);
+    for (const [id, expiry] of this.endedMutations)
+      if (expiry <= now) this.endedMutations.delete(id);
   }
 
   private remove(key: string): void {
@@ -233,10 +296,19 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
   }
 
   private store(key: string, items: GtmSnapshotItem[]): void {
-    const bytes = new TextEncoder().encode(JSON.stringify(items)).byteLength;
     const maxBytes = this.options.maxBytes ?? LIST_SNAPSHOT_MAX_BYTES;
     const maxEntries = this.options.maxEntries ?? LIST_SNAPSHOT_MAX_ENTRIES;
-    if (bytes > maxBytes || maxEntries < 1) return;
+    if (maxEntries < 1 || maxBytes < 2) return;
+    // Account for the exact JSON-array bytes one entity at a time. Avoid a
+    // second full-snapshot string/byte buffer, and stop once over budget.
+    const encoder = new TextEncoder();
+    let bytes = 2; // []
+    for (let index = 0; index < items.length; index++) {
+      bytes +=
+        (index ? 1 : 0) +
+        encoder.encode(JSON.stringify(items[index]) ?? "null").byteLength;
+      if (bytes > maxBytes) return;
+    }
     this.remove(key);
     while (this.entries.size >= maxEntries || this.bytes + bytes > maxBytes) {
       const oldest = this.entries.keys().next().value;
@@ -258,6 +330,7 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
     const client = tagmanager({
       version: "v2",
       headers: { Authorization: `Bearer ${request.token}` },
+      signal: request.signal,
       adapter: this.options.scheduler
         ? createScheduledGtmAdapter(
             this.options.scheduler,
@@ -267,13 +340,17 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
             request.signal,
           )
         : createObservedGtmAdapter(this.options.observer, request.call),
-      retryConfig: gtmRetryConfig,
+      retry: this.options.scheduler ? false : undefined,
+      retryConfig: this.options.scheduler
+        ? GTM_NO_RETRY_CONFIG
+        : gtmRetryConfig,
     });
     const items: GtmSnapshotItem[] = [];
     const seen = new Set<string>();
     let pageToken = "";
     try {
       do {
+        request.signal?.throwIfAborted();
         const params = { parent, pageToken };
         const response =
           resource === "tags"

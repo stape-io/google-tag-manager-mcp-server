@@ -16,13 +16,16 @@ export function createHostedGtmScheduler(
   const id = namespace.idFromName(env.GTM_QUOTA_PROJECT_ID);
   return {
     async acquire({ signal, deadline }): Promise<void> {
+      let leadMs = 0;
+      let expiredPermits = 0;
       for (;;) {
         if (signal?.aborted) throw signal.reason;
+        const sentAt = Date.now();
         const response = await namespace
           .get(id)
           .fetch("https://gtm-scheduler.internal/acquire", {
             method: "POST",
-            body: JSON.stringify({ deadline }),
+            body: JSON.stringify({ deadline, ...(leadMs ? { leadMs } : {}) }),
             signal,
           });
         const result = (await response.json()) as {
@@ -55,7 +58,19 @@ export function createHostedGtmScheduler(
         if (Date.now() >= deadline) throw new GtmSchedulingError("deadline");
         // A suspended or slow caller must not spend an old permit alongside
         // newer ones after resuming. Unused reservations simply expire.
-        if (Date.now() > result.expiresAt) continue;
+        if (Date.now() > result.expiresAt) {
+          if (++expiredPermits >= 3)
+            throw new Error(
+              "GTM request coordinator delivery is too slow for a valid permit. Try again later.",
+            );
+          // Reserve ahead of measured delivery latency, retaining the narrow
+          // validity window rather than widening it and allowing bursts.
+          leadMs = Math.min(
+            5_000,
+            Math.max(leadMs * 2, Math.ceil((Date.now() - sentAt) * 1.5) + 25),
+          );
+          continue;
+        }
         return;
       }
     },

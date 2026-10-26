@@ -95,13 +95,20 @@ for (const stream of [worker.stdout, worker.stderr])
     output += chunk;
   });
 let id = 0;
-async function call(name, args, user = "user-1", expectedError = false) {
+async function call(
+  name,
+  args,
+  user = "user-1",
+  expectedError = false,
+  coordinatorDelay = 0,
+) {
   const response = await fetch(origin + "/mcp", {
     method: "POST",
     headers: {
       "content-type": "application/json",
       accept: "application/json, text/event-stream",
       "x-station-user": user,
+      "x-station-coordinator-delay": String(coordinatorDelay),
     },
     body: JSON.stringify({
       jsonrpc: "2.0",
@@ -192,6 +199,19 @@ try {
   assert.ok(
     concurrent.at(-1).at - concurrent[0].at >= 380,
     "different Google users share the same project pacing",
+  );
+  const beforeSlowCoordinator = calls.length;
+  await call(
+    "gtm_tag",
+    { ...args, action: "get", tagId: "slow-coordinator" },
+    "user-1",
+    false,
+    200,
+  );
+  assert.equal(
+    calls.length - beforeSlowCoordinator,
+    1,
+    "a 100ms permit interval works with 200ms coordinator delivery",
   );
   const rateStart = calls.length;
   await call("gtm_tag", { ...args, action: "get", tagId: "rate" });

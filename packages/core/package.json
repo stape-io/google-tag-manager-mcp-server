@@ -38,7 +38,8 @@
     "lint:fix": "eslint src --fix",
     "test": "vitest run",
     "test:golden:update": "vitest run --config vitest.golden.config.ts",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "pretest": "npm run build && npm run build -w google-tag-manager-mcp-server"
   },
   "dependencies": {
     "@googleapis/tagmanager": "^16.0.0"
@@ -57,7 +58,7 @@
   },
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=20.3"
   },
   "sideEffects": false
 }

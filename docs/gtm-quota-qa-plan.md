@@ -5,6 +5,10 @@ Tracking: [DEV-13529](https://stape.atlassian.net/browse/DEV-13529),
 [PR #99](https://github.com/stape-io/google-tag-manager-mcp-server/pull/99).
 
 Goal: tested locally and ready for QA testing by October 30, 2026.
+**Before merge:** the release workflow on `main` targets `.ai` production,
+including migrations and Analytics Engine even with feature flags disabled. QA
+must validate the branch before merge; disabled flags do not prevent deployment.
+
 Deployment, QA execution, and real-Google smoke testing belong to the QA coworker,
 per the user's October 26 clarification.
 
@@ -61,7 +65,7 @@ Regression evidence:
 Deterministic tests additionally cover FIFO order, default 25-per-100-second
 pacing, saturation, deadline expiry, stopped coordinators, cancellation capacity,
 partial/shared scan behavior, quota retry accounting, Retry-After exceeding the
-budget, coordinator recreation and stale-permit expiry.
+budget, coordinator recreation stale-permit expiry and delivery latency exceeding the permit interval.
 
 Verification commands:
 
@@ -111,8 +115,8 @@ container publish is part of local verification.
 
 ## Limits and follow-ups
 
-- Scheduled calls have a 25-second total upstream budget, including pagination,
-  scheduling and backoff. A sufficiently large/slow scan can return a deadline
+- Readers have independent 25-second budgets. Shared scans have a separate fixed
+  25-second producer cap, including pagination, scheduling and backoff. A sufficiently large/slow scan can return a deadline
   error; partial results are never cached. QA must assess this against real
   container sizes and the project's approved quota.
 - Cancellation cannot undo an already executed Google operation. If the cancel
@@ -126,3 +130,29 @@ container publish is part of local verification.
 - Batching, cursor/lazy pagination, dashboards and production enablement are
   outside this change. Real-Google behavior and cloud telemetry ingestion remain
   QA responsibilities, not claims established by local tests.
+
+## Review follow-up verification
+
+The review fixes add regression coverage for immediately rejoining a cancelled
+fill with scheduling on/off; cancellation stopping pagination without scheduling;
+independent reader deadlines; delayed mutation starts/replies, including legacy
+backend IDs; defensive snapshot/page copies; exact UTF-8 budget boundaries;
+preserved Google quota errors; distinct cancellation metrics; and latency-aware,
+bounded permit renewal. The real Worker station also runs a 100ms permit interval
+with 200ms coordinator delivery delay. Core caching remains on by default by
+explicit user decision, with the opt-out documented in the core README.
+
+Subprocess fixtures rebuild automatically before tests. Retry suppression and
+quota classification are declared on Google clients rather than changed by the
+adapter. Exact byte accounting is retained while avoiding a second full-array
+serialization allocation. Validation uses local fakes only; real-Google testing
+and deployment remain QA responsibilities.
+
+Local follow-up results: 197 tests pass (92 Worker and 105 core), including 15
+cache review regressions and the coordinator latency/renewal cases. Build,
+typecheck, zero-warning lint, both CLI protocol smoke tests, the real local
+Worker station with delayed coordinator delivery, changeset validation, and
+all three Worker bundle dry runs pass. Late mutation replies are tested both
+before and after the Google write finishes; they neither release an active
+write's lease early nor invalidate fresh data after an already completed lease.
+These are local verification results; GitHub CI status is reported separately.

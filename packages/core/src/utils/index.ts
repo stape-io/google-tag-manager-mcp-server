@@ -9,3 +9,4 @@ export * from "./gtmTelemetry.js";
 export * from "./gtmCacheTimeout.js";
 export * from "./gtmRequestScheduler.js";
 export * from "./gtmScheduledAdapter.js";
+export * from "./gtmRequestPolicy.js";

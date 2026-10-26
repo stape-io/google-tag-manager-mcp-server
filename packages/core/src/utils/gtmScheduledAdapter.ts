@@ -11,6 +11,7 @@ import {
   withGtmAbort,
   type GtmRequestScheduler,
 } from "./gtmRequestScheduler.js";
+import { isGtmReadOnlyRequest } from "./gtmRequestPolicy.js";
 
 export const GTM_REQUEST_DEADLINE_MS = 25_000;
 
@@ -40,9 +41,6 @@ export function createScheduledGtmAdapter(
 ): GtmRequestAdapter {
   const observed = createObservedGtmAdapter(observer, call);
   return async (options, defaultAdapter) => {
-    // gaxios would otherwise add an independent outer retry loop.
-    options.retry = false;
-    options.retryConfig = { retry: 0, shouldRetry: (): boolean => false };
     if (deadline <= Date.now()) throw new GtmSchedulingError("deadline");
     const controller = new AbortController();
     const timer = setTimeout(
@@ -56,10 +54,7 @@ export function createScheduledGtmAdapter(
       ),
     ]);
     const method = (options.method ?? "GET").toUpperCase();
-    const safeRead =
-      method === "GET" ||
-      method === "HEAD" ||
-      (method === "POST" && options.url.pathname.endsWith(":entities"));
+    const safeRead = isGtmReadOnlyRequest(method, options.url);
     try {
       for (let attempt = 0; ; attempt++) {
         const queuedAt = Date.now();
@@ -68,7 +63,16 @@ export function createScheduledGtmAdapter(
         } catch (error) {
           emitGtmUsage(observer, {
             ...call,
-            event: "queue_rejected",
+            event:
+              (error instanceof GtmSchedulingError &&
+                error.reason === "cancelled") ||
+              (signal.aborted &&
+                !(
+                  signal.reason instanceof GtmSchedulingError &&
+                  signal.reason.reason === "deadline"
+                ))
+                ? "queue_cancelled"
+                : "queue_rejected",
             durationMs: Date.now() - queuedAt,
           });
           throw error;
@@ -88,6 +92,7 @@ export function createScheduledGtmAdapter(
         let status = 0;
         let quota: ReturnType<typeof classifyGtmQuota> = "none";
         let retryAfter = 0;
+        let backoff = 1_000 * 2 ** attempt + Math.floor(Math.random() * 251);
         try {
           const response = await withGtmAbort(
             observed(options, defaultAdapter),
@@ -111,18 +116,18 @@ export function createScheduledGtmAdapter(
             retryAfter = /^\d+(\.\d+)?$/.test(header)
               ? Number(header) * 1_000
               : Math.max(0, Date.parse(header) - Date.now());
+          backoff = Math.max(retryAfter || 0, backoff);
+          // Preserve Google's response when its retry delay exceeds our budget.
+          if (Date.now() + backoff >= deadline) return response;
         } catch (error) {
           if (signal.aborted) throw signal.reason;
           // A failed write may already have committed. Never replay it after
           // an ambiguous transport failure (including deletes and updates).
           if (!safeRead || attempt >= 2) throw error;
         }
-        const backoff = Math.max(
-          retryAfter || 0,
-          1_000 * 2 ** attempt + Math.floor(Math.random() * 251),
-        );
-        if (Date.now() + backoff >= deadline)
+        if (Date.now() + backoff >= deadline) {
           throw new GtmSchedulingError("deadline");
+        }
         emitGtmUsage(observer, {
           ...call,
           event: "retry_wait",

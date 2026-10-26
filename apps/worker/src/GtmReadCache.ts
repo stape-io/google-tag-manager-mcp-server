@@ -25,7 +25,10 @@ const Operation = z.discriminatedUnion("operation", [
       itemsPerPage: z.number().min(1),
     }),
   }),
-  z.object({ operation: z.literal("beginMutation") }),
+  z.object({
+    operation: z.literal("beginMutation"),
+    id: z.string().optional(),
+  }),
   z.object({ operation: z.literal("endMutation"), id: z.string() }),
   z.object({ operation: z.literal("clear") }),
   z.object({ operation: z.literal("cancel"), callId: z.string() }),
@@ -75,7 +78,9 @@ export class GtmReadCache {
       }
       switch (input.operation) {
         case "beginMutation":
-          return Response.json({ result: await this.cache.beginMutation() });
+          return Response.json({
+            result: await this.cache.beginMutation(input.id),
+          });
         case "endMutation":
           await this.cache.endMutation(input.id);
           break;

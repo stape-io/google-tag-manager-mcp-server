@@ -47,6 +47,62 @@ function reserve(
 afterEach(() => vi.useRealTimers());
 
 describe("hosted project coordinator", () => {
+  it("reserves ahead of delivery latency without widening permit validity", async () => {
+    vi.useFakeTimers({ now: 0 });
+    const { state, env } = station();
+    const coordinator = new GtmRequestCoordinator(state, env);
+    const requests: { deadline: number; leadMs?: number }[] = [];
+    const scheduler = createHostedGtmScheduler({
+      ...env,
+      GTM_REQUEST_SCHEDULER_ENABLED: "true",
+      GTM_QUOTA_PROJECT_ID: "project",
+      GTM_REQUEST_COORDINATOR: {
+        idFromName: (name: string): string => name,
+        get: (): unknown => ({
+          fetch: async (
+            input: string,
+            init: RequestInit,
+          ): Promise<Response> => {
+            requests.push(JSON.parse(String(init.body)));
+            const response = await coordinator.fetch(new Request(input, init));
+            const permit = (await response.clone().json()) as {
+              at: number;
+              expiresAt: number;
+            };
+            if (response.ok) expect(permit.expiresAt - permit.at).toBe(100);
+            await new Promise((resolve) => setTimeout(resolve, 200));
+            return response;
+          },
+        }),
+      },
+    } as unknown as Env)!;
+    const pending = scheduler.acquire({ deadline: 5_000 });
+    await vi.advanceTimersByTimeAsync(1_000);
+    await pending;
+    expect(requests).toHaveLength(2);
+    expect(requests[1].leadMs).toBeGreaterThanOrEqual(200);
+  });
+
+  it("bounds renewal attempts if delivery keeps missing its permits", async () => {
+    vi.useFakeTimers({ now: 1_000 });
+    const fetch = vi.fn(async (): Promise<Response> =>
+      Response.json({ at: 0, expiresAt: 100 }),
+    );
+    const scheduler = createHostedGtmScheduler({
+      GTM_REQUEST_SCHEDULER_ENABLED: "true",
+      GTM_QUOTA_PROJECT_ID: "project",
+      GTM_REQUEST_COORDINATOR: {
+        idFromName: (name: string): string => name,
+        get: (): unknown => ({ fetch }),
+      },
+    } as unknown as Env)!;
+    const pending = expect(
+      scheduler.acquire({ deadline: 5_000 }),
+    ).rejects.toThrow("delivery is too slow");
+    await vi.advanceTimersByTimeAsync(5);
+    await pending;
+    expect(fetch).toHaveBeenCalledTimes(3);
+  });
   it("requeues a permit delivered after its expiry instead of releasing a burst", async () => {
     vi.useFakeTimers({ now: 1_000 });
     let requests = 0;

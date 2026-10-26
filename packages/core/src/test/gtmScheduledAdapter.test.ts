@@ -59,6 +59,9 @@ describe("scheduled Google transport", () => {
       arguments: { ...args, action: "get", tagId: "4" },
     });
     expect(result.isError).toBe(true);
+    expect(JSON.stringify(result.content)).toContain("429");
+    expect(JSON.stringify(result.content)).toContain("busy");
+    expect(JSON.stringify(result.content)).not.toContain("deadline exceeded");
     expect(api.calls).toHaveLength(1);
   });
   it("bounds a coordinator that never answers without bypassing scheduling", async () => {
@@ -110,6 +113,12 @@ describe("scheduled Google transport", () => {
     await rejected;
     await vi.advanceTimersByTimeAsync(2_000);
     expect(api.calls).toHaveLength(0);
+    expect(events.some((event) => event.event === "queue_cancelled")).toBe(
+      true,
+    );
+    expect(events.some((event) => event.event === "queue_rejected")).toBe(
+      false,
+    );
   });
 
   it.each([false, true])(

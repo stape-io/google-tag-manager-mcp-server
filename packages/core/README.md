@@ -75,6 +75,13 @@ const auth: GtmAuthProvider = {
 
 ## List snapshots
 
+Core-library factories and direct tool registration enable list caching by default,
+not only the CLI. To opt out, pass
+`runtime: createGtmRuntime({ enabled: false })` to `createGtmMcpServer()` or
+`registerGtmTools()`. This does not change the hosted service's explicit rollout flags.
+Full-snapshot results and paginated entities are defensive copies; callers cannot
+mutate retained cache data through these APIs. Node.js 20.3 or newer is required.
+
 `gtm_tag`, `gtm_trigger`, and `gtm_variable` reuse a complete list snapshot across numeric pages. `page`, `itemsPerPage`, and exact pagination totals retain their existing meaning. `fresh: true` bypasses stored snapshots and in-flight scans; resource `get` calls always reach Google.
 
 The default snapshot lifetime and retention limits are exported from [`listSnapshotCache.ts`](src/utils/listSnapshotCache.ts). Reads do not extend expiration. Concurrent reads of the same list share one upstream scan. Failed and incomplete scans are not cached.
@@ -117,3 +124,13 @@ The CLI accepts `GTM_REQUEST_SCHEDULER_ENABLED=true`, with optional
 Scheduled calls use a 25-second total budget, bounded backoff and cancellation.
 Daily and permission errors stop; uncertain writes are not replayed. Each retry
 obtains a new permit and records its actual attempt separately from queue wait.
+
+Each shared scan has a fixed 25-second producer budget independent of its first
+reader's deadline. Each subscriber enforces its own deadline and cancellation;
+short-lived readers do not terminate a scan still needed by others. Joining does
+not extend the producer cap indefinitely, so a scan hitting that cap can still
+fail all remaining subscribers. Cancellation also reaches Google when request
+scheduling is disabled.
+
+`npm test` builds the core and CLI fixtures first, including when run directly
+in the core workspace, so subprocess tests cannot silently use stale output.

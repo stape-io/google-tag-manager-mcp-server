@@ -542,6 +542,9 @@ describe("snapshot correctness", () => {
     "bounds a hanging cache %s call",
     async (method) => {
       const backend = new ListSnapshotCache();
+      // This case exercises external backends that implement read() only.
+      if (method === "read")
+        Object.defineProperty(backend, "readPage", { value: undefined });
       const stuck = vi
         .spyOn(backend, method)
         .mockImplementation(() => new Promise<never>(() => {}));

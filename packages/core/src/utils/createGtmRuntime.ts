@@ -25,9 +25,12 @@ import {
   createScheduledGtmAdapter,
   GTM_REQUEST_DEADLINE_MS,
 } from "./gtmScheduledAdapter.js";
+import { isGtmReadOnlyRequest } from "./gtmRequestPolicy.js";
 
 export interface GtmInvocation {
   adapter: GtmRequestAdapter;
+  managesRetries?: boolean;
+  signal?: AbortSignal;
   listSnapshot(path: string, fresh: boolean): Promise<GtmSnapshotItem[]>;
   listPage(
     path: string,
@@ -45,14 +48,6 @@ export interface GtmRuntime {
     signal?: AbortSignal,
   ): GtmInvocation;
   clear(): Promise<void>;
-}
-
-// `folders.entities` lists a folder's contents over POST.
-const READ_ONLY_POST = /:entities$/;
-
-function isGtmMutation(method: string, url: URL): boolean {
-  if (method === "GET" || method === "HEAD") return false;
-  return !(method === "POST" && READ_ONLY_POST.test(url.pathname));
 }
 
 export function createGtmRuntime(
@@ -115,20 +110,39 @@ export function createGtmRuntime(
           )
         : createObservedGtmAdapter(options.observer, call);
       const adapter: GtmRequestAdapter = async (request, defaultAdapter) => {
-        const mutation = isGtmMutation(
+        const mutation = !isGtmReadOnlyRequest(
           (request.method ?? "GET").toUpperCase(),
           request.url,
         );
         let id: string | undefined;
+        let writeCompleted = false;
         const invalidationFailed = (): void =>
           emitGtmUsage(options.observer, {
             ...call,
             event: "invalidation_error",
           });
         if (mutation) {
+          // Know the lease ID even if the start response is delayed or lost.
+          id = crypto.randomUUID();
+          const proposedId = id;
+          let timedOut = false;
+          const started = Promise.resolve()
+            .then(() => backend.beginMutation(proposedId))
+            .then(async (actualId) => {
+              // Compatibility with external backends that generate their own IDs.
+              if (timedOut) {
+                if (!writeCompleted) id = actualId;
+                else if (actualId !== id)
+                  await withGtmCacheTimeout(() =>
+                    backend.endMutation(actualId),
+                  ).catch(invalidationFailed);
+              }
+              return actualId;
+            });
           try {
-            id = await withGtmCacheTimeout(() => backend.beginMutation());
+            id = await withGtmCacheTimeout(() => started);
           } catch {
+            timedOut = true;
             invalidationFailed();
           }
         }
@@ -136,6 +150,7 @@ export function createGtmRuntime(
           return await observedAdapter(request, defaultAdapter);
         } finally {
           if (mutation) {
+            writeCompleted = true;
             await withGtmCacheTimeout(() =>
               id ? backend.endMutation(id) : backend.clear(),
             ).catch(invalidationFailed);
@@ -143,6 +158,8 @@ export function createGtmRuntime(
         }
       };
       return {
+        managesRetries: Boolean(options.scheduler),
+        signal,
         async listSnapshot(path, fresh): Promise<GtmSnapshotItem[]> {
           const token = await auth.getAccessToken();
           const startedAt = Date.now();

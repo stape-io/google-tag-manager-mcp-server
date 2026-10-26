@@ -88,7 +88,7 @@ export function createHostedGtmRuntime(
         request.signal,
         request.call.callId,
       ),
-    beginMutation: () => send<string>({ operation: "beginMutation" }),
+    beginMutation: (id) => send<string>({ operation: "beginMutation", id }),
     endMutation: (id) => send<void>({ operation: "endMutation", id }),
     clear: () => send<void>({ operation: "clear" }),
   };

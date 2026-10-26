@@ -12,18 +12,18 @@ A merge to `main` triggers the [.ai production deployment](../../.github/workflo
 
 The optional `GTM_USAGE` Analytics Engine binding receives events from both the API handler and cache object. Dataset names belong to each deployment environment in `wrangler.jsonc`.
 
-| Field            | Meaning                                                                                                                                  |
-| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `index1`         | Tool name, used as the sampling key                                                                                                      |
-| `blob1`          | Event: `tool_call`, `google_attempt`, `snapshot`, `snapshot_wait`, `invalidation_error`, `queue_wait`, `queue_rejected`, or `retry_wait` |
-| `blob2`, `blob3` | Tool and action                                                                                                                          |
-| `blob4`          | Snapshot result: `hit`, `miss`, `coalesced`, or `bypass`                                                                                 |
-| `blob5`          | Quota category: `daily`, `rate`, `unknown`, or `none`                                                                                    |
-| `blob6`          | Random correlation ID for the tool invocation                                                                                            |
-| `double1`        | Event count                                                                                                                              |
-| `double2`        | HTTP status; zero for network failures or non-HTTP events                                                                                |
-| `double3`        | Duration in milliseconds                                                                                                                 |
-| `double4`        | Attempt number for the upstream request, including retries                                                                               |
+| Field            | Meaning                                                                                                                                                     |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `index1`         | Tool name, used as the sampling key                                                                                                                         |
+| `blob1`          | Event: `tool_call`, `google_attempt`, `snapshot`, `snapshot_wait`, `invalidation_error`, `queue_wait`, `queue_rejected`, `queue_cancelled`, or `retry_wait` |
+| `blob2`, `blob3` | Tool and action                                                                                                                                             |
+| `blob4`          | Snapshot result: `hit`, `miss`, `coalesced`, or `bypass`                                                                                                    |
+| `blob5`          | Quota category: `daily`, `rate`, `unknown`, or `none`                                                                                                       |
+| `blob6`          | Random correlation ID for the tool invocation                                                                                                               |
+| `double1`        | Event count                                                                                                                                                 |
+| `double2`        | HTTP status; zero for network failures or non-HTTP events                                                                                                   |
+| `double3`        | Duration in milliseconds                                                                                                                                    |
+| `double4`        | Attempt number for the upstream request, including retries                                                                                                  |
 
 Use the [Analytics Engine SQL API](https://developers.cloudflare.com/analytics/analytics-engine/sql-api/) and weight aggregates by `_sample_interval`. Group `google_attempt` counts and `tool_call` counts by tool/action to calculate average Google attempts per MCP call. Group `snapshot` events by result to measure cache effectiveness. `snapshot_wait` records a caller waiting for an existing scan; it is separate from the completed snapshot result.
 
@@ -64,11 +64,11 @@ one central coordinator before both enable scheduling for the same project.
 from the actual approved project quota. The coordinator persists only its next
 reservation timestamp, never tokens, payloads, or identifiers. Cancelled slots
 are left unused until their scheduled time; caller cancellation never executes
-work in the coordinator. Old permits expire so suspended callers must requeue.
+work in the coordinator. Old permits expire so suspended callers must requeue. If delivery latency exceeds a permit's validity, the next reservation is placed ahead of measured round-trip latency without widening the validity window. Renewal is capped at three attempts.
 
 Ordinary calls, cache misses, every Google pagination page, and retries all
-acquire permits; cache hits do not. Calls have a 25-second total upstream budget,
-including scheduling and backoff. Long scans can therefore return a deadline
+acquire permits; cache hits do not. Readers have their own 25-second budgets. A shared scan has a separate fixed
+25-second producer budget, including scheduling and backoff. Long scans can therefore return a deadline
 error; failed/partial scans are not cached. Backoff uses exponential delay plus
 jitter and honors `Retry-After` within the deadline. Explicit temporary quota
 rejections can retry. Reads can also retry transient network/408/5xx failures;
@@ -76,6 +76,7 @@ writes are never replayed after ambiguous network/408/5xx outcomes. Daily quota,
 permission, and unclassified 403 failures stop immediately.
 
 `queue_wait` measures permit wait, `queue_rejected` records failed admission,
+`queue_cancelled` separates caller cancellation from rejected admission,
 and `retry_wait` records backoff duration, attempt, status and quota category in
 the existing Analytics Engine columns. They are separate from `google_attempt`.
 Cancellation crosses the cache-object hop as an explicit per-call message,
@@ -85,3 +86,14 @@ delivered, the upstream deadline still bounds work.
 
 Run `npm run test:station` from the root for the isolated local Worker station.
 See [the QA handoff](../../docs/gtm-quota-qa-plan.md) for checks and responsibilities.
+
+Mutation starts carry a caller-generated lease ID. Ends invalidate the cache and
+remember completed IDs briefly, so delayed starts cannot reactivate ended leases.
+For external backends that generate their own IDs, late successful starts receive
+bounded cleanup. Snapshot byte accounting uses per-entity UTF-8 sizes with early
+rejection above the byte cap rather than allocating a second full-snapshot string.
+
+QA must run against the reviewed branch before merge. Merging into `main`
+triggers the `.ai` production deployment workflow, including both new object
+migrations and the Analytics Engine binding even with caching/scheduling disabled.
+Feature flags are not a deployment gate. The `.io` deployment remains explicit.

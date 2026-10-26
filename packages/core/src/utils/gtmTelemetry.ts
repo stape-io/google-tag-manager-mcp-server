@@ -19,6 +19,7 @@ export interface GtmUsageEvent extends GtmCall {
     | "invalidation_error"
     | "queue_wait"
     | "queue_rejected"
+    | "queue_cancelled"
     | "retry_wait";
   status?: number;
   durationMs?: number;
@@ -63,11 +64,20 @@ export type GtmRequestAdapter = NonNullable<GtmClientOptions["adapter"]>;
 
 export const gtmRetryConfig: GtmClientOptions["retryConfig"] = {
   shouldRetry: (error) => {
+    if (error.config?.retry === false || error.config?.retryConfig?.retry === 0)
+      return false;
     const attempt = error.config?.retryConfig?.currentRetryAttempt ?? 0;
     const status = error.response?.status ?? 0;
     if (error.config?.signal?.aborted || error.code === "AbortError")
       return false;
     if (classifyGtmQuota(status, error.response?.data) === "daily")
+      return false;
+    // Keep the SDK's ordinary method policy when the scheduler is disabled.
+    if (
+      !["GET", "HEAD", "PUT", "OPTIONS", "DELETE"].includes(
+        (error.config?.method ?? "GET").toUpperCase(),
+      )
+    )
       return false;
     return (
       attempt < (status === 0 ? 2 : 3) &&
@@ -91,9 +101,6 @@ export function createObservedGtmAdapter(
       const response = await defaultAdapter(options);
       status = response.status;
       quota = classifyGtmQuota(status, response.data);
-      if (quota === "daily") {
-        options.retryConfig = { ...options.retryConfig, retry: 0 };
-      }
       return response;
     } finally {
       emitGtmUsage(observer, {
