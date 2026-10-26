@@ -1,5 +1,7 @@
 import { tagmanager, tagmanager_v2 } from "@googleapis/tagmanager";
 import { paginateArray, type PaginationResult } from "./paginationUtils.js";
+import type { GtmRequestScheduler } from "./gtmRequestScheduler.js";
+import { createScheduledGtmAdapter } from "./gtmScheduledAdapter.js";
 import {
   createObservedGtmAdapter,
   gtmRetryConfig,
@@ -30,6 +32,8 @@ export interface GtmSnapshotRequest {
   namespace: string;
   fresh: boolean;
   call: GtmCall;
+  signal?: AbortSignal;
+  deadline?: number;
 }
 
 export interface GtmSnapshotResult {
@@ -75,9 +79,15 @@ interface SnapshotEntry {
   bytes: number;
 }
 
+interface PendingSnapshot {
+  promise: Promise<GtmSnapshotItem[]>;
+  controller: AbortController;
+  waiters: number;
+}
+
 export class ListSnapshotCache implements GtmSnapshotBackend {
   private entries = new Map<string, SnapshotEntry>();
-  private pending = new Map<string, Promise<GtmSnapshotItem[]>>();
+  private pending = new Map<string, PendingSnapshot>();
   private mutations = new Map<string, number>();
   private generation = 0;
   private bytes = 0;
@@ -85,6 +95,7 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
   constructor(
     private readonly options: {
       enabled?: boolean;
+      scheduler?: GtmRequestScheduler;
       observer?: GtmUsageObserver;
       ttlMs?: number;
       maxEntries?: number;
@@ -93,6 +104,7 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
   ) {}
 
   async read(request: GtmSnapshotRequest): Promise<GtmSnapshotResult> {
+    request.signal?.throwIfAborted();
     if (!isGtmSnapshotPath(request.path))
       throw new Error("Unsupported GTM snapshot path.");
     if (this.options.enabled === false)
@@ -120,28 +132,56 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
         ...request.call,
         event: "snapshot_wait",
       });
-      return { items: await existing, cache: "coalesced" };
+      return {
+        items: await this.waitFor(existing, request.signal),
+        cache: "coalesced",
+      };
     }
 
     const generation = this.generation;
-    const fill = this.load(request).then((items) => {
-      if (bypass) return items;
-      if (generation !== this.generation) return items;
-      // Superseded by a fresh read: storing would overwrite its newer snapshot.
-      if (this.pending.get(key) === fill) this.store(key, items);
-      return items;
-    });
+    const fill: PendingSnapshot = {
+      controller: new AbortController(),
+      waiters: 0,
+      promise: undefined!,
+    };
+    fill.promise = this.load({ ...request, signal: fill.controller.signal })
+      .then((items) => {
+        if (bypass || fill.controller.signal.aborted) return items;
+        if (generation !== this.generation) return items;
+        // Superseded by a fresh read: storing would overwrite its newer snapshot.
+        if (this.pending.get(key) === fill) this.store(key, items);
+        return items;
+      })
+      .finally(() => {
+        if (this.pending.get(key) === fill) this.pending.delete(key);
+      });
     if (!bypass) this.pending.set(key, fill);
+    return {
+      items: await this.waitFor(fill, request.signal),
+      cache:
+        bypass || request.fresh || generation !== this.generation
+          ? "bypass"
+          : "miss",
+    };
+  }
+
+  private async waitFor(
+    fill: PendingSnapshot,
+    signal?: AbortSignal,
+  ): Promise<GtmSnapshotItem[]> {
+    fill.waiters++;
+    let abort: (() => void) | undefined;
     try {
-      return {
-        items: await fill,
-        cache:
-          bypass || request.fresh || generation !== this.generation
-            ? "bypass"
-            : "miss",
-      };
+      if (!signal) return await fill.promise;
+      return await new Promise((resolve, reject) => {
+        abort = (): void => reject(signal.reason);
+        signal.addEventListener("abort", abort, { once: true });
+        fill.promise.then(resolve, reject);
+        if (signal.aborted) abort();
+      });
     } finally {
-      if (this.pending.get(key) === fill) this.pending.delete(key);
+      if (abort) signal?.removeEventListener("abort", abort);
+      if (--fill.waiters === 0) fill.controller.abort();
     }
   }
 
@@ -218,7 +258,15 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
     const client = tagmanager({
       version: "v2",
       headers: { Authorization: `Bearer ${request.token}` },
-      adapter: createObservedGtmAdapter(this.options.observer, request.call),
+      adapter: this.options.scheduler
+        ? createScheduledGtmAdapter(
+            this.options.scheduler,
+            this.options.observer,
+            request.call,
+            request.deadline,
+            request.signal,
+          )
+        : createObservedGtmAdapter(this.options.observer, request.call),
       retryConfig: gtmRetryConfig,
     });
     const items: GtmSnapshotItem[] = [];

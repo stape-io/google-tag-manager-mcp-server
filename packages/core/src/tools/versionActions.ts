@@ -7,6 +7,7 @@ import {
   createErrorResponse,
   getTagManagerClient,
   getServerGtmRuntime,
+  getGtmRequestSignal,
   ITEMS_PER_PAGE,
   log,
   processVersionData,
@@ -107,21 +108,29 @@ export const versionActions = (
           ),
       }),
     },
-    async ({
-      action,
-      accountId,
-      containerId,
-      containerVersionId,
-      createOrUpdateConfig,
-      fingerprint,
-      resourceType,
-      page,
-      itemsPerPage,
-      includeSummary,
-    }) => {
+    async (
+      {
+        action,
+        accountId,
+        containerId,
+        containerVersionId,
+        createOrUpdateConfig,
+        fingerprint,
+        resourceType,
+        page,
+        itemsPerPage,
+        includeSummary,
+      },
+      extra,
+    ) => {
       log(`Running tool: gtm_version with action ${action}`);
 
-      const invocation = runtime.startCall(auth, "gtm_version", action);
+      const invocation = runtime.startCall(
+        auth,
+        "gtm_version",
+        action,
+        getGtmRequestSignal(extra),
+      );
       try {
         const tagmanager = await getTagManagerClient(auth, invocation);
 

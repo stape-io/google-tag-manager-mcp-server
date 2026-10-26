@@ -6,6 +6,7 @@ import {
   createErrorResponse,
   getTagManagerClient,
   getServerGtmRuntime,
+  getGtmRequestSignal,
   log,
   paginateArray,
 } from "../utils/index.js";
@@ -56,17 +57,18 @@ export const versionHeaderActions = (
           ),
       }),
     },
-    async ({
-      action,
-      accountId,
-      containerId,
-      includeDeleted,
-      page,
-      itemsPerPage,
-    }) => {
+    async (
+      { action, accountId, containerId, includeDeleted, page, itemsPerPage },
+      extra,
+    ) => {
       log(`Running tool: gtm_version_header with action ${action}`);
 
-      const invocation = runtime.startCall(auth, "gtm_version_header", action);
+      const invocation = runtime.startCall(
+        auth,
+        "gtm_version_header",
+        action,
+        getGtmRequestSignal(extra),
+      );
       try {
         const tagmanager = await getTagManagerClient(auth, invocation);
 

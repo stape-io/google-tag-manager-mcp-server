@@ -7,6 +7,7 @@ import {
   createErrorResponse,
   getTagManagerClient,
   getServerGtmRuntime,
+  getGtmRequestSignal,
   log,
   paginateArray,
 } from "../utils/index.js";
@@ -60,17 +61,25 @@ export const userPermissionActions = (
           ),
       }),
     },
-    async ({
-      action,
-      accountId,
-      userPermissionId,
-      createOrUpdateConfig,
-      page,
-      itemsPerPage,
-    }) => {
+    async (
+      {
+        action,
+        accountId,
+        userPermissionId,
+        createOrUpdateConfig,
+        page,
+        itemsPerPage,
+      },
+      extra,
+    ) => {
       log(`Running tool: gtm_user_permission with action ${action}`);
 
-      const invocation = runtime.startCall(auth, "gtm_user_permission", action);
+      const invocation = runtime.startCall(
+        auth,
+        "gtm_user_permission",
+        action,
+        getGtmRequestSignal(extra),
+      );
       try {
         const tagmanager = await getTagManagerClient(auth, invocation);
 

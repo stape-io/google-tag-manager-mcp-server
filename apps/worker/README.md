@@ -2,7 +2,7 @@
 
 The HTTP and SSE handlers use `GtmReadCache` through the `GTM_READ_CACHE` Durable Object binding when `GTM_SNAPSHOT_CACHE_ENABLED` is `true`. Each object belongs to one Google user and configured Google OAuth client. Its entries are further isolated by MCP client, credential, and resource path.
 
-Snapshots and pending scans live in memory. Eviction causes a cache miss; no Google credential or snapshot is written to Durable Object storage. When the object is unreachable or its read deadline expires, list reads fall back to an uncached scan. The object returns only the requested page and exact totals to the Worker, including on cache hits. The default lifetime and retention limits are defined in [`listSnapshotCache.ts`](../../packages/core/src/utils/listSnapshotCache.ts). Account-side edits and permission changes can remain invisible until expiry; `fresh: true` bypasses stored snapshots. Mutation invalidation is deliberately conservative: it clears every snapshot for that Google user and OAuth configuration, across MCP clients.
+Snapshots and pending scans live in memory. Eviction causes a cache miss; no Google credential or snapshot is written to Durable Object storage. When the object is unreachable or its read deadline expires, list reads return an error. They never start a second scan while the first may still be running. The object returns only the requested page and exact totals to the Worker, including on cache hits. The default lifetime and retention limits are defined in [`listSnapshotCache.ts`](../../packages/core/src/utils/listSnapshotCache.ts). Account-side edits and permission changes can remain invisible until expiry; `fresh: true` bypasses stored snapshots. Mutation invalidation is deliberately conservative: it clears every snapshot for that Google user and OAuth configuration, across MCP clients.
 
 The default and `io` environments disable caching; `dev` enables it. Setting `GTM_SNAPSHOT_CACHE_ENABLED` to `false` bypasses the hosted cache while preserving usage events. An enabled environment requires the `GTM_READ_CACHE` binding and the `GtmReadCache` migration in [`wrangler.jsonc`](wrangler.jsonc).
 
@@ -12,22 +12,22 @@ A merge to `main` triggers the [.ai production deployment](../../.github/workflo
 
 The optional `GTM_USAGE` Analytics Engine binding receives events from both the API handler and cache object. Dataset names belong to each deployment environment in `wrangler.jsonc`.
 
-| Field            | Meaning                                                                                    |
-| ---------------- | ------------------------------------------------------------------------------------------ |
-| `index1`         | Tool name, used as the sampling key                                                        |
-| `blob1`          | Event: `tool_call`, `google_attempt`, `snapshot`, `snapshot_wait`, or `invalidation_error` |
-| `blob2`, `blob3` | Tool and action                                                                            |
-| `blob4`          | Snapshot result: `hit`, `miss`, `coalesced`, or `bypass`                                   |
-| `blob5`          | Quota category: `daily`, `rate`, `unknown`, or `none`                                      |
-| `blob6`          | Random correlation ID for the tool invocation                                              |
-| `double1`        | Event count                                                                                |
-| `double2`        | HTTP status; zero for network failures or non-HTTP events                                  |
-| `double3`        | Duration in milliseconds                                                                   |
-| `double4`        | Attempt number for the upstream request, including SDK retries                             |
+| Field            | Meaning                                                                                                                                  |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `index1`         | Tool name, used as the sampling key                                                                                                      |
+| `blob1`          | Event: `tool_call`, `google_attempt`, `snapshot`, `snapshot_wait`, `invalidation_error`, `queue_wait`, `queue_rejected`, or `retry_wait` |
+| `blob2`, `blob3` | Tool and action                                                                                                                          |
+| `blob4`          | Snapshot result: `hit`, `miss`, `coalesced`, or `bypass`                                                                                 |
+| `blob5`          | Quota category: `daily`, `rate`, `unknown`, or `none`                                                                                    |
+| `blob6`          | Random correlation ID for the tool invocation                                                                                            |
+| `double1`        | Event count                                                                                                                              |
+| `double2`        | HTTP status; zero for network failures or non-HTTP events                                                                                |
+| `double3`        | Duration in milliseconds                                                                                                                 |
+| `double4`        | Attempt number for the upstream request, including retries                                                                               |
 
 Use the [Analytics Engine SQL API](https://developers.cloudflare.com/analytics/analytics-engine/sql-api/) and weight aggregates by `_sample_interval`. Group `google_attempt` counts and `tool_call` counts by tool/action to calculate average Google attempts per MCP call. Group `snapshot` events by result to measure cache effectiveness. `snapshot_wait` records a caller waiting for an existing scan; it is separate from the completed snapshot result.
 
-Only the scan owner records the Google attempts of a coalesced fill. Cache hits record no Google attempt. Quota categories are diagnostic; Google Cloud quota metrics remain authoritative for daily project consumption. Known daily failures are not retried by instrumented GTM calls, including snapshot fills. Transient list failures use bounded SDK retries.
+Only the scan owner records the Google attempts of a coalesced fill. Cache hits record no Google attempt. Quota categories are diagnostic; Google Cloud quota metrics remain authoritative for daily project consumption. Known daily failures are not retried by instrumented GTM calls, including snapshot fills. With scheduling enabled, eligible failures use one bounded retry loop; every attempt re-enters the scheduler. With scheduling disabled, list reads retain the existing bounded SDK retry policy.
 
 Telemetry contains no authorization headers, tokens, emails, Google user IDs, MCP client IDs, resource paths, or GTM payloads. An Analytics Engine delivery failure does not fail a Google operation. Cache control operations and sign-out cache clearing have bounded waits. Invalidation failures record `invalidation_error` and Google writes continue; a post-write failure does not turn a successful Google operation into a retry. An existing mutation lease suppresses caching until it expires. If invalidation cannot be delivered, previously cached data can remain visible until normal snapshot expiry. Grant revocation does not depend on cache clearing succeeding.
 
@@ -47,3 +47,41 @@ npx wrangler deploy --dry-run --cwd apps/worker --env io
 ```
 
 Tests use the real MCP dispatch and a fake Google transport. Hosted adapter tests keep one cache object across independent HTTP requests. Live OAuth, the Cloudflare binding, Analytics Engine ingestion, and SSE need a development deployment to verify.
+
+## Shared project scheduling
+
+Set `GTM_REQUEST_SCHEDULER_ENABLED=true` and `GTM_QUOTA_PROJECT_ID` to the actual
+Google Cloud project that owns the quota. The `GTM_REQUEST_COORDINATOR` binding
+and v3 migration are included in every environment; scheduling remains disabled
+in all deployment configurations until QA/rollout configuration is supplied.
+All users and OAuth clients in this deployment sharing a project must use the
+same coordinator namespace and project key. Independent deployments have
+independent namespaces: they must use separate Google quota projects or share
+one central coordinator before both enable scheduling for the same project.
+
+`GTM_REQUEST_INTERVAL_MS` defaults to 4100 milliseconds and
+`GTM_REQUEST_MAX_PENDING` defaults to 25 future reservations. Set the interval
+from the actual approved project quota. The coordinator persists only its next
+reservation timestamp, never tokens, payloads, or identifiers. Cancelled slots
+are left unused until their scheduled time; caller cancellation never executes
+work in the coordinator. Old permits expire so suspended callers must requeue.
+
+Ordinary calls, cache misses, every Google pagination page, and retries all
+acquire permits; cache hits do not. Calls have a 25-second total upstream budget,
+including scheduling and backoff. Long scans can therefore return a deadline
+error; failed/partial scans are not cached. Backoff uses exponential delay plus
+jitter and honors `Retry-After` within the deadline. Explicit temporary quota
+rejections can retry. Reads can also retry transient network/408/5xx failures;
+writes are never replayed after ambiguous network/408/5xx outcomes. Daily quota,
+permission, and unclassified 403 failures stop immediately.
+
+`queue_wait` measures permit wait, `queue_rejected` records failed admission,
+and `retry_wait` records backoff duration, attempt, status and quota category in
+the existing Analytics Engine columns. They are separate from `google_attempt`.
+Cancellation crosses the cache-object hop as an explicit per-call message,
+because a subrequest abort alone does not reliably cancel object work. Shared
+scans continue until all readers cancel. If that control message cannot be
+delivered, the upstream deadline still bounds work.
+
+Run `npm run test:station` from the root for the isolated local Worker station.
+See [the QA handoff](../../docs/gtm-quota-qa-plan.md) for checks and responsibilities.

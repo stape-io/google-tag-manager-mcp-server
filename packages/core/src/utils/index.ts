@@ -7,3 +7,5 @@ export * from "./createGtmRuntime.js";
 export * from "./listSnapshotCache.js";
 export * from "./gtmTelemetry.js";
 export * from "./gtmCacheTimeout.js";
+export * from "./gtmRequestScheduler.js";
+export * from "./gtmScheduledAdapter.js";

@@ -560,13 +560,40 @@ describe("snapshot correctness", () => {
         await vi.waitFor(() => expect(stuck).toHaveBeenCalled());
         await vi.advanceTimersByTimeAsync(30_000);
         expect(done).toHaveBeenCalled();
-        expect((await pending).isError).not.toBe(true);
-        expect(api.calls).toHaveLength(1);
+        if (method === "read") {
+          expect((await pending).isError).toBe(true);
+          expect(api.calls).toHaveLength(0);
+        } else {
+          expect((await pending).isError).not.toBe(true);
+          expect(api.calls).toHaveLength(1);
+        }
       } finally {
         vi.useRealTimers();
       }
     },
   );
+
+  it("does not start a second Google scan when a hosted cache read times out", async () => {
+    let release!: (response: Response) => void;
+    api.respond = (): Promise<Response> =>
+      new Promise<Response>((resolve) => {
+        release = resolve;
+      });
+    const backend = new ListSnapshotCache();
+    const client = await open({ runtime: createGtmRuntime({ backend }) });
+    vi.useFakeTimers();
+    try {
+      const pending = client.callTool({ name: "gtm_tag", arguments: listArgs });
+      await vi.waitFor(() => expect(api.calls).toHaveLength(1));
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(api.calls).toHaveLength(1);
+      expect((await pending).isError).toBe(true);
+    } finally {
+      release(json({ tag: [] }));
+      await vi.advanceTimersByTimeAsync(0);
+      vi.useRealTimers();
+    }
+  });
 
   it("paginates a custom backend that only implements full snapshot reads", async () => {
     api.respond = (): Response =>

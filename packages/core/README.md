@@ -81,15 +81,15 @@ The default snapshot lifetime and retention limits are exported from [`listSnaps
 
 Snapshots are isolated by credential and resource path. The auth provider is called before every read, including cache hits. Mutations invalidate the runtime's snapshots before and after the Google request, including failed requests. A read that overlaps a mutation completes without storing its result; later reads load a new snapshot. Changes made outside this runtime, including GTM permission changes, become visible when the snapshot expires or the caller requests `fresh: true`.
 
-`createGtmRuntime()` provides an in-process backend for the CLI. The CLI enables caching by default and accepts `GTM_SNAPSHOT_CACHE_ENABLED=false` to disable it. `GtmSnapshotBackend.readPage()` optionally returns only the requested page and exact totals; backends that implement only `read()` remain supported. External backend reads and control operations have deadlines defined in [`gtmCacheTimeout.ts`](src/utils/gtmCacheTimeout.ts). A timed-out read falls back to an uncached scan. Invalidation failures emit `invalidation_error` and do not block Google writes; failed invalidation can leave previously cached data visible until expiry. A host can supply a `GtmSnapshotBackend` and a `GtmUsageObserver` through the optional `runtime` property of `createGtmMcpServer()` or `registerGtmTools()`. A supplied backend reports its own scan events (Google attempts and waits), so construct it with the same observer, for example `new ListSnapshotCache({ observer })`. A stateless host must reuse the backend across requests. Google requests keep the SDK transport, including its proxy settings; telemetry observes its adapter rather than replacing `fetch`. Confirmed daily-quota responses disable retries for that request while other operations retain the SDK retry policy. Observers receive allowlisted tool, cache, timing, status, and quota-category fields; they receive no credentials or GTM payloads.
+`createGtmRuntime()` provides an in-process backend for the CLI. The CLI enables caching by default and accepts `GTM_SNAPSHOT_CACHE_ENABLED=false` to disable it. `GtmSnapshotBackend.readPage()` optionally returns only the requested page and exact totals; backends that implement only `read()` remain supported. External backend reads and control operations have deadlines defined in [`gtmCacheTimeout.ts`](src/utils/gtmCacheTimeout.ts). A timed-out read returns an error without starting a duplicate scan. Invalidation failures emit `invalidation_error` and do not block Google writes; failed invalidation can leave previously cached data visible until expiry. A host can supply a `GtmSnapshotBackend` and a `GtmUsageObserver` through the optional `runtime` property of `createGtmMcpServer()` or `registerGtmTools()`. A supplied backend reports its own scan events (Google attempts and waits), so construct it with the same observer, for example `new ListSnapshotCache({ observer })`. A stateless host must reuse the backend across requests. Google requests keep the SDK transport, including its proxy settings; telemetry observes its adapter rather than replacing `fetch`. Confirmed daily-quota responses disable retries for that request while other operations retain the SDK retry policy. Observers receive allowlisted tool, cache, timing, status, and quota-category fields; they receive no credentials or GTM payloads.
 
 ## Built-in auth providers
 
-| Provider | Use it when |
-| --- | --- |
-| `createStaticTokenAuth({ accessToken, expiresAt })` | Some other layer already ran an OAuth flow and stores the token per session. Pass a function instead of an object when that session's token can be refreshed while the server runs. |
-| `createRefreshTokenAuth({ clientId, clientSecret, refreshToken })` | The server owns one Google account's credentials and mints access tokens itself. |
-| `createServiceAccountAuth({ clientEmail, privateKey, subject })` | The server authenticates as a service account (JWT bearer flow, RS256 via WebCrypto). Grant that service account access to the GTM accounts it manages, or use `subject` for domain-wide delegation. |
+| Provider                                                           | Use it when                                                                                                                                                                                          |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createStaticTokenAuth({ accessToken, expiresAt })`                | Some other layer already ran an OAuth flow and stores the token per session. Pass a function instead of an object when that session's token can be refreshed while the server runs.                  |
+| `createRefreshTokenAuth({ clientId, clientSecret, refreshToken })` | The server owns one Google account's credentials and mints access tokens itself.                                                                                                                     |
+| `createServiceAccountAuth({ clientEmail, privateKey, subject })`   | The server authenticates as a service account (JWT bearer flow, RS256 via WebCrypto). Grant that service account access to the GTM accounts it manages, or use `subject` for domain-wide delegation. |
 
 ## Also exported
 
@@ -102,3 +102,18 @@ Snapshots are isolated by credential and resource path. The auth provider is cal
 ## License
 
 Apache-2.0
+
+## Optional request scheduling
+
+Pass `scheduler: new LocalGtmRequestScheduler()` to `createGtmRuntime()` to pace
+all Google attempts, including cache fills and retries, in one process. Share
+one scheduler between runtimes that use the same quota project. Its defaults
+are 4100ms between permits and 25 queued requests. A hosted deployment needs a
+shared coordinator across processes; a local scheduler does not coordinate
+separate CLI processes or other applications using the same Google project.
+
+The CLI accepts `GTM_REQUEST_SCHEDULER_ENABLED=true`, with optional
+`GTM_REQUEST_INTERVAL_MS` and `GTM_REQUEST_MAX_PENDING`. Scheduling is opt-in.
+Scheduled calls use a 25-second total budget, bounded backoff and cancellation.
+Daily and permission errors stop; uncertain writes are not replayed. Each retry
+obtains a new permit and records its actual attempt separately from queue wait.

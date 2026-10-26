@@ -14,6 +14,7 @@ import { SERVER_INFO } from "./constants/serverInfo";
 import { UNAUTHORIZED_HINT } from "./constants/tools";
 import { createMcpApiHandler } from "./mcpHandler";
 export { GtmReadCache } from "./GtmReadCache";
+export { GtmRequestCoordinator } from "./GtmRequestCoordinator";
 import { McpAgentPropsModel } from "./models/McpAgentModel";
 import {
   hostNoticeServerOptions,

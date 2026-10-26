@@ -24,7 +24,8 @@
     "changeset": "changeset",
     "release": "npm run build && changeset publish",
     "test": "npm run test --workspaces --if-present",
-    "smoke": "node scripts/smoke-cli.mjs"
+    "smoke": "node scripts/smoke-cli.mjs",
+    "test:station": "npm run build && tsc -p scripts/local-station/tsconfig.json && node scripts/local-station/run.mjs"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.0",

@@ -29,6 +29,12 @@ jobs:
       - name: Smoke test the CLI
         run: npm run smoke
 
+      - name: Exercise the local Worker test station
+        run: npx tsc -p scripts/local-station/tsconfig.json && node scripts/local-station/run.mjs
+        timeout-minutes: 2
+        env:
+          WRANGLER_SEND_METRICS: "false"
+
       # Deploys from main have no other gate, so the bundle is proven here.
       - name: Bundle the Worker
         run: |

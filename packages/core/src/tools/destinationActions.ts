@@ -5,6 +5,7 @@ import {
   createErrorResponse,
   getTagManagerClient,
   getServerGtmRuntime,
+  getGtmRequestSignal,
   log,
   paginateArray,
 } from "../utils/index.js";
@@ -47,10 +48,15 @@ export const destinationActions = (
           ),
       }),
     },
-    async ({ accountId, containerId, page, itemsPerPage }) => {
+    async ({ accountId, containerId, page, itemsPerPage }, extra) => {
       log(`Running tool: gtag_destination with action list`);
 
-      const invocation = runtime.startCall(auth, "gtag_destination", "list");
+      const invocation = runtime.startCall(
+        auth,
+        "gtag_destination",
+        "list",
+        getGtmRequestSignal(extra),
+      );
       try {
         const tagmanager = await getTagManagerClient(auth, invocation);
 

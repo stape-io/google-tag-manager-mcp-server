@@ -7,6 +7,7 @@ import {
   createErrorResponse,
   getTagManagerClient,
   getServerGtmRuntime,
+  getGtmRequestSignal,
   log,
   paginateArray,
 } from "../utils/index.js";
@@ -77,18 +78,26 @@ export const environmentActions = (
           ),
       }),
     },
-    async ({
-      action,
-      accountId,
-      containerId,
-      environmentId,
-      createOrUpdateConfig,
-      fingerprint,
-      page,
-      itemsPerPage,
-    }) => {
+    async (
+      {
+        action,
+        accountId,
+        containerId,
+        environmentId,
+        createOrUpdateConfig,
+        fingerprint,
+        page,
+        itemsPerPage,
+      },
+      extra,
+    ) => {
       log(`Running tool: gtm_environment with action ${action}`);
-      const invocation = runtime.startCall(auth, "gtm_environment", action);
+      const invocation = runtime.startCall(
+        auth,
+        "gtm_environment",
+        action,
+        getGtmRequestSignal(extra),
+      );
       try {
         const tagmanager = await getTagManagerClient(auth, invocation);
         switch (action) {

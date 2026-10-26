@@ -16,7 +16,10 @@ export interface GtmUsageEvent extends GtmCall {
     | "google_attempt"
     | "snapshot"
     | "snapshot_wait"
-    | "invalidation_error";
+    | "invalidation_error"
+    | "queue_wait"
+    | "queue_rejected"
+    | "retry_wait";
   status?: number;
   durationMs?: number;
   attempt?: number;

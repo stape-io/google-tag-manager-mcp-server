@@ -6,6 +6,7 @@ import {
   createErrorResponse,
   getTagManagerClient,
   getServerGtmRuntime,
+  getGtmRequestSignal,
   log,
 } from "../utils/index.js";
 
@@ -34,10 +35,15 @@ export const accountActions = (
         ),
       }),
     },
-    async ({ action, accountId, config }) => {
+    async ({ action, accountId, config }, extra) => {
       log(`Running tool: gtm_account with action ${action}`);
 
-      const invocation = runtime.startCall(auth, "gtm_account", action);
+      const invocation = runtime.startCall(
+        auth,
+        "gtm_account",
+        action,
+        getGtmRequestSignal(extra),
+      );
       try {
         const tagmanager = await getTagManagerClient(auth, invocation);
 

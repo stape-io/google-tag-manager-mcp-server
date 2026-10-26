@@ -7,6 +7,7 @@ import {
   createErrorResponse,
   getTagManagerClient,
   getServerGtmRuntime,
+  getGtmRequestSignal,
   log,
 } from "../utils/index.js";
 import Schema$Trigger = tagmanager_v2.Schema$Trigger;
@@ -84,21 +85,29 @@ export const triggerActions = (
           ),
       }),
     },
-    async ({
-      action,
-      accountId,
-      containerId,
-      workspaceId,
-      triggerId,
-      createOrUpdateConfig,
-      fingerprint,
-      page,
-      itemsPerPage,
-      fresh,
-    }) => {
+    async (
+      {
+        action,
+        accountId,
+        containerId,
+        workspaceId,
+        triggerId,
+        createOrUpdateConfig,
+        fingerprint,
+        page,
+        itemsPerPage,
+        fresh,
+      },
+      extra,
+    ) => {
       log(`Running tool: gtm_trigger with action ${action}`);
 
-      const invocation = runtime.startCall(auth, "gtm_trigger", action);
+      const invocation = runtime.startCall(
+        auth,
+        "gtm_trigger",
+        action,
+        getGtmRequestSignal(extra),
+      );
       try {
         if (action === "list") {
           const result = await invocation.listPage(

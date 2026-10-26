@@ -184,7 +184,7 @@ describe("hosted snapshot cache", () => {
     expect(google).toHaveBeenCalledTimes(1);
   });
 
-  it("falls back to an uncached scan when the cache object is unreachable", async () => {
+  it("does not start another scan when cache delivery fails with an uncertain outcome", async () => {
     const google = vi.fn(async () => Response.json({ tag: [] }));
     vi.stubGlobal("fetch", google);
     const unreachable = {
@@ -199,8 +199,8 @@ describe("hosted snapshot cache", () => {
       },
     } as unknown as Env;
     const result = await call(args, props, "gtm_tag", unreachable);
-    expect(result.result?.isError).not.toBe(true);
-    expect(google).toHaveBeenCalledTimes(1);
+    expect(result.result?.isError).toBe(true);
+    expect(google).toHaveBeenCalledTimes(0);
   });
 
   it("takes a new cache stub after one has failed", async () => {
@@ -227,11 +227,16 @@ describe("hosted snapshot cache", () => {
     } as unknown as Env;
     const runtime = createHostedGtmRuntime(flaky, props);
     const auth = { getAccessToken: async (): Promise<string> => "token" };
-    for (let index = 0; index < 3; index++)
+    await expect(
+      runtime
+        .startCall(auth, "gtm_tag", "list")
+        .listSnapshot("accounts/1/containers/2/workspaces/3/tags", false),
+    ).rejects.toThrow("unavailable");
+    for (let index = 0; index < 2; index++)
       await runtime
         .startCall(auth, "gtm_tag", "list")
         .listSnapshot("accounts/1/containers/2/workspaces/3/tags", false);
-    expect(google).toHaveBeenCalledTimes(2);
+    expect(google).toHaveBeenCalledTimes(1);
   });
 
   it("supports a rollout switch without consulting the hosted cache", async () => {

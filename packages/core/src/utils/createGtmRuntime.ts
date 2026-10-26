@@ -7,7 +7,6 @@ import {
   GtmUsageObserver,
 } from "./gtmTelemetry.js";
 import {
-  GtmCacheTimeoutError,
   GTM_CACHE_READ_TIMEOUT_MS,
   withGtmCacheTimeout,
 } from "./gtmCacheTimeout.js";
@@ -21,6 +20,11 @@ import {
   ListSnapshotCache,
 } from "./listSnapshotCache.js";
 import { paginateArray, type PaginationResult } from "./paginationUtils.js";
+import type { GtmRequestScheduler } from "./gtmRequestScheduler.js";
+import {
+  createScheduledGtmAdapter,
+  GTM_REQUEST_DEADLINE_MS,
+} from "./gtmScheduledAdapter.js";
 
 export interface GtmInvocation {
   adapter: GtmRequestAdapter;
@@ -34,7 +38,12 @@ export interface GtmInvocation {
 }
 
 export interface GtmRuntime {
-  startCall(auth: GtmAuthProvider, tool: string, action: string): GtmInvocation;
+  startCall(
+    auth: GtmAuthProvider,
+    tool: string,
+    action: string,
+    signal?: AbortSignal,
+  ): GtmInvocation;
   clear(): Promise<void>;
 }
 
@@ -52,6 +61,7 @@ export function createGtmRuntime(
     observer?: GtmUsageObserver;
     namespace?: string;
     enabled?: boolean;
+    scheduler?: GtmRequestScheduler;
   } = {},
 ): GtmRuntime {
   const backend =
@@ -60,39 +70,28 @@ export function createGtmRuntime(
       : new ListSnapshotCache({
           enabled: options.enabled,
           observer: options.observer,
+          scheduler: options.scheduler,
         });
-  const direct = new ListSnapshotCache({
-    enabled: false,
-    observer: options.observer,
-  });
   async function read(request: GtmSnapshotRequest): Promise<GtmSnapshotResult> {
     if (!options.backend || options.enabled === false)
       return backend.read(request);
-    try {
-      return await withGtmCacheTimeout(
-        () => backend.read(request),
-        GTM_CACHE_READ_TIMEOUT_MS,
-      );
-    } catch (error) {
-      if (!(error instanceof GtmCacheTimeoutError)) throw error;
-      return direct.read(request);
-    }
+    // A timed-out backend may still be fetching Google pages. Starting a
+    // fallback scan would duplicate that work and consume more quota.
+    return withGtmCacheTimeout(
+      () => backend.read(request),
+      GTM_CACHE_READ_TIMEOUT_MS,
+    );
   }
   async function readPage(
     request: GtmSnapshotPageRequest,
   ): Promise<GtmSnapshotPageResult> {
     if (backend.readPage) {
-      try {
-        if (!options.backend || options.enabled === false)
-          return backend.readPage(request);
-        return await withGtmCacheTimeout(
-          () => backend.readPage!(request),
-          GTM_CACHE_READ_TIMEOUT_MS,
-        );
-      } catch (error) {
-        if (!(error instanceof GtmCacheTimeoutError)) throw error;
-        return direct.readPage(request);
-      }
+      if (!options.backend || options.enabled === false)
+        return backend.readPage(request);
+      return withGtmCacheTimeout(
+        () => backend.readPage!(request),
+        GTM_CACHE_READ_TIMEOUT_MS,
+      );
     }
     const { items, cache } = await read(request);
     return {
@@ -102,10 +101,19 @@ export function createGtmRuntime(
   }
   return {
     clear: () => withGtmCacheTimeout(() => backend.clear()),
-    startCall(auth, tool, action): GtmInvocation {
+    startCall(auth, tool, action, signal): GtmInvocation {
       const call = { tool, action, callId: crypto.randomUUID() };
+      const deadline = Date.now() + GTM_REQUEST_DEADLINE_MS;
       emitGtmUsage(options.observer, { ...call, event: "tool_call" });
-      const observedAdapter = createObservedGtmAdapter(options.observer, call);
+      const observedAdapter = options.scheduler
+        ? createScheduledGtmAdapter(
+            options.scheduler,
+            options.observer,
+            call,
+            deadline,
+            signal,
+          )
+        : createObservedGtmAdapter(options.observer, call);
       const adapter: GtmRequestAdapter = async (request, defaultAdapter) => {
         const mutation = isGtmMutation(
           (request.method ?? "GET").toUpperCase(),
@@ -144,6 +152,8 @@ export function createGtmRuntime(
             namespace: options.namespace ?? "",
             fresh,
             call,
+            signal,
+            deadline,
           });
           emitGtmUsage(options.observer, {
             ...call,
@@ -169,6 +179,8 @@ export function createGtmRuntime(
             call,
             page,
             itemsPerPage,
+            signal,
+            deadline,
           });
           emitGtmUsage(options.observer, {
             ...call,
