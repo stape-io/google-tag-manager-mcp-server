@@ -1,5 +1,8 @@
+import { GTM_LIST_DEADLINE_MS } from "./gtmScheduledAdapter.js";
+
 export const GTM_CACHE_CONTROL_TIMEOUT_MS = 1_000;
-export const GTM_CACHE_READ_TIMEOUT_MS = 30_000;
+// Allow the list producer budget plus delivery time across the backend hop.
+export const GTM_CACHE_READ_TIMEOUT_MS = GTM_LIST_DEADLINE_MS + 5_000;
 
 export class GtmCacheTimeoutError extends Error {}
 

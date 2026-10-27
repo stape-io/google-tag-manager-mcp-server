@@ -19,6 +19,48 @@ describe("GTM request scheduling", () => {
         times.filter((time) => time >= at && time < at + 100_000).length,
       ).toBeLessThanOrEqual(25);
   });
+  it("rejects the eighth default simultaneous request immediately without consuming a slot", async () => {
+    vi.useFakeTimers({ now: 0 });
+    const scheduler = new LocalGtmRequestScheduler();
+    const times: number[] = [];
+    const pending = Array.from({ length: 7 }, () =>
+      scheduler.acquire({ deadline: 25_000 }).then(() => {
+        times.push(Date.now());
+      }),
+    );
+    await expect(scheduler.acquire({ deadline: 25_000 })).rejects.toMatchObject(
+      { reason: "deadline" },
+    );
+    expect(Date.now()).toBe(0);
+    await vi.advanceTimersByTimeAsync(24_600);
+    await Promise.all(pending);
+    expect(times).toEqual([0, 4100, 8200, 12300, 16400, 20500, 24600]);
+    const next = scheduler.acquire({ deadline: 30_000 });
+    await vi.advanceTimersByTimeAsync(4100);
+    await next;
+    expect(Date.now()).toBe(28_700);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("recomputes admission after cancellation frees an earlier FIFO slot", async () => {
+    vi.useFakeTimers({ now: 0 });
+    const scheduler = new LocalGtmRequestScheduler({ intervalMs: 100 });
+    await scheduler.acquire({ deadline: 1000 });
+    const controller = new AbortController();
+    const cancelled = expect(
+      scheduler.acquire({ deadline: 1000, signal: controller.signal }),
+    ).rejects.toMatchObject({ reason: "cancelled" });
+    await expect(scheduler.acquire({ deadline: 150 })).rejects.toMatchObject({
+      reason: "deadline",
+    });
+    controller.abort();
+    await cancelled;
+    const admitted = scheduler.acquire({ deadline: 150 });
+    await vi.advanceTimersByTimeAsync(100);
+    await admitted;
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("paces concurrent users in FIFO order at one permit per interval", async () => {
     vi.useFakeTimers({ now: 0 });
     const scheduler = new LocalGtmRequestScheduler({ intervalMs: 4_100 });

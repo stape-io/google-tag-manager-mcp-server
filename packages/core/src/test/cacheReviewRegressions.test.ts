@@ -48,7 +48,12 @@ describe("cache review regressions", () => {
     });
     api.respond = (): Promise<Response> => {
       entered();
-      return new Promise(() => {});
+      return new Promise((resolve) =>
+        setTimeout(
+          () => resolve(json({ nextPageToken: String(api.calls.length) })),
+          1000,
+        ),
+      );
     };
     const cache = new ListSnapshotCache({
       scheduler: new LocalGtmRequestScheduler({ intervalMs: 1 }),
@@ -63,14 +68,14 @@ describe("cache review regressions", () => {
     const second = expect(
       cache.read({
         ...request,
-        deadline: 40_000,
+        deadline: 400_000,
         call: { ...request.call, callId: "longer" },
       }),
     ).rejects.toMatchObject({ reason: "deadline" });
     await joined;
-    await vi.advanceTimersByTimeAsync(25_000);
+    await vi.advanceTimersByTimeAsync(300_000);
     await Promise.all([first, second]);
-    expect(api.calls).toHaveLength(1);
+    expect(api.calls).toHaveLength(300);
     expect(vi.getTimerCount()).toBe(0);
   });
   it.each([0, -1])(

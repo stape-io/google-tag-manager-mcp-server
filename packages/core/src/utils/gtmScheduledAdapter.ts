@@ -14,6 +14,7 @@ import {
 import { isGtmReadOnlyRequest } from "./gtmRequestPolicy.js";
 
 export const GTM_REQUEST_DEADLINE_MS = 25_000;
+export const GTM_LIST_DEADLINE_MS = 5 * 60_000;
 
 function upstreamResponseError(status: number, body: unknown): Error {
   const detail = body as { error?: { message?: unknown } } | null;
@@ -46,11 +47,15 @@ export function createScheduledGtmAdapter(
   scheduler: GtmRequestScheduler,
   observer: GtmUsageObserver | undefined,
   call: GtmCall,
-  deadline = Date.now() + GTM_REQUEST_DEADLINE_MS,
+  operationDeadline = Date.now() + GTM_REQUEST_DEADLINE_MS,
   callerSignal?: AbortSignal,
 ): GtmRequestAdapter {
   const observed = createObservedGtmAdapter(observer, call);
   return async (options, defaultAdapter) => {
+    const deadline = Math.min(
+      operationDeadline,
+      Date.now() + GTM_REQUEST_DEADLINE_MS,
+    );
     if (deadline <= Date.now()) throw new GtmSchedulingError("deadline");
     const controller = new AbortController();
     const timer = setTimeout(

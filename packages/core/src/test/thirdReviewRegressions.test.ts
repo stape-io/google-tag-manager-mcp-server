@@ -59,6 +59,33 @@ it("lets later readers recover from a hung scan without timing out its existing 
   expect(api.calls).toHaveLength(2);
 });
 
+it("keeps sharing a healthy scan that completes pages beyond 30 seconds", async () => {
+  vi.useFakeTimers({ now: 0 });
+  vi.spyOn(crypto.subtle, "digest").mockResolvedValue(new ArrayBuffer(32));
+  let entered!: () => void;
+  const started = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  api.respond = async (call): Promise<Response> => {
+    entered();
+    const page = Number(new URL(call.url).searchParams.get("pageToken") || 0);
+    await new Promise((resolve) => setTimeout(resolve, 10_000));
+    return json({
+      tag: [{ name: String(page) }],
+      ...(page < 3 ? { nextPageToken: String(page + 1) } : {}),
+    });
+  };
+  const cache = new ListSnapshotCache();
+  const first = cache.read(request);
+  await started;
+  await vi.advanceTimersByTimeAsync(30_000);
+  const joined = cache.read(request);
+  await vi.advanceTimersByTimeAsync(10_000);
+  expect((await first).items).toHaveLength(4);
+  expect((await joined).cache).toBe("coalesced");
+  expect(api.calls).toHaveLength(4);
+});
+
 it.each(["before", "after"])(
   "an old scan completing %s its replacement cannot remove or overwrite it",
   async (order) => {

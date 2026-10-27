@@ -3,16 +3,8 @@
 "google-tag-manager-mcp-server": minor
 ---
 
-Reuse bounded, credential-isolated snapshots for tag, trigger, and variable lists across numeric pages, coalesce concurrent scans, and add a fresh-read option. Invalidate snapshots around mutations and expose pluggable cache and usage adapters for hosted servers.
+Cache complete tag, trigger, and variable lists across numeric pages for 30 seconds, with credential/resource isolation and bounded retention. Add `fresh: true` to bypass cached and shared reads, and invalidate snapshots around mutations. The CLI enables caching by default; set `GTM_SNAPSHOT_CACHE_ENABLED=false` to opt out. Core embedders can supply cache backends and usage observers or disable caching through `createGtmRuntime`.
 
-The hosted Worker shares snapshots through a separate Durable Object and records minimal Analytics Engine usage events. Caching is enabled in development and remains behind a production rollout switch.
+Add opt-in request scheduling with paced Google attempts, bounded quota retries, and cancellation. The CLI accepts `GTM_REQUEST_SCHEDULER_ENABLED=true`; a local scheduler coordinates one process. Supplied cache backends must configure their own scheduler. Scheduled lists have a five-minute total budget, with up to 25 seconds per upstream request including queueing and retries; ordinary calls retain a 25-second total budget. Unscheduled reads retain normal caller and transport limits.
 
-The CLI enables list snapshots by default. Set `GTM_SNAPSHOT_CACHE_ENABLED=false` to disable them; GTM UI edits can otherwise remain invisible until snapshot expiry unless `fresh: true` is requested.
-
-Add opt-in shared request scheduling, bounded quota retries and cancellation. Prevent duplicate scans after cache delivery failures or timeouts, and avoid replaying uncertain writes when scheduling is enabled.
-
-Require Node.js 20.3+, propagate cancellation with or without scheduling, isolate subscriber deadlines, prevent abandoned mutation leases, and account for coordinator delivery latency without widening permits. Preserve Google error details when retry budgets expire and return defensive cache copies.
-
-Keep unscheduled read timing independent of caching, exclude queue waits from coordinator latency estimates, preserve upstream error context when retry/admission budgets expire, and distinguish timeout cleanup from user cancellation.
-
-Limit shared-scan admission to 30 seconds without timing out existing readers, and document scheduler configuration for supplied cache backends.
+Require Node.js 20.3 or newer.

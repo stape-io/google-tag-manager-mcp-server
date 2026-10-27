@@ -2,7 +2,7 @@
 
 The HTTP and SSE handlers use `GtmReadCache` through the `GTM_READ_CACHE` Durable Object binding when `GTM_SNAPSHOT_CACHE_ENABLED` is `true`. Each object belongs to one Google user and configured Google OAuth client. Its entries are further isolated by MCP client, credential, and resource path.
 
-Snapshots and pending scans live in memory. Eviction causes a cache miss; no Google credential or snapshot is written to Durable Object storage. When the object is unreachable, or its read deadline expires with scheduling enabled, list reads return an error. A failed or timed-out cache delivery does not trigger a fallback scan. A scan accepts new readers for its first 30 seconds; later readers can start a replacement while existing readers continue waiting. Superseded scans cannot overwrite replacement results. The object returns only the requested page and exact totals to the Worker, including on cache hits. The default lifetime and retention limits are defined in [`listSnapshotCache.ts`](../../packages/core/src/utils/listSnapshotCache.ts). Account-side edits and permission changes can remain invisible until expiry; `fresh: true` bypasses stored snapshots. Mutation invalidation is deliberately conservative: it clears every snapshot for that Google user and OAuth configuration, across MCP clients.
+Snapshots and pending scans live in memory. Eviction causes a cache miss; no Google credential or snapshot is written to Durable Object storage. When the object is unreachable, or its read deadline expires with scheduling enabled, list reads return an error. A failed or timed-out cache delivery does not trigger a fallback scan. Completed pages refresh a 30-second inactivity window for sharing a scan. After 30 seconds without a completed page, later readers can start a replacement while existing readers continue waiting. Scheduled scans also stop admitting new readers when less than 25 seconds remains in their producer budget. Superseded scans cannot overwrite replacement results. The object returns only the requested page and exact totals to the Worker, including on cache hits. The default lifetime and retention limits are defined in [`listSnapshotCache.ts`](../../packages/core/src/utils/listSnapshotCache.ts). Account-side edits and permission changes can remain invisible until expiry; `fresh: true` bypasses stored snapshots. Mutation invalidation is deliberately conservative: it clears every snapshot for that Google user and OAuth configuration, across MCP clients.
 
 The default and `io` environments disable caching; `dev` enables it. Setting `GTM_SNAPSHOT_CACHE_ENABLED` to `false` bypasses the hosted cache while preserving usage events. An enabled environment requires the `GTM_READ_CACHE` binding and the `GtmReadCache` migration in [`wrangler.jsonc`](wrangler.jsonc).
 
@@ -67,8 +67,8 @@ are left unused until their scheduled time; caller cancellation never executes
 work in the coordinator. Old permits expire so suspended callers must requeue. If delivery latency exceeds a permit's validity, the next reservation is placed ahead of measured round-trip latency without widening the validity window. Renewal is capped at three attempts. Delivery latency is measured before waiting for a reserved slot, so queue time and late timer wake-ups do not inflate the delivery estimate.
 
 Ordinary calls, cache misses, every Google pagination page, and retries all
-acquire permits; cache hits do not. With scheduling enabled, readers have their own 25-second budgets. A shared scan has a separate fixed
-25-second producer budget, including scheduling and backoff. Long scans can therefore return a deadline
+acquire permits; cache hits do not. With scheduling enabled, ordinary calls have a 25-second total budget and list readers have five-minute budgets. A shared scan has a separate fixed
+five-minute producer budget. Each upstream request, including queueing and retries, has up to 25 seconds, clipped to the remaining operation budget. The external cache read guard allows 305 seconds, including delivery. Clients must allow enough request time to benefit from longer lists; cancellation still applies. Long scans can therefore return a deadline
 error; failed/partial scans are not cached. Backoff uses exponential delay plus
 jitter and honors `Retry-After` within the deadline. Explicit temporary quota
 rejections can retry. Reads can also retry transient network/408/5xx failures;
@@ -104,3 +104,5 @@ Deadline failures retain the preceding upstream network/quota error as cause
 and message context when available. The deadline or admission error remains the
 primary failure. Explicit user cancellation is reported separately; a reader
 expiring does not turn into a user-cancellation metric.
+
+Coordinator transport failures and unreadable response bodies return a consistent unavailable message. Structured queue-full/deadline responses and caller cancellation retain their specific errors. Internal delivery errors remain available as causes rather than in user-facing messages. Sign-out retains its own one-second cache-clear boundary even though the standard runtime also bounds clearing.

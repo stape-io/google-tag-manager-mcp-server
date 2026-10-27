@@ -24,6 +24,7 @@ import type { GtmRequestScheduler } from "./gtmRequestScheduler.js";
 import {
   createScheduledGtmAdapter,
   GTM_REQUEST_DEADLINE_MS,
+  GTM_LIST_DEADLINE_MS,
 } from "./gtmScheduledAdapter.js";
 import { isGtmReadOnlyRequest } from "./gtmRequestPolicy.js";
 
@@ -100,7 +101,8 @@ export function createGtmRuntime(
       const call = { tool, action, callId: crypto.randomUUID() };
       // Caching must not impose a new operation deadline on unscheduled calls.
       const deadline = options.scheduler
-        ? Date.now() + GTM_REQUEST_DEADLINE_MS
+        ? Date.now() +
+          (action === "list" ? GTM_LIST_DEADLINE_MS : GTM_REQUEST_DEADLINE_MS)
         : undefined;
       emitGtmUsage(options.observer, { ...call, event: "tool_call" });
       const observedAdapter = options.scheduler

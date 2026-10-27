@@ -95,6 +95,16 @@ export class LocalGtmRequestScheduler implements GtmRequestScheduler {
     if (this.queue.length >= (this.options.maxPending ?? 25))
       return Promise.reject(new GtmSchedulingError("full"));
 
+    // Predict the FIFO slot, skipping work that expires before it can run.
+    // Reject now rather than keeping an unserviceable caller until its timeout.
+    let at = Math.max(Date.now(), this.nextAt);
+    for (const waiter of this.queue) {
+      if (!waiter.request.signal?.aborted && waiter.request.deadline > at)
+        at += this.options.intervalMs ?? 4_100;
+    }
+    if (at >= request.deadline)
+      return Promise.reject(new GtmSchedulingError("deadline"));
+
     return new Promise<void>((resolve, reject) => {
       let settled = false;
       const abort = (): void =>

@@ -112,6 +112,87 @@ afterEach(() => {
 });
 
 describe("hosted snapshot cache", () => {
+  it("completes a scheduled hosted list beyond the former 30-second cache guard", async () => {
+    vi.useFakeTimers({ now: 0 });
+    vi.spyOn(crypto.subtle, "digest").mockResolvedValue(new ArrayBuffer(32));
+    let nextAt = 0;
+    const deadlines: number[] = [];
+    const scheduledEnv = {
+      ...env,
+      GTM_REQUEST_SCHEDULER_ENABLED: "true",
+      GTM_QUOTA_PROJECT_ID: "project",
+      GTM_REQUEST_COORDINATOR: {
+        idFromName: (name: string): string => name,
+        get: (): unknown => ({
+          fetch: async (
+            _input: string,
+            init: RequestInit,
+          ): Promise<Response> => {
+            deadlines.push(JSON.parse(String(init.body)).deadline);
+            const at = Math.max(Date.now(), nextAt);
+            nextAt = at + 4100;
+            return Response.json({ at, expiresAt: at + 1000 });
+          },
+        }),
+      },
+    } as unknown as Env;
+    const cache = new GtmReadCache({} as DurableObjectState, scheduledEnv);
+    const workerEnv = {
+      ...scheduledEnv,
+      GTM_READ_CACHE: {
+        idFromName: (name: string): string => name,
+        get: (): unknown => ({
+          fetch: (input: string, init: RequestInit): Promise<Response> =>
+            cache.fetch(new Request(input, init)),
+        }),
+      },
+    } as unknown as Env;
+    let entered!: () => void;
+    const started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const google = vi.fn(
+      async (input: string | URL | Request): Promise<Response> => {
+        entered();
+        const url = new URL(
+          input instanceof Request ? input.url : String(input),
+        );
+        const page = Number(url.searchParams.get("pageToken") || 0);
+        return Response.json({
+          tag: [{ name: String(page) }],
+          ...(page < 8 ? { nextPageToken: String(page + 1) } : {}),
+        });
+      },
+    );
+    vi.stubGlobal("fetch", google);
+    const runtime = createHostedGtmRuntime(workerEnv, {
+      ...props,
+      expiresAt: 3600,
+    });
+    const auth = { getAccessToken: async (): Promise<string> => "fake-token" };
+    const path = "accounts/1/containers/2/workspaces/3/tags";
+    try {
+      const pending = runtime
+        .startCall(auth, "gtm_tag", "list")
+        .listPage(path, false, 1, 20);
+      await vi.advanceTimersByTimeAsync(1);
+      await started;
+      await vi.advanceTimersByTimeAsync(33_000);
+      expect((await pending).data).toHaveLength(9);
+      expect(google).toHaveBeenCalledTimes(9);
+      expect(deadlines).toHaveLength(9);
+      // Each page gets a fresh request budget rather than a 300-second permit.
+      expect(deadlines[0]).toBe(25_000);
+      expect(deadlines[8]).toBe(53_700);
+      await runtime
+        .startCall(auth, "gtm_tag", "list")
+        .listPage(path, false, 1, 20);
+      expect(google).toHaveBeenCalledTimes(9);
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
   it("shares snapshots between separate stateless HTTP requests and records only real Google attempts", async () => {
     const google = vi.fn(async () =>
       Response.json({

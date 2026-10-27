@@ -84,7 +84,7 @@ mutate retained cache data through these APIs. Node.js 20.3 or newer is required
 
 `gtm_tag`, `gtm_trigger`, and `gtm_variable` reuse a complete list snapshot across numeric pages. `page`, `itemsPerPage`, and exact pagination totals retain their existing meaning. `fresh: true` bypasses stored snapshots and in-flight scans; resource `get` calls always reach Google.
 
-The default snapshot lifetime and retention limits are exported from [`listSnapshotCache.ts`](src/utils/listSnapshotCache.ts). Reads do not extend expiration. Concurrent reads of the same list share one upstream scan for up to 30 seconds after that scan starts. Later readers start a replacement scan, while existing readers can continue waiting for the original. This admission window does not impose an operation timeout. A superseded scan cannot overwrite the replacement snapshot. Failed and incomplete scans are not cached.
+The default snapshot lifetime and retention limits are exported from [`listSnapshotCache.ts`](src/utils/listSnapshotCache.ts). Reads do not extend expiration. Concurrent reads of the same list share one upstream scan while it completes a page at least every 30 seconds. Each completed page refreshes this inactivity window. After 30 seconds without a completed page, later readers start a replacement scan while existing readers can continue waiting for the original. This admission window does not impose an operation timeout. A superseded scan cannot overwrite the replacement snapshot. Failed and incomplete scans are not cached.
 
 Snapshots are isolated by credential and resource path. The auth provider is called before every read, including cache hits. Mutations invalidate the runtime's snapshots before and after the Google request, including failed requests. A read that overlaps a mutation completes without storing its result; later reads load a new snapshot. Changes made outside this runtime, including GTM permission changes, become visible when the snapshot expires or the caller requests `fresh: true`.
 
@@ -122,22 +122,22 @@ paces ordinary calls, while the backend scheduler paces list scans and retries.
 
 The CLI accepts `GTM_REQUEST_SCHEDULER_ENABLED=true`, with optional
 `GTM_REQUEST_INTERVAL_MS` and `GTM_REQUEST_MAX_PENDING`. Scheduling is opt-in.
-Scheduled calls use a 25-second total budget, bounded backoff and cancellation.
+Scheduled ordinary calls use a 25-second total budget. List operations use a separate five-minute total budget, including tools that paginate without snapshots. Each upstream request has at most 25 seconds for queueing, execution and retries, clipped to the remaining operation budget. Backoff and cancellation remain bounded.
 Daily and permission errors stop; uncertain writes are not replayed. Each retry
 obtains a new permit and records its actual attempt separately from queue wait.
 
-With scheduling enabled, each shared scan has a fixed 25-second producer budget
-independent of its first reader's deadline. Each subscriber enforces its own deadline and cancellation;
+With scheduling enabled, each shared scan has a fixed five-minute producer budget
+independent of its first reader's deadline. New readers start a replacement instead of joining when less than 25 seconds remains, even if the scan is making progress. Each subscriber enforces its own deadline and cancellation;
 short-lived readers do not terminate a scan still needed by others. Joining does
 not extend the producer cap indefinitely, so a scan hitting that cap can still
-fail all remaining subscribers. Cancellation also reaches Google when request
+fail all remaining subscribers. Hosted backend read guards allow 305 seconds for the list budget and delivery. Clients must allow sufficient request time to benefit from longer lists; earlier client cancellation still applies. Cancellation also reaches Google when request
 scheduling is disabled.
 
 With scheduling disabled, enabling caching does not introduce a 25-second scan
 cap or a hosted-cache read timeout. Normal caller, transport and platform limits
 still apply. Explicit subscriber deadlines and cancellation remain honored.
 Scheduled timeout errors retain preceding upstream failure context; user
-cancellations remain distinct from timeouts.
+cancellations remain distinct from timeouts. The local scheduler rejects a new request immediately if its predicted FIFO slot is at or beyond its deadline. It skips already-cancelled work and work expiring before its slot; later cancellations can free capacity for subsequent admission. A permit near the deadline can still leave little execution time, so admission does not guarantee completion.
 
 ## Built-in auth providers
 

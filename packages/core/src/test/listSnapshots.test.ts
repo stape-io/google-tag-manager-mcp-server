@@ -10,6 +10,7 @@ import { containerActions } from "../tools/containerActions.js";
 import { tagActions } from "../tools/tagActions.js";
 import { createGtmRuntime } from "../utils/createGtmRuntime.js";
 import { LocalGtmRequestScheduler } from "../utils/gtmRequestScheduler.js";
+import { GTM_CACHE_READ_TIMEOUT_MS } from "../utils/gtmCacheTimeout.js";
 import {
   ListSnapshotCache,
   LIST_SNAPSHOT_TTL_MS,
@@ -559,16 +560,21 @@ describe("snapshot correctness", () => {
       vi.useFakeTimers();
       try {
         const done = vi.fn();
-        const pending = client.callTool({
-          name: "gtm_tag",
-          arguments:
-            method === "read"
-              ? listArgs
-              : { ...listArgs, action: "remove", tagId: "4" },
-        });
+        const pending = client.callTool(
+          {
+            name: "gtm_tag",
+            arguments:
+              method === "read"
+                ? listArgs
+                : { ...listArgs, action: "remove", tagId: "4" },
+          },
+          { timeout: GTM_CACHE_READ_TIMEOUT_MS + 5000 },
+        );
         pending.then(done, () => {});
         await vi.waitFor(() => expect(stuck).toHaveBeenCalled());
-        await vi.advanceTimersByTimeAsync(30_000);
+        await vi.advanceTimersByTimeAsync(
+          method === "read" ? GTM_CACHE_READ_TIMEOUT_MS : 1000,
+        );
         expect(done).toHaveBeenCalled();
         if (method === "read") {
           expect((await pending).isError).toBe(true);
@@ -598,9 +604,12 @@ describe("snapshot correctness", () => {
     });
     vi.useFakeTimers();
     try {
-      const pending = client.callTool({ name: "gtm_tag", arguments: listArgs });
+      const pending = client.callTool(
+        { name: "gtm_tag", arguments: listArgs },
+        { timeout: GTM_CACHE_READ_TIMEOUT_MS + 5000 },
+      );
       await vi.waitFor(() => expect(api.calls).toHaveLength(1));
-      await vi.advanceTimersByTimeAsync(30_000);
+      await vi.advanceTimersByTimeAsync(GTM_CACHE_READ_TIMEOUT_MS);
       expect(api.calls).toHaveLength(1);
       expect((await pending).isError).toBe(true);
     } finally {

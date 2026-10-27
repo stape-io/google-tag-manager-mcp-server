@@ -1,4 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  createErrorResponse,
+  GtmSchedulingError,
+  type GtmRequestScheduler,
+} from "google-tag-manager-mcp-core";
 import { GtmRequestCoordinator } from "../GtmRequestCoordinator";
 import { createHostedGtmScheduler } from "../createHostedGtmScheduler";
 
@@ -47,6 +52,79 @@ function reserve(
 afterEach(() => vi.useRealTimers());
 
 describe("hosted project coordinator", () => {
+  function hostedWithFetch(
+    fetch: () => Promise<Response>,
+  ): GtmRequestScheduler {
+    return createHostedGtmScheduler({
+      GTM_REQUEST_SCHEDULER_ENABLED: "true",
+      GTM_QUOTA_PROJECT_ID: "project",
+      GTM_REQUEST_COORDINATOR: {
+        idFromName: (name: string): string => name,
+        get: (): unknown => ({ fetch }),
+      },
+    } as unknown as Env)!;
+  }
+
+  it.each(["transport", "html", "null", "array"])(
+    "normalizes coordinator %s failures at the user-facing boundary",
+    async (kind) => {
+      const cause = new Error("Cloudflare internal transport details");
+      const scheduler = hostedWithFetch(async () => {
+        if (kind === "transport") throw cause;
+        if (kind === "html")
+          return new Response("Cloudflare internal error page", {
+            status: 503,
+          });
+        return Response.json(kind === "null" ? null : []);
+      });
+      const error = await scheduler
+        .acquire({ deadline: Date.now() + 1000 })
+        .catch((error) => error);
+      expect(error.message).toBe(
+        "GTM request coordinator is unavailable. Try again later.",
+      );
+      expect(error.cause).toBeInstanceOf(Error);
+      if (kind === "transport") expect(error.cause).toBe(cause);
+      const result = createErrorResponse("Tool failed", error);
+      expect(result.content[0]).toMatchObject({
+        text: "Tool failed: GTM request coordinator is unavailable. Try again later.",
+      });
+    },
+  );
+
+  it.each(["full", "deadline"] as const)(
+    "preserves structured coordinator %s rejection",
+    async (reason) => {
+      const scheduler = hostedWithFetch(async () =>
+        Response.json({ error: reason }, { status: 429 }),
+      );
+      await expect(
+        scheduler.acquire({ deadline: Date.now() + 1000 }),
+      ).rejects.toMatchObject({ reason });
+    },
+  );
+
+  it.each(["cancelled", "deadline"] as const)(
+    "preserves %s during a failed coordinator delivery",
+    async (reason) => {
+      const controller = new AbortController();
+      const expected =
+        reason === "deadline"
+          ? new GtmSchedulingError("deadline")
+          : new DOMException("User cancelled", "AbortError");
+      const scheduler = hostedWithFetch(async () => {
+        controller.abort(expected);
+        throw new Error("Cloudflare delivery failed");
+      });
+      await expect(
+        scheduler.acquire({
+          signal: controller.signal,
+          deadline: Date.now() + 1000,
+        }),
+      ).rejects.toBe(expected);
+    },
+  );
+
   it("does not count a long queue wait as coordinator delivery latency", async () => {
     vi.useFakeTimers({ now: 0 });
     const schedule = globalThis.setTimeout;

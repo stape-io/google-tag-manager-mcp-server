@@ -4,6 +4,7 @@ import type { GtmRequestScheduler } from "./gtmRequestScheduler.js";
 import {
   createScheduledGtmAdapter,
   GTM_REQUEST_DEADLINE_MS,
+  GTM_LIST_DEADLINE_MS,
 } from "./gtmScheduledAdapter.js";
 import { GtmSchedulingError, withGtmAbort } from "./gtmRequestScheduler.js";
 import { getGtmRetryOptions } from "./gtmRequestPolicy.js";
@@ -87,6 +88,7 @@ interface SnapshotEntry {
 interface PendingSnapshot {
   key: string;
   joinUntil: number;
+  deadline?: number;
   promise: Promise<GtmSnapshotItem[]>;
   controller: AbortController;
   waiters: number;
@@ -151,6 +153,8 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
       existing &&
       !existing.controller.signal.aborted &&
       Date.now() < existing.joinUntil &&
+      (existing.deadline === undefined ||
+        existing.deadline - Date.now() >= GTM_REQUEST_DEADLINE_MS) &&
       !bypass &&
       !request.fresh
     ) {
@@ -165,9 +169,13 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
     }
 
     const generation = this.generation;
+    const scanDeadline = this.options.scheduler
+      ? Date.now() + GTM_LIST_DEADLINE_MS
+      : undefined;
     const fill: PendingSnapshot = {
       key,
-      // Stop admitting readers to stalled scans without timing out their
+      deadline: scanDeadline,
+      // Stop admitting readers to inactive scans without timing out their
       // existing subscribers. Identity checks below protect replacement fills.
       joinUntil: Date.now() + LIST_SNAPSHOT_JOIN_WINDOW_MS,
       controller: new AbortController(),
@@ -176,22 +184,24 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
     };
     // Scheduled producers have a bounded scan budget. Each subscriber enforces
     // its own deadline without cancelling readers who still have time left.
-    const scanDeadline = this.options.scheduler
-      ? Date.now() + GTM_REQUEST_DEADLINE_MS
-      : undefined;
     const scanTimer =
       scanDeadline === undefined
         ? undefined
         : setTimeout(
             () => fill.controller.abort(new GtmSchedulingError("deadline")),
-            GTM_REQUEST_DEADLINE_MS,
+            GTM_LIST_DEADLINE_MS,
           );
     fill.promise = withGtmAbort(
-      this.load({
-        ...request,
-        deadline: scanDeadline,
-        signal: fill.controller.signal,
-      }),
+      this.load(
+        {
+          ...request,
+          deadline: scanDeadline,
+          signal: fill.controller.signal,
+        },
+        () => {
+          fill.joinUntil = Date.now() + LIST_SNAPSHOT_JOIN_WINDOW_MS;
+        },
+      ),
       fill.controller.signal,
     )
       .then((items) => {
@@ -333,7 +343,10 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
     this.bytes += bytes;
   }
 
-  private async load(request: GtmSnapshotRequest): Promise<GtmSnapshotItem[]> {
+  private async load(
+    request: GtmSnapshotRequest,
+    onPage?: () => void,
+  ): Promise<GtmSnapshotItem[]> {
     const resource = request.path.split("/").at(-1) as keyof typeof LIST_FIELDS;
     const parent = request.path.slice(0, request.path.lastIndexOf("/"));
     const field = LIST_FIELDS[resource];
@@ -346,7 +359,7 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
             this.options.scheduler,
             this.options.observer,
             request.call,
-            request.deadline,
+            request.deadline ?? Date.now() + GTM_LIST_DEADLINE_MS,
             request.signal,
           )
         : createObservedGtmAdapter(this.options.observer, request.call),
@@ -377,6 +390,7 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
         if (pageToken && seen.has(pageToken))
           throw new Error("Google returned a repeated pagination token.");
         seen.add(pageToken);
+        onPage?.();
       } while (pageToken);
     } catch (error) {
       if (error instanceof Error && "code" in error && Number(error.code))

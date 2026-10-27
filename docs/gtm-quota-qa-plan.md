@@ -109,14 +109,14 @@ container publish is part of local verification.
    snapshot events in Analytics Engine. Compare sampling-weighted counts and
    error categories with Google Cloud metrics. Inspect for sensitive data.
 9. Check client experience on a large scan, queue saturation and a slow Google
-   response. Errors must be bounded and must not cause a second scan or write.
+   response. Errors must be bounded and must not cause an automatic fallback scan or replay an ambiguous write. New readers may replace a scan after 30 seconds without a completed page, or when less than 25 seconds remains in its scheduled producer budget. Configure client request timeouts to accommodate the five-minute list budget.
 10. Disable scheduling and verify the rollout switch. Production scheduling
     remains disabled; the existing production cache switches also remain disabled.
 
 ## Limits and follow-ups
 
-- With scheduling enabled, readers have independent 25-second budgets. Shared scans have a separate fixed
-  25-second producer cap, including pagination, scheduling and backoff. A sufficiently large/slow scan can return a deadline
+- With scheduling enabled, ordinary calls have a 25-second budget and list readers have independent five-minute budgets. Shared scans have a separate fixed
+  five-minute producer cap. Each upstream request has up to 25 seconds for queueing, execution and retries, clipped to the remaining operation budget. A sufficiently large/slow scan can return a deadline
   error; partial results are never cached. QA must assess this against real
   container sizes and the project's approved quota.
 - Cancellation cannot undo an already executed Google operation. If the cancel
@@ -187,8 +187,9 @@ the preceding build. Real-Google testing remains assigned to QA.
 
 ## Third review follow-up — October 27, 2026
 
-A scan accepts new subscribers only during its first 30 seconds. After that,
-later readers start a replacement scan. Existing subscribers retain their normal
+A scan now accepts new subscribers while pages complete within 30 seconds.
+Later readers replace an inactive scan; page progress refreshes the window.
+Scheduled scans also require at least 25 seconds of remaining producer budget. Existing subscribers retain their normal
 caller/transport limits; unscheduled producers gain no operation timeout. Old
 scan completion and cancellation cannot delete a replacement fill or overwrite
 its cached result. `fresh: true` continues to bypass in-flight scans immediately.
@@ -211,3 +212,39 @@ scheduling. Build, typecheck, zero-warning lint, both CLI protocol smoke tests,
 the real local Worker station, changeset validation, all three Worker bundle dry
 runs, and npm package-content/README organization checks pass. No real-Google
 requests or deployments were performed.
+
+## Fourth review follow-up — October 27, 2026
+
+The approved scheduling policy gives list operations a five-minute total budget
+and ordinary operations 25 seconds. Each Google request has at most 25 seconds
+including queueing and retries, bounded by the remaining operation budget. This
+covers cached lists, cache bypass, folders and version headers. Shared producers
+remain capped at five minutes; partial results are not cached. Hosted read guards
+allow 305 seconds. Client/transport cancellation may end an operation earlier.
+
+Completed pages refresh scan admission for 30 seconds, avoiding duplicate healthy
+slow scans. Scheduled fills with less than 25 seconds left stop admitting readers.
+A replacement cannot delete or overwrite an older/newer fill through stale cleanup.
+Finite budgets still limit very large lists; there is no resumable partial scan.
+
+Local admission predicts FIFO timing and rejects slots at/beyond the caller's
+deadline immediately. Predictions exclude cancelled work and work that will
+expire before its slot. Rejected requests reserve no capacity. Future cancellation
+can make later admission possible. Near-deadline permits may still leave little
+execution time; there is no minimum Google execution allowance.
+
+Coordinator delivery and body-decoding failures return the unavailable message;
+structured admission errors and caller cancellation retain their meanings. The
+outer sign-out timeout is retained, as is the public retry override guard.
+The changeset describes final public release behavior rather than review history
+or private Worker rollout details.
+
+Local verification: 230 tests pass (102 Worker and 128 core), including 18 new
+cases covering deadline-aware local admission, cancellation capacity, progressing
+scan sharing, eight-page lists at default pacing, folder/version-header paging,
+the exact 25-second remaining-budget admission boundary, hosted lists beyond
+30 seconds, normalized coordinator failures, and preserved cancellation/queue
+errors. The producer-cap regression still verifies a hard five-minute limit.
+Build, typecheck, zero-warning lint, both CLI protocol smoke tests, the real local
+Worker station, changeset validation, npm package checks, and all three Worker
+bundle dry runs pass. No deployment or real-Google testing was performed.

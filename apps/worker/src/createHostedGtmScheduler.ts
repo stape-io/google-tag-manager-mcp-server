@@ -21,18 +21,31 @@ export function createHostedGtmScheduler(
       for (;;) {
         if (signal?.aborted) throw signal.reason;
         const sentAt = Date.now();
-        const response = await namespace
-          .get(id)
-          .fetch("https://gtm-scheduler.internal/acquire", {
-            method: "POST",
-            body: JSON.stringify({ deadline, ...(leadMs ? { leadMs } : {}) }),
-            signal,
-          });
-        const result = (await response.json()) as {
+        let response: Response;
+        let result: {
           at?: number;
           expiresAt?: number;
           error?: string;
         };
+        try {
+          response = await namespace
+            .get(id)
+            .fetch("https://gtm-scheduler.internal/acquire", {
+              method: "POST",
+              body: JSON.stringify({ deadline, ...(leadMs ? { leadMs } : {}) }),
+              signal,
+            });
+          const body: unknown = await response.json();
+          if (!body || typeof body !== "object" || Array.isArray(body))
+            throw new Error("Invalid coordinator response body.");
+          result = body;
+        } catch (cause) {
+          if (signal?.aborted) throw signal.reason;
+          throw new Error(
+            "GTM request coordinator is unavailable. Try again later.",
+            { cause },
+          );
+        }
         // Capture RPC delivery before waiting for the reserved slot. Queue
         // time and timer wake-up lateness are not network round-trip time.
         const deliveryMs = Date.now() - sentAt;
