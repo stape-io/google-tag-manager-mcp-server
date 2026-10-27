@@ -16,6 +16,7 @@ import {
 } from "./gtmTelemetry.js";
 
 export const LIST_SNAPSHOT_TTL_MS = 30_000;
+export const LIST_SNAPSHOT_JOIN_WINDOW_MS = 30_000;
 export const LIST_SNAPSHOT_MAX_ENTRIES = 20;
 export const LIST_SNAPSHOT_MAX_BYTES = 8 * 1024 * 1024;
 
@@ -85,6 +86,7 @@ interface SnapshotEntry {
 
 interface PendingSnapshot {
   key: string;
+  joinUntil: number;
   promise: Promise<GtmSnapshotItem[]>;
   controller: AbortController;
   waiters: number;
@@ -148,6 +150,7 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
     if (
       existing &&
       !existing.controller.signal.aborted &&
+      Date.now() < existing.joinUntil &&
       !bypass &&
       !request.fresh
     ) {
@@ -164,11 +167,14 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
     const generation = this.generation;
     const fill: PendingSnapshot = {
       key,
+      // Stop admitting readers to stalled scans without timing out their
+      // existing subscribers. Identity checks below protect replacement fills.
+      joinUntil: Date.now() + LIST_SNAPSHOT_JOIN_WINDOW_MS,
       controller: new AbortController(),
       waiters: 0,
       promise: undefined!,
     };
-    // The producer has its own bounded scan budget. Each subscriber enforces
+    // Scheduled producers have a bounded scan budget. Each subscriber enforces
     // its own deadline without cancelling readers who still have time left.
     const scanDeadline = this.options.scheduler
       ? Date.now() + GTM_REQUEST_DEADLINE_MS

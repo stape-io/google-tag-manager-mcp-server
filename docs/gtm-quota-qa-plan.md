@@ -184,3 +184,30 @@ zero-warning lint, both CLI protocol smoke tests, the real local Worker station
 with delayed coordinator delivery, changeset validation, and all three Worker
 bundle dry runs pass. The CI test invocation runs all tests without repeating
 the preceding build. Real-Google testing remains assigned to QA.
+
+## Third review follow-up — October 27, 2026
+
+A scan accepts new subscribers only during its first 30 seconds. After that,
+later readers start a replacement scan. Existing subscribers retain their normal
+caller/transport limits; unscheduled producers gain no operation timeout. Old
+scan completion and cancellation cannot delete a replacement fill or overwrite
+its cached result. `fresh: true` continues to bypass in-flight scans immediately.
+
+Supplied backends own upstream execution. The core README now shows explicitly
+passing the same scheduler and observer to both `ListSnapshotCache` and
+`createGtmRuntime`. Hosted Durable Objects already configure their scheduler
+independently. Regression coverage exercises pagination, quota retries, ordinary
+calls, and cache hits with the documented supplied-cache configuration.
+
+Contributor notes belong here rather than in the published package README:
+`npm test` rebuilds core and CLI fixtures, including when invoked in the core
+workspace. CI builds once and then uses `npm test --ignore-scripts` to skip
+redundant lifecycle builds. The full-snapshot API, backend-generated mutation-ID
+compatibility, and public retry guard remain supported.
+
+Local verification: 212 tests pass (93 Worker and 119 core), including four new
+regressions for hung-scan recovery, old/new completion ordering, and supplied-cache
+scheduling. Build, typecheck, zero-warning lint, both CLI protocol smoke tests,
+the real local Worker station, changeset validation, all three Worker bundle dry
+runs, and npm package-content/README organization checks pass. No real-Google
+requests or deployments were performed.

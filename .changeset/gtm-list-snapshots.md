@@ -14,3 +14,5 @@ Add opt-in shared request scheduling, bounded quota retries and cancellation. Pr
 Require Node.js 20.3+, propagate cancellation with or without scheduling, isolate subscriber deadlines, prevent abandoned mutation leases, and account for coordinator delivery latency without widening permits. Preserve Google error details when retry budgets expire and return defensive cache copies.
 
 Keep unscheduled read timing independent of caching, exclude queue waits from coordinator latency estimates, preserve upstream error context when retry/admission budgets expire, and distinguish timeout cleanup from user cancellation.
+
+Limit shared-scan admission to 30 seconds without timing out existing readers, and document scheduler configuration for supplied cache backends.
