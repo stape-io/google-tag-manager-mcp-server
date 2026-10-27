@@ -35,49 +35,44 @@ describe("cache review regressions", () => {
     expect((await cache.read(request)).cache).toBe("hit");
     expect(api.calls).toHaveLength(1);
   });
-  it.each([false, true])(
-    "bounds the shared producer independently of subscriber budgets (scheduling=%s)",
-    async (scheduled) => {
-      vi.useFakeTimers({ now: 0 });
-      vi.spyOn(crypto.subtle, "digest").mockResolvedValue(new ArrayBuffer(32));
-      let entered!: () => void;
-      const started = new Promise<void>((resolve) => {
-        entered = resolve;
-      });
-      let shared!: () => void;
-      const joined = new Promise<void>((resolve) => {
-        shared = resolve;
-      });
-      api.respond = (): Promise<Response> => {
-        entered();
-        return new Promise(() => {});
-      };
-      const cache = new ListSnapshotCache({
-        scheduler: scheduled
-          ? new LocalGtmRequestScheduler({ intervalMs: 1 })
-          : undefined,
-        observer: (event): void => {
-          if (event.event === "snapshot_wait") shared();
-        },
-      });
-      const first = expect(
-        cache.read({ ...request, deadline: 5_000 }),
-      ).rejects.toMatchObject({ reason: "deadline" });
-      await started;
-      const second = expect(
-        cache.read({
-          ...request,
-          deadline: 40_000,
-          call: { ...request.call, callId: "longer" },
-        }),
-      ).rejects.toMatchObject({ reason: "deadline" });
-      await joined;
-      await vi.advanceTimersByTimeAsync(25_000);
-      await Promise.all([first, second]);
-      expect(api.calls).toHaveLength(1);
-      expect(vi.getTimerCount()).toBe(0);
-    },
-  );
+  it("bounds scheduled shared producers independently of subscriber budgets", async () => {
+    vi.useFakeTimers({ now: 0 });
+    vi.spyOn(crypto.subtle, "digest").mockResolvedValue(new ArrayBuffer(32));
+    let entered!: () => void;
+    const started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    let shared!: () => void;
+    const joined = new Promise<void>((resolve) => {
+      shared = resolve;
+    });
+    api.respond = (): Promise<Response> => {
+      entered();
+      return new Promise(() => {});
+    };
+    const cache = new ListSnapshotCache({
+      scheduler: new LocalGtmRequestScheduler({ intervalMs: 1 }),
+      observer: (event): void => {
+        if (event.event === "snapshot_wait") shared();
+      },
+    });
+    const first = expect(
+      cache.read({ ...request, deadline: 5_000 }),
+    ).rejects.toMatchObject({ reason: "deadline" });
+    await started;
+    const second = expect(
+      cache.read({
+        ...request,
+        deadline: 40_000,
+        call: { ...request.call, callId: "longer" },
+      }),
+    ).rejects.toMatchObject({ reason: "deadline" });
+    await joined;
+    await vi.advanceTimersByTimeAsync(25_000);
+    await Promise.all([first, second]);
+    expect(api.calls).toHaveLength(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
   it.each([0, -1])(
     "keeps exact UTF-8 array byte accounting at the budget boundary (%s)",
     async (offset) => {

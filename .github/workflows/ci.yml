@@ -24,7 +24,8 @@ jobs:
       - run: npm run build
       - run: npm run typecheck
       - run: npm run lint
-      - run: npm test
+      # Fixtures are already built above. Run tests without repeating pretest builds.
+      - run: npm test --ignore-scripts
 
       - name: Smoke test the CLI
         run: npm run smoke

@@ -33,6 +33,9 @@ export function createHostedGtmScheduler(
           expiresAt?: number;
           error?: string;
         };
+        // Capture RPC delivery before waiting for the reserved slot. Queue
+        // time and timer wake-up lateness are not network round-trip time.
+        const deliveryMs = Date.now() - sentAt;
         if (!response.ok) {
           if (result.error === "full" || result.error === "deadline")
             throw new GtmSchedulingError(result.error);
@@ -67,7 +70,7 @@ export function createHostedGtmScheduler(
           // validity window rather than widening it and allowing bursts.
           leadMs = Math.min(
             5_000,
-            Math.max(leadMs * 2, Math.ceil((Date.now() - sentAt) * 1.5) + 25),
+            Math.max(leadMs * 2, Math.ceil(deliveryMs * 1.5) + 25),
           );
           continue;
         }

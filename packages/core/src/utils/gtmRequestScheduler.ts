@@ -41,13 +41,21 @@ export function withGtmAbort<T>(
 }
 
 export class GtmSchedulingError extends Error {
-  constructor(public readonly reason: "full" | "deadline" | "cancelled") {
+  constructor(
+    public readonly reason: "full" | "deadline" | "cancelled",
+    options?: ErrorOptions,
+  ) {
+    const context =
+      options?.cause instanceof Error
+        ? ` Previous upstream failure: ${options.cause.message}`
+        : "";
     super(
-      reason === "full"
+      (reason === "full"
         ? "GTM request queue is full. Try again later."
         : reason === "deadline"
           ? "GTM request deadline exceeded while waiting. Try again later."
-          : "GTM request cancelled.",
+          : "GTM request cancelled.") + context,
+      options,
     );
   }
 }

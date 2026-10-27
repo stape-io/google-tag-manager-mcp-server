@@ -2,7 +2,7 @@
 
 The HTTP and SSE handlers use `GtmReadCache` through the `GTM_READ_CACHE` Durable Object binding when `GTM_SNAPSHOT_CACHE_ENABLED` is `true`. Each object belongs to one Google user and configured Google OAuth client. Its entries are further isolated by MCP client, credential, and resource path.
 
-Snapshots and pending scans live in memory. Eviction causes a cache miss; no Google credential or snapshot is written to Durable Object storage. When the object is unreachable or its read deadline expires, list reads return an error. They never start a second scan while the first may still be running. The object returns only the requested page and exact totals to the Worker, including on cache hits. The default lifetime and retention limits are defined in [`listSnapshotCache.ts`](../../packages/core/src/utils/listSnapshotCache.ts). Account-side edits and permission changes can remain invisible until expiry; `fresh: true` bypasses stored snapshots. Mutation invalidation is deliberately conservative: it clears every snapshot for that Google user and OAuth configuration, across MCP clients.
+Snapshots and pending scans live in memory. Eviction causes a cache miss; no Google credential or snapshot is written to Durable Object storage. When the object is unreachable, or its read deadline expires with scheduling enabled, list reads return an error. They never start a second scan while the first may still be running. The object returns only the requested page and exact totals to the Worker, including on cache hits. The default lifetime and retention limits are defined in [`listSnapshotCache.ts`](../../packages/core/src/utils/listSnapshotCache.ts). Account-side edits and permission changes can remain invisible until expiry; `fresh: true` bypasses stored snapshots. Mutation invalidation is deliberately conservative: it clears every snapshot for that Google user and OAuth configuration, across MCP clients.
 
 The default and `io` environments disable caching; `dev` enables it. Setting `GTM_SNAPSHOT_CACHE_ENABLED` to `false` bypasses the hosted cache while preserving usage events. An enabled environment requires the `GTM_READ_CACHE` binding and the `GtmReadCache` migration in [`wrangler.jsonc`](wrangler.jsonc).
 
@@ -64,10 +64,10 @@ one central coordinator before both enable scheduling for the same project.
 from the actual approved project quota. The coordinator persists only its next
 reservation timestamp, never tokens, payloads, or identifiers. Cancelled slots
 are left unused until their scheduled time; caller cancellation never executes
-work in the coordinator. Old permits expire so suspended callers must requeue. If delivery latency exceeds a permit's validity, the next reservation is placed ahead of measured round-trip latency without widening the validity window. Renewal is capped at three attempts.
+work in the coordinator. Old permits expire so suspended callers must requeue. If delivery latency exceeds a permit's validity, the next reservation is placed ahead of measured round-trip latency without widening the validity window. Renewal is capped at three attempts. Delivery latency is measured before waiting for a reserved slot, so queue time and late timer wake-ups do not inflate the delivery estimate.
 
 Ordinary calls, cache misses, every Google pagination page, and retries all
-acquire permits; cache hits do not. Readers have their own 25-second budgets. A shared scan has a separate fixed
+acquire permits; cache hits do not. With scheduling enabled, readers have their own 25-second budgets. A shared scan has a separate fixed
 25-second producer budget, including scheduling and backoff. Long scans can therefore return a deadline
 error; failed/partial scans are not cached. Backoff uses exponential delay plus
 jitter and honors `Retry-After` within the deadline. Explicit temporary quota
@@ -82,7 +82,9 @@ the existing Analytics Engine columns. They are separate from `google_attempt`.
 Cancellation crosses the cache-object hop as an explicit per-call message,
 because a subrequest abort alone does not reliably cancel object work. Shared
 scans continue until all readers cancel. If that control message cannot be
-delivered, the upstream deadline still bounds work.
+delivered, scheduled scans still have a producer deadline. Without scheduling,
+normal caller/transport limits apply; caching does not impose a new operation
+timeout.
 
 Run `npm run test:station` from the root for the isolated local Worker station.
 See [the QA handoff](../../docs/gtm-quota-qa-plan.md) for checks and responsibilities.
@@ -97,3 +99,8 @@ QA must run against the reviewed branch before merge. Merging into `main`
 triggers the `.ai` production deployment workflow, including both new object
 migrations and the Analytics Engine binding even with caching/scheduling disabled.
 Feature flags are not a deployment gate. The `.io` deployment remains explicit.
+
+Deadline failures retain the preceding upstream network/quota error as cause
+and message context when available. The deadline or admission error remains the
+primary failure. Explicit user cancellation is reported separately; a reader
+expiring does not turn into a user-cancellation metric.

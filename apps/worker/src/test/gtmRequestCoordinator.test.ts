@@ -47,6 +47,44 @@ function reserve(
 afterEach(() => vi.useRealTimers());
 
 describe("hosted project coordinator", () => {
+  it("does not count a long queue wait as coordinator delivery latency", async () => {
+    vi.useFakeTimers({ now: 0 });
+    const schedule = globalThis.setTimeout;
+    vi.spyOn(globalThis, "setTimeout").mockImplementation(((
+      callback: () => void,
+      ms?: number,
+    ) => schedule(callback, ms === 10_000 ? 10_200 : ms)) as typeof setTimeout);
+    const requests: { deadline: number; leadMs?: number }[] = [];
+    const scheduler = createHostedGtmScheduler({
+      GTM_REQUEST_SCHEDULER_ENABLED: "true",
+      GTM_QUOTA_PROJECT_ID: "project",
+      GTM_REQUEST_COORDINATOR: {
+        idFromName: (name: string): string => name,
+        get: (): unknown => ({
+          fetch: async (
+            _input: string,
+            init: RequestInit,
+          ): Promise<Response> => {
+            requests.push(JSON.parse(String(init.body)));
+            return Response.json(
+              requests.length === 1
+                ? { at: 10_000, expiresAt: 10_100 }
+                : { at: 10_400, expiresAt: 10_500 },
+            );
+          },
+        }),
+      },
+    } as unknown as Env)!;
+    try {
+      const pending = scheduler.acquire({ deadline: 25_000 });
+      await vi.advanceTimersByTimeAsync(10_600);
+      await pending;
+      expect(requests).toHaveLength(2);
+      expect(requests[1].leadMs).toBe(25);
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
   it("reserves ahead of delivery latency without widening permit validity", async () => {
     vi.useFakeTimers({ now: 0 });
     const { state, env } = station();

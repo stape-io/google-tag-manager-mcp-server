@@ -6,10 +6,9 @@ import {
   GTM_REQUEST_DEADLINE_MS,
 } from "./gtmScheduledAdapter.js";
 import { GtmSchedulingError, withGtmAbort } from "./gtmRequestScheduler.js";
-import { GTM_NO_RETRY_CONFIG } from "./gtmRequestPolicy.js";
+import { getGtmRetryOptions } from "./gtmRequestPolicy.js";
 import {
   createObservedGtmAdapter,
-  gtmRetryConfig,
   emitGtmUsage,
   GtmCacheOutcome,
   GtmCall,
@@ -171,11 +170,16 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
     };
     // The producer has its own bounded scan budget. Each subscriber enforces
     // its own deadline without cancelling readers who still have time left.
-    const scanDeadline = Date.now() + GTM_REQUEST_DEADLINE_MS;
-    const scanTimer = setTimeout(
-      () => fill.controller.abort(new GtmSchedulingError("deadline")),
-      GTM_REQUEST_DEADLINE_MS,
-    );
+    const scanDeadline = this.options.scheduler
+      ? Date.now() + GTM_REQUEST_DEADLINE_MS
+      : undefined;
+    const scanTimer =
+      scanDeadline === undefined
+        ? undefined
+        : setTimeout(
+            () => fill.controller.abort(new GtmSchedulingError("deadline")),
+            GTM_REQUEST_DEADLINE_MS,
+          );
     fill.promise = withGtmAbort(
       this.load({
         ...request,
@@ -231,7 +235,7 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
       if (--fill.waiters === 0) {
         // Detach before aborting: producer rejection/cleanup may be delayed.
         if (this.pending.get(fill.key) === fill) this.pending.delete(fill.key);
-        fill.controller.abort();
+        fill.controller.abort(signal.aborted ? signal.reason : undefined);
       }
     }
   }
@@ -340,10 +344,7 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
             request.signal,
           )
         : createObservedGtmAdapter(this.options.observer, request.call),
-      retry: this.options.scheduler ? false : undefined,
-      retryConfig: this.options.scheduler
-        ? GTM_NO_RETRY_CONFIG
-        : gtmRetryConfig,
+      ...getGtmRetryOptions(Boolean(this.options.scheduler)),
     });
     const items: GtmSnapshotItem[] = [];
     const seen = new Set<string>();

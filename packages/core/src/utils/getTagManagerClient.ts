@@ -2,8 +2,7 @@ import { tagmanager } from "@googleapis/tagmanager";
 import { GtmAuthProvider } from "../types/index.js";
 import { log } from "./log.js";
 import type { GtmInvocation } from "./createGtmRuntime.js";
-import { GTM_NO_RETRY_CONFIG } from "./gtmRequestPolicy.js";
-import { gtmRetryConfig } from "./gtmTelemetry.js";
+import { getGtmRetryOptions } from "./gtmRequestPolicy.js";
 
 export type TagManagerClient = ReturnType<typeof tagmanager>;
 
@@ -19,13 +18,8 @@ export async function getTagManagerClient(
       adapter: invocation?.adapter,
       signal: invocation?.signal,
       ...(invocation
-        ? {
-            retryConfig: invocation.managesRetries
-              ? GTM_NO_RETRY_CONFIG
-              : gtmRetryConfig,
-          }
+        ? getGtmRetryOptions(Boolean(invocation.managesRetries))
         : {}),
-      ...(invocation?.managesRetries ? { retry: false } : {}),
       headers: {
         Authorization: `Bearer ${token}`,
       },

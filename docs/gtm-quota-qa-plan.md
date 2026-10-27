@@ -18,7 +18,7 @@ per the user's October 26 clarification.
 - Existing snapshot caching, fresh reads, pagination and mutation invalidation remain covered.
 - All ordinary GTM calls, snapshot pages and retry attempts acquire scheduling permits.
 - Hosted coordination is shared by project across users and persisted across object recreation.
-- Queue length, total attempt time and retries are bounded. SDK retries do not nest around the scheduler.
+- With scheduling enabled, queue length, total attempt time and retries are bounded. SDK retries do not nest around the scheduler.
 - Temporary quota rejections use backoff and jitter. Daily exhaustion, permission failures and ambiguous writes do not retry.
 - Cache delivery failures and timeouts return errors instead of launching duplicate scans.
 - SDK cancellation reaches ordinary calls; explicit per-call cancellation crosses the cache-object hop.
@@ -115,12 +115,14 @@ container publish is part of local verification.
 
 ## Limits and follow-ups
 
-- Readers have independent 25-second budgets. Shared scans have a separate fixed
+- With scheduling enabled, readers have independent 25-second budgets. Shared scans have a separate fixed
   25-second producer cap, including pagination, scheduling and backoff. A sufficiently large/slow scan can return a deadline
   error; partial results are never cached. QA must assess this against real
   container sizes and the project's approved quota.
 - Cancellation cannot undo an already executed Google operation. If the cancel
-  control message is lost, the upstream deadline still bounds the scan.
+  control message is lost, the producer deadline still bounds scheduled scans.
+  Without scheduling, caller/transport limits apply; enabling caching does not
+  add an operation timeout.
 - Cancelled hosted reservations remain unused until their slot passes. Only
   timing reservations are persisted; there are no durable background jobs.
 - Separate deployments/Cloudflare accounts have independent coordinators. They
@@ -148,7 +150,7 @@ adapter. Exact byte accounting is retained while avoiding a second full-array
 serialization allocation. Validation uses local fakes only; real-Google testing
 and deployment remain QA responsibilities.
 
-Local follow-up results: 197 tests pass (92 Worker and 105 core), including 15
+Prior follow-up (`de2dbfa`) results: 197 tests pass (92 Worker and 105 core), including 15
 cache review regressions and the coordinator latency/renewal cases. Build,
 typecheck, zero-warning lint, both CLI protocol smoke tests, the real local
 Worker station with delayed coordinator delivery, changeset validation, and
@@ -156,3 +158,29 @@ all three Worker bundle dry runs pass. Late mutation replies are tested both
 before and after the Google write finishes; they neither release an active
 write's lease early nor invalidate fresh data after an already completed lease.
 These are local verification results; GitHub CI status is reported separately.
+
+## Second review follow-up — October 27, 2026
+
+The scheduling-off path preserves normal read timing whether caching is on or
+off, including hosted cache reads beyond 30 seconds. Explicit subscriber deadlines
+and cancellation still apply. Scheduling-on call/producer limits remain bounded.
+Coordinator delivery timing is captured before waiting for a reserved slot;
+long queues and late wake-ups no longer become spurious network-delay estimates.
+
+Deadline/admission failures retain the preceding upstream network/quota failure
+as cause and message context. Last-reader cleanup preserves deadline reasons,
+so timeouts do not count as user cancellations. Retry option selection is shared,
+and CI skips redundant lifecycle builds after its explicit fixture build.
+Standalone local test commands retain automatic fixture builds.
+
+The retry guard is retained and tested through both public request overrides.
+The exported full-snapshot API and backend-ID compatibility are preserved. Only
+the redundant mutation-clear fallback was removed; late backend-ID cleanup
+continues to have regression coverage. These fixes perform no QA or production
+deployment.
+
+Local verification: 208 tests pass (93 Worker and 115 core). Build, typecheck,
+zero-warning lint, both CLI protocol smoke tests, the real local Worker station
+with delayed coordinator delivery, changeset validation, and all three Worker
+bundle dry runs pass. The CI test invocation runs all tests without repeating
+the preceding build. Real-Google testing remains assigned to QA.

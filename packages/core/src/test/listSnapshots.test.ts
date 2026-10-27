@@ -9,6 +9,7 @@ import {
 import { containerActions } from "../tools/containerActions.js";
 import { tagActions } from "../tools/tagActions.js";
 import { createGtmRuntime } from "../utils/createGtmRuntime.js";
+import { LocalGtmRequestScheduler } from "../utils/gtmRequestScheduler.js";
 import {
   ListSnapshotCache,
   LIST_SNAPSHOT_TTL_MS,
@@ -548,7 +549,13 @@ describe("snapshot correctness", () => {
       const stuck = vi
         .spyOn(backend, method)
         .mockImplementation(() => new Promise<never>(() => {}));
-      const client = await open({ runtime: createGtmRuntime({ backend }) });
+      const client = await open({
+        runtime: createGtmRuntime({
+          backend,
+          scheduler:
+            method === "read" ? new LocalGtmRequestScheduler() : undefined,
+        }),
+      });
       vi.useFakeTimers();
       try {
         const done = vi.fn();
@@ -583,7 +590,12 @@ describe("snapshot correctness", () => {
         release = resolve;
       });
     const backend = new ListSnapshotCache();
-    const client = await open({ runtime: createGtmRuntime({ backend }) });
+    const client = await open({
+      runtime: createGtmRuntime({
+        backend,
+        scheduler: new LocalGtmRequestScheduler(),
+      }),
+    });
     vi.useFakeTimers();
     try {
       const pending = client.callTool({ name: "gtm_tag", arguments: listArgs });

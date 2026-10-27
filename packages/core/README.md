@@ -88,7 +88,7 @@ The default snapshot lifetime and retention limits are exported from [`listSnaps
 
 Snapshots are isolated by credential and resource path. The auth provider is called before every read, including cache hits. Mutations invalidate the runtime's snapshots before and after the Google request, including failed requests. A read that overlaps a mutation completes without storing its result; later reads load a new snapshot. Changes made outside this runtime, including GTM permission changes, become visible when the snapshot expires or the caller requests `fresh: true`.
 
-`createGtmRuntime()` provides an in-process backend for the CLI. The CLI enables caching by default and accepts `GTM_SNAPSHOT_CACHE_ENABLED=false` to disable it. `GtmSnapshotBackend.readPage()` optionally returns only the requested page and exact totals; backends that implement only `read()` remain supported. External backend reads and control operations have deadlines defined in [`gtmCacheTimeout.ts`](src/utils/gtmCacheTimeout.ts). A timed-out read returns an error without starting a duplicate scan. Invalidation failures emit `invalidation_error` and do not block Google writes; failed invalidation can leave previously cached data visible until expiry. A host can supply a `GtmSnapshotBackend` and a `GtmUsageObserver` through the optional `runtime` property of `createGtmMcpServer()` or `registerGtmTools()`. A supplied backend reports its own scan events (Google attempts and waits), so construct it with the same observer, for example `new ListSnapshotCache({ observer })`. A stateless host must reuse the backend across requests. Google requests keep the SDK transport, including its proxy settings; telemetry observes its adapter rather than replacing `fetch`. Confirmed daily-quota responses disable retries for that request while other operations retain the SDK retry policy. Observers receive allowlisted tool, cache, timing, status, and quota-category fields; they receive no credentials or GTM payloads.
+`createGtmRuntime()` provides an in-process backend for the CLI. The CLI enables caching by default and accepts `GTM_SNAPSHOT_CACHE_ENABLED=false` to disable it. `GtmSnapshotBackend.readPage()` optionally returns only the requested page and exact totals; backends that implement only `read()` remain supported. Cache control operations have deadlines defined in [`gtmCacheTimeout.ts`](src/utils/gtmCacheTimeout.ts); external backend read guards apply only when scheduling is enabled. A timed-out read returns an error without starting a duplicate scan. Invalidation failures emit `invalidation_error` and do not block Google writes; failed invalidation can leave previously cached data visible until expiry. A host can supply a `GtmSnapshotBackend` and a `GtmUsageObserver` through the optional `runtime` property of `createGtmMcpServer()` or `registerGtmTools()`. A supplied backend reports its own scan events (Google attempts and waits), so construct it with the same observer, for example `new ListSnapshotCache({ observer })`. A stateless host must reuse the backend across requests. Google requests keep the SDK transport, including its proxy settings; telemetry observes its adapter rather than replacing `fetch`. Confirmed daily-quota responses disable retries for that request while other operations retain the SDK retry policy. Observers receive allowlisted tool, cache, timing, status, and quota-category fields; they receive no credentials or GTM payloads.
 
 ## Built-in auth providers
 
@@ -125,8 +125,8 @@ Scheduled calls use a 25-second total budget, bounded backoff and cancellation.
 Daily and permission errors stop; uncertain writes are not replayed. Each retry
 obtains a new permit and records its actual attempt separately from queue wait.
 
-Each shared scan has a fixed 25-second producer budget independent of its first
-reader's deadline. Each subscriber enforces its own deadline and cancellation;
+With scheduling enabled, each shared scan has a fixed 25-second producer budget
+independent of its first reader's deadline. Each subscriber enforces its own deadline and cancellation;
 short-lived readers do not terminate a scan still needed by others. Joining does
 not extend the producer cap indefinitely, so a scan hitting that cap can still
 fail all remaining subscribers. Cancellation also reaches Google when request
@@ -134,3 +134,15 @@ scheduling is disabled.
 
 `npm test` builds the core and CLI fixtures first, including when run directly
 in the core workspace, so subprocess tests cannot silently use stale output.
+
+With scheduling disabled, enabling caching does not introduce a 25-second scan
+cap or a hosted-cache read timeout. Normal caller, transport and platform limits
+still apply. Explicit subscriber deadlines and cancellation remain honored.
+Scheduled timeout errors retain preceding upstream failure context; user
+cancellations remain distinct from timeouts. Both client construction paths use
+`getGtmRetryOptions()` to select the same retry policy. The public full-snapshot
+API and support for backends returning their own mutation IDs remain available.
+
+CI builds fixtures once and runs `npm test --ignore-scripts` afterwards to skip
+only redundant lifecycle builds. Normal `npm test` still rebuilds fixtures for
+standalone local use.

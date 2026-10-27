@@ -68,7 +68,7 @@ export function createGtmRuntime(
           scheduler: options.scheduler,
         });
   async function read(request: GtmSnapshotRequest): Promise<GtmSnapshotResult> {
-    if (!options.backend || options.enabled === false)
+    if (!options.backend || options.enabled === false || !options.scheduler)
       return backend.read(request);
     // A timed-out backend may still be fetching Google pages. Starting a
     // fallback scan would duplicate that work and consume more quota.
@@ -81,7 +81,7 @@ export function createGtmRuntime(
     request: GtmSnapshotPageRequest,
   ): Promise<GtmSnapshotPageResult> {
     if (backend.readPage) {
-      if (!options.backend || options.enabled === false)
+      if (!options.backend || options.enabled === false || !options.scheduler)
         return backend.readPage(request);
       return withGtmCacheTimeout(
         () => backend.readPage!(request),
@@ -98,7 +98,10 @@ export function createGtmRuntime(
     clear: () => withGtmCacheTimeout(() => backend.clear()),
     startCall(auth, tool, action, signal): GtmInvocation {
       const call = { tool, action, callId: crypto.randomUUID() };
-      const deadline = Date.now() + GTM_REQUEST_DEADLINE_MS;
+      // Caching must not impose a new operation deadline on unscheduled calls.
+      const deadline = options.scheduler
+        ? Date.now() + GTM_REQUEST_DEADLINE_MS
+        : undefined;
       emitGtmUsage(options.observer, { ...call, event: "tool_call" });
       const observedAdapter = options.scheduler
         ? createScheduledGtmAdapter(
@@ -151,9 +154,10 @@ export function createGtmRuntime(
         } finally {
           if (mutation) {
             writeCompleted = true;
-            await withGtmCacheTimeout(() =>
-              id ? backend.endMutation(id) : backend.clear(),
-            ).catch(invalidationFailed);
+            // This path always allocated a lease ID before attempting start.
+            await withGtmCacheTimeout(() => backend.endMutation(id!)).catch(
+              invalidationFailed,
+            );
           }
         }
       };

@@ -15,6 +15,16 @@ import { isGtmReadOnlyRequest } from "./gtmRequestPolicy.js";
 
 export const GTM_REQUEST_DEADLINE_MS = 25_000;
 
+function upstreamResponseError(status: number, body: unknown): Error {
+  const detail = body as { error?: { message?: unknown } } | null;
+  const message =
+    typeof detail?.error?.message === "string"
+      ? `: ${detail.error.message}`
+      : "";
+  // Preserve diagnostics without retaining request headers or credentials.
+  return new Error(`Google API ${status}${message}`);
+}
+
 export function waitForGtm(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     const abort = (): void => {
@@ -55,6 +65,7 @@ export function createScheduledGtmAdapter(
     ]);
     const method = (options.method ?? "GET").toUpperCase();
     const safeRead = isGtmReadOnlyRequest(method, options.url);
+    let lastUpstreamError: Error | undefined;
     try {
       for (let attempt = 0; ; attempt++) {
         const queuedAt = Date.now();
@@ -119,8 +130,11 @@ export function createScheduledGtmAdapter(
           backoff = Math.max(retryAfter || 0, backoff);
           // Preserve Google's response when its retry delay exceeds our budget.
           if (Date.now() + backoff >= deadline) return response;
+          lastUpstreamError = upstreamResponseError(status, response.data);
         } catch (error) {
           if (signal.aborted) throw signal.reason;
+          lastUpstreamError =
+            error instanceof Error ? error : new Error(String(error));
           // A failed write may already have committed. Never replay it after
           // an ambiguous transport failure (including deletes and updates).
           if (!safeRead || attempt >= 2) throw error;
@@ -138,6 +152,25 @@ export function createScheduledGtmAdapter(
         });
         await waitForGtm(backoff, signal);
       }
+    } catch (error) {
+      const userCancelled =
+        signal.aborted &&
+        !(
+          signal.reason instanceof GtmSchedulingError &&
+          signal.reason.reason === "deadline"
+        );
+      if (lastUpstreamError && error !== lastUpstreamError && !userCancelled) {
+        if (error instanceof GtmSchedulingError)
+          throw new GtmSchedulingError(error.reason, {
+            cause: lastUpstreamError,
+          });
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(
+          `${message} Previous upstream failure: ${lastUpstreamError.message}`,
+          { cause: lastUpstreamError },
+        );
+      }
+      throw error;
     } finally {
       clearTimeout(timer);
     }
