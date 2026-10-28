@@ -224,7 +224,7 @@ allow 305 seconds. Client/transport cancellation may end an operation earlier.
 
 Completed pages refresh scan admission for 30 seconds, avoiding duplicate healthy
 slow scans. Scheduled fills with less than 25 seconds left stop admitting readers.
-A replacement cannot delete or overwrite an older/newer fill through stale cleanup.
+Automatic replacement families can reuse their first completed result; fresh reads and mutation/clear invalidation remain separate barriers. Stale cleanup cannot delete a different active fill.
 Finite budgets still limit very large lists; there is no resumable partial scan.
 
 Local admission predicts FIFO timing and rejects slots at/beyond the caller's
@@ -248,3 +248,35 @@ errors. The producer-cap regression still verifies a hard five-minute limit.
 Build, typecheck, zero-warning lint, both CLI protocol smoke tests, the real local
 Worker station, changeset validation, npm package checks, and all three Worker
 bundle dry runs pass. No deployment or real-Google testing was performed.
+
+## Fifth review follow-up — October 28, 2026
+
+The core README includes a connected TypeScript SDK client example using
+`callTool(..., { timeout: 310_000 })`. Its default 60-second timeout can end a
+large list early; server deadlines cannot extend it. Cancellation still stops a
+sole reader's producer, and partial lists are never cached.
+
+Automatic replacements in the same active family can consume whichever complete
+scan finishes first. That result is cached, redundant pagination is aborted, and
+reused results report `coalesced`. Already-started Google requests cannot be
+undone. Fresh reads and mutation/clear invalidation create separate families;
+no old-family result crosses those barriers. An individual scan's failure or
+cancellation does not fail a live replacement. Internal successful reuse does not
+count as user queue cancellation.
+
+`GtmRuntime.startCall` accepts an optional fifth argument with
+`operationKind: "list" | "single"`. Custom actions, including `extraTools`, can
+select the five-minute operation budget without naming the action `list`.
+Omission preserves existing action-based defaults. The per-request queue,
+execution and retry budget remains 25 seconds in all cases; the sign-out timeout
+and retry override guard remain unchanged.
+
+Local verification: 244 tests pass (103 Worker and 141 core), including 14 new
+cases for the real SDK's default/extended client timeout, explicit custom-tool
+operation kinds, both automatic completion orders, scheduled near-deadline reuse,
+fresh/mutation/clear barriers, scan failure/cancellation isolation, and reuse
+across hosted stateless requests. Build, typecheck, zero-warning lint, both CLI
+protocol smoke tests, the real local Worker station, changeset validation, npm
+package checks, and all three Worker bundle dry runs pass. The 25-second request
+budget, outer sign-out timeout, and retry override guard are unchanged. No
+deployment or real-Google testing was performed.

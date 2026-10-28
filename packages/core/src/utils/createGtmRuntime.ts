@@ -47,8 +47,14 @@ export interface GtmRuntime {
     tool: string,
     action: string,
     signal?: AbortSignal,
+    options?: GtmCallOptions,
   ): GtmInvocation;
   clear(): Promise<void>;
+}
+
+export interface GtmCallOptions {
+  /** Explicit budget class for custom actions; omission preserves action defaults. */
+  operationKind?: "single" | "list";
 }
 
 export function createGtmRuntime(
@@ -97,12 +103,16 @@ export function createGtmRuntime(
   }
   return {
     clear: () => withGtmCacheTimeout(() => backend.clear()),
-    startCall(auth, tool, action, signal): GtmInvocation {
+    startCall(auth, tool, action, signal, callOptions): GtmInvocation {
       const call = { tool, action, callId: crypto.randomUUID() };
       // Caching must not impose a new operation deadline on unscheduled calls.
+      const operationKind =
+        callOptions?.operationKind ?? (action === "list" ? "list" : "single");
       const deadline = options.scheduler
         ? Date.now() +
-          (action === "list" ? GTM_LIST_DEADLINE_MS : GTM_REQUEST_DEADLINE_MS)
+          (operationKind === "list"
+            ? GTM_LIST_DEADLINE_MS
+            : GTM_REQUEST_DEADLINE_MS)
         : undefined;
       emitGtmUsage(options.observer, { ...call, event: "tool_call" });
       const observedAdapter = options.scheduler

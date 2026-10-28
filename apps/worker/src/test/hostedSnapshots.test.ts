@@ -193,6 +193,47 @@ describe("hosted snapshot cache", () => {
     }
   });
 
+  it("shares an older completed scan across stateless automatic replacements", async () => {
+    vi.useFakeTimers({ now: 0 });
+    vi.spyOn(crypto.subtle, "digest").mockResolvedValue(new ArrayBuffer(32));
+    const releases: ((response: Response) => void)[] = [];
+    const google = vi.fn(
+      (): Promise<Response> =>
+        new Promise((resolve) => {
+          releases.push(resolve);
+        }),
+    );
+    vi.stubGlobal("fetch", google);
+    const auth = { getAccessToken: async (): Promise<string> => "fake-token" };
+    const path = "accounts/1/containers/2/workspaces/3/tags";
+    try {
+      const first = createHostedGtmRuntime(env, props)
+        .startCall(auth, "gtm_tag", "list")
+        .listPage(path, false, 1, 20);
+      await vi.waitFor(() => expect(google).toHaveBeenCalledTimes(1));
+      await vi.advanceTimersByTimeAsync(30_000);
+      const second = createHostedGtmRuntime(env, props)
+        .startCall(auth, "gtm_tag", "list")
+        .listPage(path, false, 1, 20);
+      await vi.waitFor(() => expect(google).toHaveBeenCalledTimes(2));
+      releases[0](Response.json({ tag: [{ name: "completed original" }] }));
+      const results = await Promise.all([first, second]);
+      expect(results.map((result) => result.data[0].name)).toEqual([
+        "completed original",
+        "completed original",
+      ]);
+      releases[1](Response.json({ tag: [], nextPageToken: "unused" }));
+      await vi.advanceTimersByTimeAsync(0);
+      const cached = await createHostedGtmRuntime(env, props)
+        .startCall(auth, "gtm_tag", "list")
+        .listPage(path, false, 1, 20);
+      expect(cached.data[0].name).toBe("completed original");
+      expect(google).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
   it("shares snapshots between separate stateless HTTP requests and records only real Google attempts", async () => {
     const google = vi.fn(async () =>
       Response.json({

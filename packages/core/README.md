@@ -84,7 +84,7 @@ mutate retained cache data through these APIs. Node.js 20.3 or newer is required
 
 `gtm_tag`, `gtm_trigger`, and `gtm_variable` reuse a complete list snapshot across numeric pages. `page`, `itemsPerPage`, and exact pagination totals retain their existing meaning. `fresh: true` bypasses stored snapshots and in-flight scans; resource `get` calls always reach Google.
 
-The default snapshot lifetime and retention limits are exported from [`listSnapshotCache.ts`](src/utils/listSnapshotCache.ts). Reads do not extend expiration. Concurrent reads of the same list share one upstream scan while it completes a page at least every 30 seconds. Each completed page refreshes this inactivity window. After 30 seconds without a completed page, later readers start a replacement scan while existing readers can continue waiting for the original. This admission window does not impose an operation timeout. A superseded scan cannot overwrite the replacement snapshot. Failed and incomplete scans are not cached.
+The default snapshot lifetime and retention limits are exported from [`listSnapshotCache.ts`](src/utils/listSnapshotCache.ts). Reads do not extend expiration. Concurrent reads of the same list share one upstream scan while it completes a page at least every 30 seconds. Each completed page refreshes this inactivity window. After 30 seconds without a completed page, later readers start a replacement scan while existing readers can continue waiting for the original. This admission window does not impose an operation timeout. Automatic replacements share the first complete result from their active scan family, cache it, and stop redundant pagination. An already-started Google request may still execute. `fresh: true` and mutation/clear invalidation create separate families: earlier scans cannot satisfy those reads or overwrite their snapshots. A failed or cancelled scan does not fail another live family member. Failed and incomplete scans are not cached.
 
 Snapshots are isolated by credential and resource path. The auth provider is called before every read, including cache hits. Mutations invalidate the runtime's snapshots before and after the Google request, including failed requests. A read that overlaps a mutation completes without storing its result; later reads load a new snapshot. Changes made outside this runtime, including GTM permission changes, become visible when the snapshot expires or the caller requests `fresh: true`.
 
@@ -125,6 +125,45 @@ The CLI accepts `GTM_REQUEST_SCHEDULER_ENABLED=true`, with optional
 Scheduled ordinary calls use a 25-second total budget. List operations use a separate five-minute total budget, including tools that paginate without snapshots. Each upstream request has at most 25 seconds for queueing, execution and retries, clipped to the remaining operation budget. Backoff and cancellation remain bounded.
 Daily and permission errors stop; uncertain writes are not replayed. Each retry
 obtains a new permit and records its actual attempt separately from queue wait.
+
+For the connected MCP TypeScript SDK client, the default request timeout is
+60 seconds. Set a longer timeout for calls that may need the full list budget:
+
+```ts
+const result = await client.callTool(
+  {
+    name: "gtm_tag",
+    arguments: {
+      action: "list",
+      accountId: "1",
+      containerId: "2",
+      workspaceId: "3",
+    },
+  },
+  { timeout: 310_000 }, // Five-minute list budget plus delivery allowance.
+);
+```
+
+Configure equivalent timeouts in other clients where supported. The server cannot
+extend a client's timeout. If the last reader times out or cancels, its scan is
+cancelled and partial data is not cached; another live reader can keep it running.
+
+Custom tools can select the operation budget independently of their action name:
+
+```ts
+const invocation = runtime.startCall(auth, "custom_export", "export", signal, {
+  operationKind: "list",
+});
+const google = await getTagManagerClient(auth, invocation);
+// Use this client for the custom tool's pagination loop.
+```
+
+`signal` is the tool request's abort signal. The optional fifth argument accepts
+`operationKind: "list"` (five-minute operation) or `"single"` (25-second operation).
+Omitting it preserves existing defaults: action `"list"` uses the list budget;
+other actions use the single-operation budget. Every individual upstream request
+still has at most 25 seconds including queueing and retries, whichever operation
+kind is selected. These budgets apply when scheduling is enabled.
 
 With scheduling enabled, each shared scan has a fixed five-minute producer budget
 independent of its first reader's deadline. New readers start a replacement instead of joining when less than 25 seconds remains, even if the scan is making progress. Each subscriber enforces its own deadline and cancellation;

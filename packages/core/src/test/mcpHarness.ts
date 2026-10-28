@@ -20,6 +20,7 @@ export interface McpHarnessOptions {
   auth?: GtmAuthProvider;
   /** Passed through to createGtmMcpServer(); defaults to the production tool set. */
   tools?: CreateGtmMcpServerOptions["tools"];
+  extraTools?: CreateGtmMcpServerOptions["extraTools"];
   runtime?: CreateGtmMcpServerOptions["runtime"];
   /**
    * Protocol era the harness's Client negotiates.
@@ -59,12 +60,13 @@ const stubAuth: GtmAuthProvider = {
 export async function createHarness({
   auth = stubAuth,
   tools,
+  extraTools,
   runtime,
   era = "legacy",
 }: McpHarnessOptions = {}): Promise<McpHarness> {
   if (era === "modern") {
     const handler = createMcpHandler(() =>
-      createGtmMcpServer({ auth, tools, runtime }),
+      createGtmMcpServer({ auth, tools, extraTools, runtime }),
     );
     const client = new Client(
       { name: "mcp-harness-client", version: "0.0.0-test" },
@@ -89,7 +91,7 @@ export async function createHarness({
     };
   }
 
-  const server = createGtmMcpServer({ auth, tools, runtime });
+  const server = createGtmMcpServer({ auth, tools, extraTools, runtime });
   const client = new Client({
     name: "mcp-harness-client",
     version: "0.0.0-test",

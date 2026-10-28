@@ -149,7 +149,8 @@ it.each([
     const replaces = joinAt > GTM_LIST_DEADLINE_MS - GTM_REQUEST_DEADLINE_MS;
     expect(result.cache).toBe(replaces ? "miss" : "coalesced");
     expect(result.items).toHaveLength(replaces ? 1 : 28);
-    expect((await first).items).toHaveLength(28);
+    // The first completed automatic family member now also serves older readers.
+    expect((await first).items).toHaveLength(replaces ? 1 : 28);
     expect(api.calls).toHaveLength(replaces ? 29 : 28);
     expect((await cache.read(request)).items[0].name).toBe(
       replaces ? "replacement" : "original",

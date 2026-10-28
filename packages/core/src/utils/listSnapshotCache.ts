@@ -92,7 +92,26 @@ interface PendingSnapshot {
   promise: Promise<GtmSnapshotItem[]>;
   controller: AbortController;
   waiters: number;
+  family: SnapshotFamily;
 }
+
+// Only automatic replacements share results. Fresh reads and invalidation
+// establish a new family, preserving their ordering barriers.
+interface SnapshotFamily {
+  completed: Promise<GtmSnapshotItem[]>;
+  complete(items: GtmSnapshotItem[]): void;
+  winner?: PendingSnapshot;
+}
+
+function createSnapshotFamily(): SnapshotFamily {
+  let complete!: SnapshotFamily["complete"];
+  const completed = new Promise<GtmSnapshotItem[]>((resolve) => {
+    complete = resolve;
+  });
+  return { completed, complete };
+}
+
+const SNAPSHOT_REUSED = new Error("Completed snapshot reused.");
 
 export class ListSnapshotCache implements GtmSnapshotBackend {
   private entries = new Map<string, SnapshotEntry>();
@@ -181,6 +200,13 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
       controller: new AbortController(),
       waiters: 0,
       promise: undefined!,
+      family:
+        !request.fresh &&
+        !bypass &&
+        existing &&
+        !existing.controller.signal.aborted
+          ? existing.family
+          : createSnapshotFamily(),
     };
     // Scheduled producers have a bounded scan budget. Each subscriber enforces
     // its own deadline without cancelling readers who still have time left.
@@ -191,7 +217,7 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
             () => fill.controller.abort(new GtmSchedulingError("deadline")),
             GTM_LIST_DEADLINE_MS,
           );
-    fill.promise = withGtmAbort(
+    const producer = withGtmAbort(
       this.load(
         {
           ...request,
@@ -203,12 +229,26 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
         },
       ),
       fill.controller.signal,
-    )
+    ).then((items) => {
+      if (bypass || fill.controller.signal.aborted) return items;
+      if (generation !== this.generation) return items;
+      // A completed scan may satisfy its automatic replacements, but never
+      // a fresh read, a mutation generation, or a family that already won.
+      if (
+        this.pending.get(key)?.family === fill.family &&
+        !fill.family.winner
+      ) {
+        fill.family.winner = fill;
+        this.store(key, items);
+        fill.family.complete(items);
+      }
+      return items;
+    });
+    fill.promise = Promise.race([producer, fill.family.completed])
       .then((items) => {
-        if (bypass || fill.controller.signal.aborted) return items;
-        if (generation !== this.generation) return items;
-        // Superseded by a fresh read: storing would overwrite its newer snapshot.
-        if (this.pending.get(key) === fill) this.store(key, items);
+        // Readers already have the completed result; stop redundant pagination.
+        if (fill.family.winner && fill.family.winner !== fill)
+          fill.controller.abort(SNAPSHOT_REUSED);
         return items;
       })
       .finally(() => {
@@ -221,7 +261,9 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
       cache:
         bypass || request.fresh || generation !== this.generation
           ? "bypass"
-          : "miss",
+          : fill.family.winner && fill.family.winner !== fill
+            ? "coalesced"
+            : "miss",
     };
   }
 
@@ -350,6 +392,17 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
     const resource = request.path.split("/").at(-1) as keyof typeof LIST_FIELDS;
     const parent = request.path.slice(0, request.path.lastIndexOf("/"));
     const field = LIST_FIELDS[resource];
+    const observer: GtmUsageObserver | undefined = this.options.observer
+      ? (event): void => {
+          // Internal successful reuse is not a user's cancelled queue wait.
+          if (
+            event.event === "queue_cancelled" &&
+            request.signal?.reason === SNAPSHOT_REUSED
+          )
+            return;
+          this.options.observer?.(event);
+        }
+      : undefined;
     const client = tagmanager({
       version: "v2",
       headers: { Authorization: `Bearer ${request.token}` },
@@ -357,12 +410,12 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
       adapter: this.options.scheduler
         ? createScheduledGtmAdapter(
             this.options.scheduler,
-            this.options.observer,
+            observer,
             request.call,
             request.deadline ?? Date.now() + GTM_LIST_DEADLINE_MS,
             request.signal,
           )
-        : createObservedGtmAdapter(this.options.observer, request.call),
+        : createObservedGtmAdapter(observer, request.call),
       ...getGtmRetryOptions(Boolean(this.options.scheduler)),
     });
     const items: GtmSnapshotItem[] = [];

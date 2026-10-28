@@ -87,7 +87,7 @@ it("keeps sharing a healthy scan that completes pages beyond 30 seconds", async 
 });
 
 it.each(["before", "after"])(
-  "an old scan completing %s its replacement cannot remove or overwrite it",
+  "an old scan completing %s a fresh replacement cannot remove or overwrite it",
   async (order) => {
     vi.useFakeTimers({ now: 0 });
     vi.spyOn(crypto.subtle, "digest").mockResolvedValue(new ArrayBuffer(32));
@@ -111,7 +111,7 @@ it.each(["before", "after"])(
     started = new Promise<void>((resolve) => {
       entered = resolve;
     });
-    const replacement = cache.read(request);
+    const replacement = cache.read({ ...request, fresh: true });
     await started;
     if (order === "before") {
       releases[0](json({ tag: [{ name: "old" }] }));
