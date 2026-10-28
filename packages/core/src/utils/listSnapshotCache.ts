@@ -335,6 +335,9 @@ export class ListSnapshotCache implements GtmSnapshotBackend {
   }
 
   private invalidate(): void {
+    // Mutations can affect resources absent from the request path (container
+    // combine and move_tag_id), so invalidate the entire backend across clients.
+    // Unrelated tenants should use separate backend instances.
     this.generation++;
     this.entries.clear();
     this.pending.clear();

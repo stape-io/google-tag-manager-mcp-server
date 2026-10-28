@@ -21,6 +21,8 @@ jobs:
           cache: npm
 
       - run: npm ci
+      - run: npm run check:versions
+      - run: npm run test:tooling
       - run: npm run build
       - run: npm run typecheck
       - run: npm run lint
@@ -45,6 +47,24 @@ jobs:
         working-directory: apps/worker
         env:
           WRANGLER_SEND_METRICS: "false"
+
+  published-node-floor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # Install/build with repository tooling's runtime; Wrangler requires 22+.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w google-tag-manager-mcp-core && npm run build -w google-tag-manager-mcp-server
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "20.3.0"
+      # Includes real CLI subprocess tests and core's production transport paths.
+      - run: node node_modules/vitest/vitest.mjs run --root packages/core
+      - run: node scripts/smoke-cli.mjs
 
   changeset:
     runs-on: ubuntu-latest

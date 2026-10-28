@@ -60,7 +60,7 @@ independent namespaces: they must use separate Google quota projects or share
 one central coordinator before both enable scheduling for the same project.
 
 `GTM_REQUEST_INTERVAL_MS` defaults to 4100 milliseconds and
-`GTM_REQUEST_MAX_PENDING` defaults to 25 future reservations. Set the interval
+`GTM_REQUEST_MAX_PENDING` defaults to an upper bound of 25 future reservations, subject to the stricter per-request deadline. At the default 4100ms pacing and 25-second request budget, deadline admission binds before a depth of 25; raising the capacity alone has no effect. Lower limits or faster approved pacing can make capacity bind. Set the interval
 from the actual approved project quota. The coordinator persists only its next
 reservation timestamp, never tokens, payloads, or identifiers. Cancelled slots
 are left unused until their scheduled time; caller cancellation never executes
@@ -108,3 +108,18 @@ expiring does not turn into a user-cancellation metric.
 Coordinator transport failures and unreadable response bodies return a consistent unavailable message. Structured queue-full/deadline responses and caller cancellation retain their specific errors. Internal delivery errors remain available as causes rather than in user-facing messages. Sign-out retains its own one-second cache-clear boundary even though the standard runtime also bounds clearing.
 
 For clients using the MCP TypeScript SDK, configure `callTool(..., { timeout: 310_000 })` when a list may need the five-minute budget. The SDK default is 60 seconds; the server cannot extend client timeouts. See the core README for a complete example and the explicit `startCall` operation-kind option for custom tool handlers. Individual Google requests remain capped at 25 seconds.
+
+Mutation leases suppress cache reuse across every MCP client sharing the same
+Google-user/OAuth cache object. This is intentional: writes change shared Google
+resources. A delivered mutation start with a lost end can bypass caching for the
+whole object until the lease expires (up to 120 seconds), even when no write is
+still running.
+
+Delivery lead time helps avoid expired permits after slow RPC delivery. It does
+not compensate for persistent local timer lateness: if a future slot dominates
+`now + leadMs`, a late wake can miss all three bounded attempts. Those expired
+reservations issue no Google requests, but consume pacing capacity. At the
+default interval, three misses consume three 4.1-second slots. Slots are not
+rewound or reclaimed, since later callers may already hold reservations. Any
+future reclamation must atomically prove last-reservation ownership; widening
+permit validity or blindly changing `max` would weaken pacing safety.

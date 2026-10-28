@@ -30,7 +30,7 @@ afterEach(async () => {
   await Promise.all(harnesses.splice(0).map((harness) => harness.close()));
 });
 
-describe("second review regressions", () => {
+describe("runtime deadlines and upstream errors", () => {
   it.each([
     [true, false, 26_000],
     [false, false, 26_000],

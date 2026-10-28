@@ -5,6 +5,8 @@ import {
   createGtmMcpServer,
   createGtmRuntime,
   LocalGtmRequestScheduler,
+  GTM_DEFAULT_REQUEST_INTERVAL_MS,
+  GTM_DEFAULT_REQUEST_MAX_PENDING,
   resolveAuthMode,
   setLogSink,
 } from "google-tag-manager-mcp-core";
@@ -21,8 +23,14 @@ function main(): void {
   const scheduler =
     process.env.GTM_REQUEST_SCHEDULER_ENABLED === "true"
       ? new LocalGtmRequestScheduler({
-          intervalMs: Number(process.env.GTM_REQUEST_INTERVAL_MS ?? 4_100),
-          maxPending: Number(process.env.GTM_REQUEST_MAX_PENDING ?? 25),
+          intervalMs: Number(
+            process.env.GTM_REQUEST_INTERVAL_MS ??
+              GTM_DEFAULT_REQUEST_INTERVAL_MS,
+          ),
+          maxPending: Number(
+            process.env.GTM_REQUEST_MAX_PENDING ??
+              GTM_DEFAULT_REQUEST_MAX_PENDING,
+          ),
         })
       : undefined;
 

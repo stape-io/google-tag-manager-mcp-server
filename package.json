@@ -23,10 +23,13 @@
     "deploy": "npm run deploy -w gtm-mcp-worker",
     "changeset": "changeset",
     "release": "npm run build && changeset publish",
-    "test": "npm run test --workspaces --if-present",
+    "test": "node scripts/run-tests.mjs",
     "smoke": "node scripts/smoke-cli.mjs",
     "test:station": "npm run build && tsc -p scripts/local-station/tsconfig.json && node scripts/local-station/run.mjs",
-    "pretest": "npm run build"
+    "pretest": "npm run build",
+    "check:versions": "node scripts/generate-version.mjs --check --all",
+    "version-packages": "changeset version && node scripts/generate-version.mjs --all",
+    "test:tooling": "node --test scripts/test-tooling.test.mjs"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.0",
@@ -39,5 +42,8 @@
     "prettier": "^3.5.3",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.30.1"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

@@ -280,3 +280,33 @@ protocol smoke tests, the real local Worker station, changeset validation, npm
 package checks, and all three Worker bundle dry runs pass. The 25-second request
 budget, outer sign-out timeout, and retry override guard are unchanged. No
 deployment or real-Google testing was performed.
+
+## Review follow-up — October 28, 2026
+
+Core and CLI default caching is explicit in the release note. Core documentation
+now explains backend-wide invalidation, tenant/backend boundaries, cross-MCP-client
+lease scope, and the 120-second fallback after a lost mutation end. Cross-client
+invalidation remains intentional; container combine/move operations can affect
+resources outside the request path. Cancellation propagation without scheduling
+is explicit in the release note.
+
+The capacity limit is an upper bound: the 25-second per-request budget dominates
+at default pacing. Persistent late timer wakes can miss all three permits even
+with a loaded coordinator; the regression pins reservations at 8.2, 12.3 and
+16.4 seconds with 1.2-second timer lateness. No Google attempt is authorized by
+those expired permits. Capacity reclamation is a separate protocol change and
+is not implemented; permit validity and pacing safety remain unchanged.
+
+Scheduler defaults are shared by core, CLI, and Worker. Test suites are named by
+subject. Root tests prepare fixtures once, while standalone core tests still
+rebuild them. Generated version sources are checked before CI builds and
+regenerated after release-version bumps. The core/CLI Node 20.3 compatibility job
+is separate from Node 24 repository/Worker checks; repository tooling needs 22+.
+
+Local verification: 247 workspace tests pass (104 Worker and 143 core), plus
+the tooling regression for non-mutating version checks and regeneration. Normal
+root tests and standalone core tests each build core/CLI fixtures once; the CI
+test command adds no builds. All 143 core tests and both CLI protocol smoke tests
+also pass on Node 20.3.0. Version-source checks, typecheck, zero-warning lint,
+the real local Worker station, changeset validation, and all three Worker bundle
+dry runs pass. No deployment or real-Google testing was performed.

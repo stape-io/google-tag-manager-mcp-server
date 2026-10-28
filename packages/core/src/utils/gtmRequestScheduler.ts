@@ -1,3 +1,6 @@
+export const GTM_DEFAULT_REQUEST_INTERVAL_MS = 4_100;
+export const GTM_DEFAULT_REQUEST_MAX_PENDING = 25;
+
 export interface GtmScheduleRequest {
   signal?: AbortSignal;
   deadline: number;
@@ -79,10 +82,12 @@ export class LocalGtmRequestScheduler implements GtmRequestScheduler {
     } = {},
   ) {
     if (
-      !Number.isFinite(options.intervalMs ?? 4_100) ||
-      (options.intervalMs ?? 4_100) < 1 ||
-      !Number.isInteger(options.maxPending ?? 25) ||
-      (options.maxPending ?? 25) < 1
+      !Number.isFinite(options.intervalMs ?? GTM_DEFAULT_REQUEST_INTERVAL_MS) ||
+      (options.intervalMs ?? GTM_DEFAULT_REQUEST_INTERVAL_MS) < 1 ||
+      !Number.isInteger(
+        options.maxPending ?? GTM_DEFAULT_REQUEST_MAX_PENDING,
+      ) ||
+      (options.maxPending ?? GTM_DEFAULT_REQUEST_MAX_PENDING) < 1
     )
       throw new Error("Invalid GTM scheduler configuration.");
   }
@@ -92,7 +97,10 @@ export class LocalGtmRequestScheduler implements GtmRequestScheduler {
       return Promise.reject(new GtmSchedulingError("cancelled"));
     if (!Number.isFinite(request.deadline) || request.deadline <= Date.now())
       return Promise.reject(new GtmSchedulingError("deadline"));
-    if (this.queue.length >= (this.options.maxPending ?? 25))
+    if (
+      this.queue.length >=
+      (this.options.maxPending ?? GTM_DEFAULT_REQUEST_MAX_PENDING)
+    )
       return Promise.reject(new GtmSchedulingError("full"));
 
     // Predict the FIFO slot, skipping work that expires before it can run.
@@ -100,7 +108,7 @@ export class LocalGtmRequestScheduler implements GtmRequestScheduler {
     let at = Math.max(Date.now(), this.nextAt);
     for (const waiter of this.queue) {
       if (!waiter.request.signal?.aborted && waiter.request.deadline > at)
-        at += this.options.intervalMs ?? 4_100;
+        at += this.options.intervalMs ?? GTM_DEFAULT_REQUEST_INTERVAL_MS;
     }
     if (at >= request.deadline)
       return Promise.reject(new GtmSchedulingError("deadline"));
@@ -156,7 +164,8 @@ export class LocalGtmRequestScheduler implements GtmRequestScheduler {
           this.timer = setTimeout(() => this.pump(), this.nextAt - now);
           return;
         }
-        this.nextAt = now + (this.options.intervalMs ?? 4_100);
+        this.nextAt =
+          now + (this.options.intervalMs ?? GTM_DEFAULT_REQUEST_INTERVAL_MS);
         waiter.finish();
       }
     } finally {

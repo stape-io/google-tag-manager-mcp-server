@@ -496,6 +496,10 @@ On merge to `main` the release workflow opens a "Version Packages" PR; merging t
 
 ## Development
 
+Repository tooling requires Node.js 22+ (Wrangler's minimum); `.nvmrc` selects
+Node 24, as used by the main CI jobs. Published core and CLI packages retain
+Node.js 20.3+ support, verified by a separate compatibility job.
+
 ```bash
 npm install
 npm run build      # core, then the CLI, then the Worker's generated version
@@ -503,6 +507,15 @@ npm run typecheck
 npm run lint
 npm run smoke      # starts the built CLI and runs an MCP handshake against it
 ```
+
+`npm test` builds fixtures once before running workspace suites. A standalone
+`npm test -w google-tag-manager-mcp-core` builds its own core/CLI fixtures.
+`npm test --ignore-scripts` expects fixtures to have been built explicitly.
+
+`npm run check:versions` detects generated version-source drift without repairing
+it. CI runs this before builds; use `node scripts/generate-version.mjs --all` to
+regenerate it. The release workflow uses `npm run version-packages` so changeset
+version bumps also regenerate core, CLI, and Worker source before committing.
 
 Pull requests run all of the above plus a Worker bundle check, and flag changes to a published package that arrive without a changeset.
 

@@ -125,6 +125,47 @@ describe("hosted project coordinator", () => {
     },
   );
 
+  it("bounds persistent late timer wakes on a loaded coordinator without issuing a usable permit", async () => {
+    vi.useFakeTimers({ now: 0 });
+    const { state, env, stored } = station({
+      GTM_REQUEST_INTERVAL_MS: "4100",
+      GTM_REQUEST_MAX_PENDING: "25",
+    });
+    const coordinator = new GtmRequestCoordinator(state, env);
+    await reserve(coordinator, 25_000);
+    await reserve(coordinator, 25_000);
+    const bodies: { leadMs?: number }[] = [];
+    const slots: number[] = [];
+    const scheduler = hostedWithFetch(
+      async (_input?: string, init?: RequestInit): Promise<Response> => {
+        bodies.push(JSON.parse(String(init?.body)));
+        const response = await coordinator.fetch(
+          new Request("https://coordinator.internal/acquire", init),
+        );
+        slots.push(((await response.clone().json()) as { at: number }).at);
+        return response;
+      },
+    );
+    const schedule = globalThis.setTimeout;
+    vi.spyOn(globalThis, "setTimeout").mockImplementation(((
+      callback: () => void,
+      ms?: number,
+    ) =>
+      schedule(callback, ms && ms > 0 ? ms + 1200 : ms)) as typeof setTimeout);
+    try {
+      const pending = expect(
+        scheduler.acquire({ deadline: 25_000 }),
+      ).rejects.toThrow("delivery is too slow");
+      await vi.advanceTimersByTimeAsync(20_000);
+      await pending;
+      expect(bodies.map((body) => body.leadMs ?? 0)).toEqual([0, 25, 50]);
+      expect(slots).toEqual([8200, 12300, 16400]);
+      expect(stored.get("nextAt")).toBe(20500);
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
   it("does not count a long queue wait as coordinator delivery latency", async () => {
     vi.useFakeTimers({ now: 0 });
     const schedule = globalThis.setTimeout;

@@ -39,7 +39,7 @@
     "test": "vitest run",
     "test:golden:update": "vitest run --config vitest.golden.config.ts",
     "prepublishOnly": "npm run build",
-    "pretest": "npm run build && npm run build -w google-tag-manager-mcp-server"
+    "pretest": "node ../../scripts/prepare-test-fixtures.mjs"
   },
   "dependencies": {
     "@googleapis/tagmanager": "^16.0.0"

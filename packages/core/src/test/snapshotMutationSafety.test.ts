@@ -25,7 +25,7 @@ afterEach(async () => {
   await Promise.all(harnesses.splice(0).map((harness) => harness.close()));
 });
 
-describe("cache review regressions", () => {
+describe("snapshot mutation and isolation safety", () => {
   it("does not invalidate a fresh snapshot when a completed lease's start arrives late", async () => {
     const cache = new ListSnapshotCache();
     await cache.endMutation("delayed-start");

@@ -53,6 +53,9 @@
   "vars": {
     "SHOW_HOST_NOTICE": "true",
     "GTM_SNAPSHOT_CACHE_ENABLED": "false",
+    // Before enabling scheduling, set GTM_QUOTA_PROJECT_ID to the real Google
+    // quota project in this environment (see README, Shared project scheduling).
+    // No dummy project key is supplied: it would create the wrong quota bucket.
     "GTM_REQUEST_SCHEDULER_ENABLED": "false",
   },
   "dev": {
@@ -71,6 +74,9 @@
       "vars": {
         "SHOW_HOST_NOTICE": "false",
         "GTM_SNAPSHOT_CACHE_ENABLED": "true",
+        // Before enabling scheduling, set GTM_QUOTA_PROJECT_ID to the real Google
+        // quota project in this environment (see README, Shared project scheduling).
+        // No dummy project key is supplied: it would create the wrong quota bucket.
         "GTM_REQUEST_SCHEDULER_ENABLED": "false",
       },
       "routes": [
@@ -111,6 +117,9 @@
       "vars": {
         "SHOW_HOST_NOTICE": "false",
         "GTM_SNAPSHOT_CACHE_ENABLED": "false",
+        // Before enabling scheduling, set GTM_QUOTA_PROJECT_ID to the real Google
+        // quota project in this environment (see README, Shared project scheduling).
+        // No dummy project key is supplied: it would create the wrong quota bucket.
         "GTM_REQUEST_SCHEDULER_ENABLED": "false",
       },
       // The custom domain creates the DNS record and certificate. The route is

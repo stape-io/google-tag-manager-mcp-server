@@ -1,3 +1,8 @@
+import {
+  GTM_DEFAULT_REQUEST_INTERVAL_MS,
+  GTM_DEFAULT_REQUEST_MAX_PENDING,
+} from "google-tag-manager-mcp-core";
+
 // Persist timing reservations only. Credentials and payloads stay in callers.
 export class GtmRequestCoordinator {
   constructor(
@@ -25,8 +30,12 @@ export class GtmRequestCoordinator {
       leadMs > 5_000
     )
       return Response.json({ error: "invalid" }, { status: 400 });
-    const interval = Number(this.env.GTM_REQUEST_INTERVAL_MS ?? 4_100);
-    const maxPending = Number(this.env.GTM_REQUEST_MAX_PENDING ?? 25);
+    const interval = Number(
+      this.env.GTM_REQUEST_INTERVAL_MS ?? GTM_DEFAULT_REQUEST_INTERVAL_MS,
+    );
+    const maxPending = Number(
+      this.env.GTM_REQUEST_MAX_PENDING ?? GTM_DEFAULT_REQUEST_MAX_PENDING,
+    );
     if (
       !Number.isFinite(interval) ||
       interval < 1 ||
