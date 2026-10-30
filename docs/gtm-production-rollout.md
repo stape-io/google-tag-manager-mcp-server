@@ -3,13 +3,13 @@
 This runbook covers production Analytics Engine readiness, snapshot caching and
 request scheduling for `gtm-mcp.stape.ai` and `gtm-mcp.stape.io`. The release owner
 needs access to both production Cloudflare accounts and the Google Cloud project
-that owns the production OAuth client. Production account readiness and ingestion
-remain unverified until that owner records the checks below.
+that owns the production OAuth client. Verify account readiness and event ingestion
+in each target account before enabling features; local bundle checks do not prove
+cloud provisioning.
 
 Do not publish a GTM container during these checks. Use an approved test workspace
-and read-only calls. The separate sign-out/refresh issue remains tracked in
-[DEV-13752](https://stape.atlassian.net/browse/DEV-13752); this rollout does not
-make revocation immediate.
+and read-only calls. The [sign-out limitation](#known-issue-oauth-sign-out-and-refresh)
+applies independently of cache and scheduler enablement.
 
 ## Configuration and deployment targets
 
@@ -28,8 +28,8 @@ and Analytics Engine datasets are separate. The `dev` environment has its own
 configuration and must not be used as a source of production credentials.
 
 The `Release to Production` workflow automatically deploys `.ai` when a matching
-change reaches `main`. Merging PR #99 therefore deploys the new bindings and
-migrations even with cache and scheduler flags disabled. `.io` requires an
+change reaches `main`. Binding and migration changes deploy even with cache and
+scheduler flags disabled. `.io` requires an
 explicit workflow dispatch. Manual dispatch accepts `ai`, `io` or `both`; it has
 no feature-flag inputs. `both` runs the deployments sequentially, not atomically.
 
@@ -48,10 +48,11 @@ as the persistent configuration. Environment variables are
       migrations and the Analytics Engine binding in each production account.
 - [ ] Confirm Analytics Engine is available in both accounts and identify a
       person who can query each account's dataset after deployment.
-- [ ] Match the deployed Google OAuth client to its owning project. Record the
+- [ ] Match the deployed Google OAuth client to its owning project. Verify the
       project ID, project number, approved rate limit, daily limit, current daily
-      usage and reset boundary from Google Cloud. `gtm-mcp` is an expected project
-      name, not verified production evidence; do not substitute the dev project.
+      usage and reset boundary in Google Cloud. Keep account identifiers and raw
+      diagnostics in a restricted release record; use the verified production
+      project ID for configuration.
 - [ ] Inventory every other application or deployment using that project's GTM
       quota, including CLIs. Reserve capacity for their usage before allocating
       the two hosted budgets.
@@ -80,7 +81,8 @@ as the persistent configuration. Environment variables are
    PR, logs or this document. A `403` from the reader does not itself prove that
    Worker ingestion is broken.
 5. Record the account, dataset, deployed revision, UTC test interval and query
-   result for each host. Pause feature enablement if ingestion cannot be checked.
+   result for each host in the restricted release record. Pause feature
+   enablement if ingestion cannot be checked.
    Worker request/CPU metrics alone do not prove Analytics Engine ingestion.
 
 For each account, substitute its configured dataset identifier in this query:
@@ -116,7 +118,7 @@ read reports `snapshot` / `hit` without an associated `google_attempt`; use
 issue Google work rather than reuse the stored snapshot. Verify through modern
 HTTP and legacy SSE where those transports are used. Do not edit or publish a
 production container to exercise invalidation; see the
-[QA handoff](gtm-quota-qa-plan.md) for disposable-workspace mutation scenarios.
+[verification guide](gtm-quota-qa-plan.md) for disposable-workspace mutation scenarios.
 
 Record cache hit/miss/coalesced/bypass counts, Google attempts per tool call and
 errors before progressing. Existing SSE sessions may retain their previous
@@ -195,8 +197,9 @@ per-request limit; use the client settings in the Worker README.
 
 ## Observation and rollback
 
-Record per-host configuration, deployment IDs, quota assumptions, UTC intervals,
-cache results, queue errors and the combined consumption in the PR. Keep the
+Keep per-host configuration, deployment IDs, quota assumptions, UTC intervals,
+cache results, queue errors and combined consumption in the restricted release
+record. Publish only a sanitized verification summary in the PR. Keep the
 allocation unchanged through a full daily quota cycle before considering a
 faster rate. An alert or operator check must cover daily usage because scheduler
 pacing alone does not stop daily exhaustion.
@@ -222,3 +225,12 @@ pacing alone does not stop daily exhaustion.
 Keep feature flags and intervals in version control after any emergency
 Dashboard change, before another deployment can overwrite them. No step in this
 runbook requires publishing a GTM container.
+
+## Known issue: OAuth sign-out and refresh
+
+`gtm_remove_session` can report "Signed out" before access and refresh tokens
+become unusable. A concurrent refresh can prolong access after sign-out. The
+existing revocation mechanism uses eventually consistent storage; cache cleanup
+does not provide immediate token revocation. This behavior predates snapshot
+caching and scheduling and remains unresolved. Do not treat a successful
+sign-out response or any fixed waiting period as proof that access is revoked.

@@ -99,7 +99,8 @@ normal caller/transport limits apply; caching does not impose a new operation
 timeout.
 
 Run `npm run test:station` from the root for the isolated local Worker station.
-See [the QA handoff](../../docs/gtm-quota-qa-plan.md) for checks and responsibilities.
+See the [verification guide](../../docs/gtm-quota-qa-plan.md) for local checks and
+live test scenarios, including the known sign-out limitation.
 
 Mutation starts carry a caller-generated lease ID. Ends invalidate the cache and
 remember completed IDs briefly, so delayed starts cannot reactivate ended leases.
