@@ -126,8 +126,10 @@ container publish is part of local verification.
 - Cancelled hosted reservations remain unused until their slot passes. Only
   timing reservations are persisted; there are no durable background jobs.
 - Separate deployments/Cloudflare accounts have independent coordinators. They
-  must use separate Google quota projects or one central shared coordinator
-  before enabling both against the same project. The CLI coordinates one
+  need separate Google quota projects, one central shared coordinator, or
+  explicitly partitioned budgets covering their combined traffic and other
+  consumers. The [production rollout](gtm-production-rollout.md) describes the
+  static-allocation checks and limits. The CLI coordinates one
   process only; other applications consuming quota can still cause rejections.
 - Batching, cursor/lazy pagination, dashboards and production enablement are
   outside this change. Real-Google behavior and cloud telemetry ingestion remain

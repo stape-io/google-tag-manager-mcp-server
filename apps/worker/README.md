@@ -8,6 +8,11 @@ The default and `io` environments disable caching; `dev` enables it. Setting `GT
 
 A merge to `main` triggers the [.ai production deployment](../../.github/workflows/release.yml). The Durable Object migration and Analytics Engine binding deploy with caching disabled; usage events are active independently of the cache flag. Production accounts require Analytics Engine to be enabled. Bundle dry runs validate configuration and bundling, but do not verify account provisioning or ingestion. The `.io` production deployment is selected explicitly in the release workflow.
 
+The [production rollout runbook](../../docs/gtm-production-rollout.md) covers the
+release owner's account-readiness checks, telemetry verification, staged cache
+enablement, shared quota allocation and rollback. Production readiness requires
+live checks by an owner with access to both Cloudflare accounts and Google Cloud.
+
 ## Usage events
 
 The optional `GTM_USAGE` Analytics Engine binding receives events from both the API handler and cache object. Dataset names belong to each deployment environment in `wrangler.jsonc`.
@@ -52,12 +57,19 @@ Tests use the real MCP dispatch and a fake Google transport. Hosted adapter test
 
 Set `GTM_REQUEST_SCHEDULER_ENABLED=true` and `GTM_QUOTA_PROJECT_ID` to the actual
 Google Cloud project that owns the quota. The `GTM_REQUEST_COORDINATOR` binding
-and v3 migration are included in every environment; scheduling remains disabled
-in all deployment configurations until QA/rollout configuration is supplied.
+and v3 migration are included in every environment. The `dev` environment enables
+scheduling; the default and `io` production configurations disable it.
 All users and OAuth clients in this deployment sharing a project must use the
 same coordinator namespace and project key. Independent deployments have
-independent namespaces: they must use separate Google quota projects or share
-one central coordinator before both enable scheduling for the same project.
+independent namespaces. Deployments sharing a Google quota project need either
+one central coordinator or explicitly partitioned rate budgets whose combined
+traffic, including other consumers, stays within the approved project limits.
+The same project key does not join separate namespaces or change Google quota
+attribution. Static allocations do not lend unused capacity between deployments.
+See the [production rollout runbook](../../docs/gtm-production-rollout.md#allocate-a-static-budget-before-enabling-both-schedulers)
+for a conditional starting allocation and its daily-quota and latency limits.
+Separate Google quota projects are another option when the deployments use
+credentials belonging to those projects.
 
 `GTM_REQUEST_INTERVAL_MS` defaults to 4100 milliseconds and
 `GTM_REQUEST_MAX_PENDING` defaults to an upper bound of 25 future reservations, subject to the stricter per-request deadline. At the default 4100ms pacing and 25-second request budget, deadline admission binds before a depth of 25; raising the capacity alone has no effect. Lower limits or faster approved pacing can make capacity bind. Set the interval
