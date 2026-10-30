@@ -6,6 +6,8 @@ import { FolderSchema } from "../schemas/FolderSchema.js";
 import {
   createErrorResponse,
   getTagManagerClient,
+  getServerGtmRuntime,
+  getGtmRequestSignal,
   log,
   paginateArray,
 } from "../utils/index.js";
@@ -23,7 +25,7 @@ const ITEMS_PER_PAGE = 50;
 
 export const folderActions = (
   server: McpServer,
-  { auth }: GtmToolContext,
+  { auth, runtime = getServerGtmRuntime(server) }: GtmToolContext,
 ): void => {
   server.registerTool(
     "gtm_folder",
@@ -107,24 +109,33 @@ export const folderActions = (
           ),
       }),
     },
-    async ({
-      action,
-      accountId,
-      containerId,
-      workspaceId,
-      folderId,
-      createOrUpdateConfig,
-      fingerprint,
-      tagId,
-      triggerId,
-      variableId,
-      page,
-      itemsPerPage,
-    }) => {
+    async (
+      {
+        action,
+        accountId,
+        containerId,
+        workspaceId,
+        folderId,
+        createOrUpdateConfig,
+        fingerprint,
+        tagId,
+        triggerId,
+        variableId,
+        page,
+        itemsPerPage,
+      },
+      extra,
+    ) => {
       log(`Running tool: gtm_folder with action ${action}`);
 
+      const invocation = runtime.startCall(
+        auth,
+        "gtm_folder",
+        action,
+        getGtmRequestSignal(extra),
+      );
       try {
-        const tagmanager = await getTagManagerClient(auth);
+        const tagmanager = await getTagManagerClient(auth, invocation);
 
         switch (action) {
           case "create": {

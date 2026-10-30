@@ -1,4 +1,4 @@
-export const renderMainPage = () => {
+export const renderMainPage = (): string => {
   return `
     <!DOCTYPE html>
     <html lang="en">

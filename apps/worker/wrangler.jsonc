@@ -7,88 +7,118 @@
   "name": "google-tag-manager-mcp-server",
   "main": "src/index.ts",
   "compatibility_date": "2025-03-10",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
+  "compatibility_flags": ["nodejs_compat"],
   "routes": [
     {
       "pattern": "gtm-mcp.stape.ai",
-      "custom_domain": true
-    }
+      "custom_domain": true,
+    },
   ],
   "migrations": [
     {
-      "new_sqlite_classes": [
-        "GoogleTagManagerMCPServer"
-      ],
-      "tag": "v1"
-    }
+      "new_sqlite_classes": ["GoogleTagManagerMCPServer"],
+      "tag": "v1",
+    },
+    { "tag": "v2", "new_sqlite_classes": ["GtmReadCache"] },
+    { "tag": "v3", "new_sqlite_classes": ["GtmRequestCoordinator"] },
+  ],
+  "analytics_engine_datasets": [
+    { "binding": "GTM_USAGE", "dataset": "gtm_mcp_usage_ai" },
   ],
   "durable_objects": {
     "bindings": [
+      { "class_name": "GtmReadCache", "name": "GTM_READ_CACHE" },
+      {
+        "class_name": "GtmRequestCoordinator",
+        "name": "GTM_REQUEST_COORDINATOR",
+      },
       {
         "class_name": "GoogleTagManagerMCPServer",
-        "name": "MCP_OBJECT"
-      }
-    ]
+        "name": "MCP_OBJECT",
+      },
+    ],
   },
   "kv_namespaces": [
     {
       "binding": "OAUTH_KV",
-      "id": "a2bbe0a0645e44bf83b5dc450d8a9496"
-    }
+      "id": "a2bbe0a0645e44bf83b5dc450d8a9496",
+    },
   ],
   "observability": {
-    "enabled": false
+    "enabled": false,
   },
   // Production on gtm-mcp.stape.ai announces the move to .io (see
   // src/utils/hostNotice.ts); the environments below turn it off, and so does
   // `npm run dev`. Plain `wrangler dev` runs this default env and shows it.
   "vars": {
-    "SHOW_HOST_NOTICE": "true"
+    "SHOW_HOST_NOTICE": "true",
+    "GTM_SNAPSHOT_CACHE_ENABLED": "false",
+    // Before enabling scheduling, set GTM_QUOTA_PROJECT_ID to the real Google
+    // quota project in this environment (see README, Shared project scheduling).
+    // No dummy project key is supplied: it would create the wrong quota bucket.
+    "GTM_REQUEST_SCHEDULER_ENABLED": "false",
   },
   "dev": {
-    "port": 8788
+    "port": 8788,
   },
 
   // Bindings are not inherited by named environments, so each env restates its
   // own Durable Object and KV namespace. Everything else falls through from above.
   "env": {
     "dev": {
+      "analytics_engine_datasets": [
+        { "binding": "GTM_USAGE", "dataset": "gtm_mcp_usage_dev" },
+      ],
       "name": "google-tag-manager-mcp-server-dev",
       // The host notice is for gtm-mcp.stape.ai only.
       "vars": {
-        "SHOW_HOST_NOTICE": "false"
+        "SHOW_HOST_NOTICE": "false",
+        "GTM_SNAPSHOT_CACHE_ENABLED": "true",
+        "GTM_REQUEST_SCHEDULER_ENABLED": "true",
+        "GTM_QUOTA_PROJECT_ID": "gtm-mcp-dev",
       },
       "routes": [
         {
           "pattern": "gtm-mcp.stape.dev",
-          "custom_domain": true
-        }
+          "custom_domain": true,
+        },
       ],
       "durable_objects": {
         "bindings": [
+          { "class_name": "GtmReadCache", "name": "GTM_READ_CACHE" },
+          {
+            "class_name": "GtmRequestCoordinator",
+            "name": "GTM_REQUEST_COORDINATOR",
+          },
           {
             "class_name": "GoogleTagManagerMCPServer",
-            "name": "MCP_OBJECT"
-          }
-        ]
+            "name": "MCP_OBJECT",
+          },
+        ],
       },
       "kv_namespaces": [
         {
           "binding": "OAUTH_KV",
-          "id": "49a584d999764898b6b2f9b5673013be"
-        }
-      ]
+          "id": "49a584d999764898b6b2f9b5673013be",
+        },
+      ],
     },
     // Production on gtm-mcp.stape.io, in the Cloudflare account that owns the
     // stape.io zone. The KV namespace is managed in the terraform repo:
     // gcp/stape-production/google-tag-manager-mcp-server (oauth_io).
     "io": {
+      "analytics_engine_datasets": [
+        { "binding": "GTM_USAGE", "dataset": "gtm_mcp_usage_io" },
+      ],
       "name": "google-tag-manager-mcp-server",
       // The host notice is for gtm-mcp.stape.ai only.
       "vars": {
-        "SHOW_HOST_NOTICE": "false"
+        "SHOW_HOST_NOTICE": "false",
+        "GTM_SNAPSHOT_CACHE_ENABLED": "false",
+        // Before enabling scheduling, set GTM_QUOTA_PROJECT_ID to the real Google
+        // quota project in this environment (see README, Shared project scheduling).
+        // No dummy project key is supplied: it would create the wrong quota bucket.
+        "GTM_REQUEST_SCHEDULER_ENABLED": "false",
       },
       // The custom domain creates the DNS record and certificate. The route is
       // needed because the stape.io zone has a catch-all `*/*` route to
@@ -97,27 +127,32 @@
       "routes": [
         {
           "pattern": "gtm-mcp.stape.io",
-          "custom_domain": true
+          "custom_domain": true,
         },
         {
           "pattern": "gtm-mcp.stape.io/*",
-          "zone_name": "stape.io"
-        }
+          "zone_name": "stape.io",
+        },
       ],
       "durable_objects": {
         "bindings": [
+          { "class_name": "GtmReadCache", "name": "GTM_READ_CACHE" },
+          {
+            "class_name": "GtmRequestCoordinator",
+            "name": "GTM_REQUEST_COORDINATOR",
+          },
           {
             "class_name": "GoogleTagManagerMCPServer",
-            "name": "MCP_OBJECT"
-          }
-        ]
+            "name": "MCP_OBJECT",
+          },
+        ],
       },
       "kv_namespaces": [
         {
           "binding": "OAUTH_KV",
-          "id": "6aefe0e3c5cd414691960b6bfa44469e"
-        }
-      ]
-    }
-  }
+          "id": "6aefe0e3c5cd414691960b6bfa44469e",
+        },
+      ],
+    },
+  },
 }

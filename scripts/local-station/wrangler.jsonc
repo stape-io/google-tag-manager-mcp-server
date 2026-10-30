@@ -1,0 +1,27 @@
+{
+  "name": "gtm-mcp-local-station",
+  "main": "worker.ts",
+  "compatibility_date": "2025-03-10",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "GOOGLE_CLIENT_ID": "local-fake-google-project",
+    "SHOW_HOST_NOTICE": "false",
+    "GTM_SNAPSHOT_CACHE_ENABLED": "true",
+    "GTM_REQUEST_SCHEDULER_ENABLED": "true",
+    "GTM_QUOTA_PROJECT_ID": "local-fake-project",
+    "GTM_REQUEST_INTERVAL_MS": "100",
+  },
+  "durable_objects": {
+    "bindings": [
+      { "name": "GTM_READ_CACHE", "class_name": "GtmReadCache" },
+      {
+        "name": "GTM_REQUEST_COORDINATOR",
+        "class_name": "GtmRequestCoordinator",
+      },
+    ],
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["GtmReadCache"] },
+    { "tag": "v2", "new_sqlite_classes": ["GtmRequestCoordinator"] },
+  ],
+}

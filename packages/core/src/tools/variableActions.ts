@@ -6,8 +6,9 @@ import { VariableSchema } from "../schemas/VariableSchema.js";
 import {
   createErrorResponse,
   getTagManagerClient,
+  getServerGtmRuntime,
+  getGtmRequestSignal,
   log,
-  paginateArray,
 } from "../utils/index.js";
 import Schema$Variable = tagmanager_v2.Schema$Variable;
 
@@ -23,7 +24,7 @@ const ITEMS_PER_PAGE = 20;
 
 export const variableActions = (
   server: McpServer,
-  { auth }: GtmToolContext,
+  { auth, runtime = getServerGtmRuntime(server) }: GtmToolContext,
 ): void => {
   server.registerTool(
     "gtm_variable",
@@ -65,6 +66,10 @@ export const variableActions = (
           .describe(
             "The fingerprint for optimistic concurrency control. Required for 'update' and 'revert' actions.",
           ),
+        fresh: z
+          .boolean()
+          .default(false)
+          .describe("Bypass the cached list snapshot. Applies only to list."),
         page: z
           .number()
           .min(1)
@@ -82,21 +87,47 @@ export const variableActions = (
           ),
       }),
     },
-    async ({
-      action,
-      accountId,
-      containerId,
-      workspaceId,
-      variableId,
-      createOrUpdateConfig,
-      fingerprint,
-      page,
-      itemsPerPage,
-    }) => {
+    async (
+      {
+        action,
+        accountId,
+        containerId,
+        workspaceId,
+        variableId,
+        createOrUpdateConfig,
+        fingerprint,
+        page,
+        itemsPerPage,
+        fresh,
+      },
+      extra,
+    ) => {
       log(`Running tool: gtm_variable with action ${action}`);
 
+      const invocation = runtime.startCall(
+        auth,
+        "gtm_variable",
+        action,
+        getGtmRequestSignal(extra),
+      );
       try {
-        const tagmanager = await getTagManagerClient(auth);
+        if (action === "list") {
+          const result = await invocation.listPage(
+            `accounts/${accountId}/containers/${containerId}/workspaces/${workspaceId}/variables`,
+            fresh,
+            page,
+            itemsPerPage,
+          );
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(result, null, 2),
+              },
+            ],
+          };
+        }
+        const tagmanager = await getTagManagerClient(auth, invocation);
 
         switch (action) {
           case "create": {
@@ -131,35 +162,6 @@ export const variableActions = (
             return {
               content: [
                 { type: "text", text: JSON.stringify(response.data, null, 2) },
-              ],
-            };
-          }
-          case "list": {
-            let all: Schema$Variable[] = [];
-            let currentPageToken = "";
-
-            do {
-              const response =
-                await tagmanager.accounts.containers.workspaces.variables.list({
-                  parent: `accounts/${accountId}/containers/${containerId}/workspaces/${workspaceId}`,
-                  pageToken: currentPageToken,
-                });
-
-              if (response.data.variable) {
-                all = all.concat(response.data.variable);
-              }
-
-              currentPageToken = response.data.nextPageToken || "";
-            } while (currentPageToken);
-
-            const paginatedResult = paginateArray(all, page, itemsPerPage);
-
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify(paginatedResult, null, 2),
-                },
               ],
             };
           }

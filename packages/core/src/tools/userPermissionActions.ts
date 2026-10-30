@@ -6,6 +6,8 @@ import { UserPermissionSchema } from "../schemas/UserPermissionSchema.js";
 import {
   createErrorResponse,
   getTagManagerClient,
+  getServerGtmRuntime,
+  getGtmRequestSignal,
   log,
   paginateArray,
 } from "../utils/index.js";
@@ -16,7 +18,7 @@ const ITEMS_PER_PAGE = 50;
 
 export const userPermissionActions = (
   server: McpServer,
-  { auth }: GtmToolContext,
+  { auth, runtime = getServerGtmRuntime(server) }: GtmToolContext,
 ): void => {
   server.registerTool(
     "gtm_user_permission",
@@ -59,18 +61,27 @@ export const userPermissionActions = (
           ),
       }),
     },
-    async ({
-      action,
-      accountId,
-      userPermissionId,
-      createOrUpdateConfig,
-      page,
-      itemsPerPage,
-    }) => {
+    async (
+      {
+        action,
+        accountId,
+        userPermissionId,
+        createOrUpdateConfig,
+        page,
+        itemsPerPage,
+      },
+      extra,
+    ) => {
       log(`Running tool: gtm_user_permission with action ${action}`);
 
+      const invocation = runtime.startCall(
+        auth,
+        "gtm_user_permission",
+        action,
+        getGtmRequestSignal(extra),
+      );
       try {
-        const tagmanager = await getTagManagerClient(auth);
+        const tagmanager = await getTagManagerClient(auth, invocation);
 
         switch (action) {
           case "create": {

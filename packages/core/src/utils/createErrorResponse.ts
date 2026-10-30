@@ -17,23 +17,29 @@ export function getUnauthorizedHint(): string {
 
 export function createErrorResponse(
   message: string,
-  error?: any,
+  error?: unknown,
 ): CallToolResult {
+  const apiError = error as
+    | (Partial<Error> & {
+        code?: string | number;
+        errors?: { message?: string }[];
+      })
+    | undefined;
   let detailedMessage = "";
 
-  if (error?.code) {
-    if (error.code === 401) {
+  if (apiError?.code) {
+    if (apiError.code === 401) {
       detailedMessage = unauthorizedHint;
     } else {
-      const legacyMessages = (error?.errors || [])
+      const legacyMessages = (apiError?.errors || [])
         .map((item: { message?: string }) => item?.message)
         .filter(Boolean);
 
       const detail = legacyMessages.length
         ? legacyMessages.join(". ")
-        : error?.message || "Unknown error";
+        : apiError?.message || "Unknown error";
 
-      detailedMessage = `${message}: Google API Error ${error.code} - ${detail}`;
+      detailedMessage = `${message}: Google API Error ${apiError.code} - ${detail}`;
     }
   } else if (error instanceof Error) {
     detailedMessage = `${message}: ${error.message}`;

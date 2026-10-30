@@ -6,6 +6,8 @@ import { ZoneSchema } from "../schemas/ZoneSchema.js";
 import {
   createErrorResponse,
   getTagManagerClient,
+  getServerGtmRuntime,
+  getGtmRequestSignal,
   log,
   paginateArray,
 } from "../utils/index.js";
@@ -23,7 +25,7 @@ const ITEMS_PER_PAGE = 20;
 
 export const zoneActions = (
   server: McpServer,
-  { auth }: GtmToolContext,
+  { auth, runtime = getServerGtmRuntime(server) }: GtmToolContext,
 ): void => {
   server.registerTool(
     "gtm_zone",
@@ -76,25 +78,34 @@ export const zoneActions = (
           ),
       }),
     },
-    async ({
-      action,
-      accountId,
-      containerId,
-      workspaceId,
-      zoneId,
-      createOrUpdateConfig,
-      fingerprint,
-      page,
-      itemsPerPage,
-    }): Promise<CallToolResult> => {
+    async (
+      {
+        action,
+        accountId,
+        containerId,
+        workspaceId,
+        zoneId,
+        createOrUpdateConfig,
+        fingerprint,
+        page,
+        itemsPerPage,
+      },
+      extra,
+    ): Promise<CallToolResult> => {
       log(
         `Running tool: gtm_zone for action '${action}' on account ${accountId}, container ${containerId}, workspace ${workspaceId}${
           zoneId ? `, zone ${zoneId}` : ""
         }`,
       );
 
+      const invocation = runtime.startCall(
+        auth,
+        "gtm_zone",
+        action,
+        getGtmRequestSignal(extra),
+      );
       try {
-        const tagmanager = await getTagManagerClient(auth);
+        const tagmanager = await getTagManagerClient(auth, invocation);
 
         switch (action) {
           case "create": {
