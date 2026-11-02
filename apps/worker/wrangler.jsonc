@@ -52,7 +52,7 @@
   // `npm run dev`. Plain `wrangler dev` runs this default env and shows it.
   "vars": {
     "SHOW_HOST_NOTICE": "true",
-    "GTM_SNAPSHOT_CACHE_ENABLED": "false",
+    "GTM_SNAPSHOT_CACHE_ENABLED": "true",
     // Before enabling scheduling, set GTM_QUOTA_PROJECT_ID to the real Google
     // quota project in this environment (see README, Shared project scheduling).
     // No dummy project key is supplied: it would create the wrong quota bucket.
@@ -114,7 +114,7 @@
       // The host notice is for gtm-mcp.stape.ai only.
       "vars": {
         "SHOW_HOST_NOTICE": "false",
-        "GTM_SNAPSHOT_CACHE_ENABLED": "false",
+        "GTM_SNAPSHOT_CACHE_ENABLED": "true",
         // Before enabling scheduling, set GTM_QUOTA_PROJECT_ID to the real Google
         // quota project in this environment (see README, Shared project scheduling).
         // No dummy project key is supplied: it would create the wrong quota bucket.

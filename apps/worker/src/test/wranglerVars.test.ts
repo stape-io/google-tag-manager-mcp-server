@@ -23,7 +23,7 @@ it("shows the host notice from the default env only", () => {
 });
 
 it("keeps the snapshot rollout flags alongside the host notice flags", () => {
-  expect(config.vars?.GTM_SNAPSHOT_CACHE_ENABLED).toBe("false");
+  expect(config.vars?.GTM_SNAPSHOT_CACHE_ENABLED).toBe("true");
   expect(config.env.dev.vars?.GTM_SNAPSHOT_CACHE_ENABLED).toBe("true");
-  expect(config.env.io.vars?.GTM_SNAPSHOT_CACHE_ENABLED).toBe("false");
+  expect(config.env.io.vars?.GTM_SNAPSHOT_CACHE_ENABLED).toBe("true");
 });
