@@ -1,6 +1,9 @@
 import type { OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import { McpServer } from "@modelcontextprotocol/server";
-import { createErrorResponse } from "google-tag-manager-mcp-core";
+import {
+  createErrorResponse,
+  withGtmCacheTimeout,
+} from "google-tag-manager-mcp-core";
 import { TAG_MANAGER_REMOVE_MCP_SERVER_DATA } from "../constants/tools";
 import { McpAgentPropsModel } from "../models/McpAgentModel";
 import { isPastCutover, OLD_HOST } from "../utils/hostNotice";
@@ -11,6 +14,7 @@ export const removeMCPServerData = (
     props,
     oauth,
     oldHost = false,
+    clearSnapshots,
   }: {
     props: McpAgentPropsModel;
     oauth: OAuthHelpers;
@@ -22,6 +26,7 @@ export const removeMCPServerData = (
      * again here.
      */
     oldHost?: boolean;
+    clearSnapshots?: () => Promise<void>;
   },
 ): void => {
   server.registerTool(
@@ -31,6 +36,11 @@ export const removeMCPServerData = (
         "Sign this MCP client out of the GTM MCP server. Signs out every place this client is used (for a Claude connector, all Claude apps on the account; for mcp-remote, every process on this machine using this server). Other MCP clients of the same Google account stay signed in. Only call this when the user explicitly asks to sign out or to reset this connection.",
     },
     async () => {
+      const snapshotsCleared = withGtmCacheTimeout(async (): Promise<void> => {
+        await clearSnapshots?.();
+      }).catch(() => {
+        console.warn("[gtm_remove_session] Snapshot cache clear failed");
+      });
       try {
         // Only this client's grants: the user's other clients (Desktop,
         // Cursor, ...) have their own and must stay signed in.
@@ -75,6 +85,8 @@ export const removeMCPServerData = (
           `Error removing client in the ${TAG_MANAGER_REMOVE_MCP_SERVER_DATA} tool for client ${props.clientId}`,
           error,
         );
+      } finally {
+        await snapshotsCleared;
       }
 
       if (oldHost && isPastCutover()) {

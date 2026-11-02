@@ -3,6 +3,10 @@ import { serveStdio } from "@modelcontextprotocol/server/stdio";
 import {
   createAuthFromEnv,
   createGtmMcpServer,
+  createGtmRuntime,
+  LocalGtmRequestScheduler,
+  GTM_DEFAULT_REQUEST_INTERVAL_MS,
+  GTM_DEFAULT_REQUEST_MAX_PENDING,
   resolveAuthMode,
   setLogSink,
 } from "google-tag-manager-mcp-core";
@@ -16,6 +20,19 @@ function main(): void {
   // to fail the process at startup rather than lazily inside the factory below,
   // where a client would only see it as a failed opening.
   const auth = createAuthFromEnv(process.env);
+  const scheduler =
+    process.env.GTM_REQUEST_SCHEDULER_ENABLED === "true"
+      ? new LocalGtmRequestScheduler({
+          intervalMs: Number(
+            process.env.GTM_REQUEST_INTERVAL_MS ??
+              GTM_DEFAULT_REQUEST_INTERVAL_MS,
+          ),
+          maxPending: Number(
+            process.env.GTM_REQUEST_MAX_PENDING ??
+              GTM_DEFAULT_REQUEST_MAX_PENDING,
+          ),
+        })
+      : undefined;
 
   // serveStdio owns the era decision for the connection: the opening exchange
   // selects protocol revision 2026-07-28 (a `server/discover` probe) or the
@@ -26,6 +43,10 @@ function main(): void {
     () =>
       createGtmMcpServer({
         auth,
+        runtime: createGtmRuntime({
+          enabled: process.env.GTM_SNAPSHOT_CACHE_ENABLED !== "false",
+          scheduler,
+        }),
         serverInfo: { name: PACKAGE_NAME, version: PACKAGE_VERSION },
       }),
     {

@@ -1,0 +1,175 @@
+export const GTM_DEFAULT_REQUEST_INTERVAL_MS = 4_100;
+export const GTM_DEFAULT_REQUEST_MAX_PENDING = 25;
+
+export interface GtmScheduleRequest {
+  signal?: AbortSignal;
+  deadline: number;
+}
+
+/** SDK v2 nests request state; the legacy SSE bridge supplies v1 extras. */
+export function getGtmRequestSignal(context: {
+  mcpReq?: { signal?: AbortSignal };
+  signal?: AbortSignal;
+}): AbortSignal | undefined {
+  return context.mcpReq?.signal ?? context.signal;
+}
+
+/** One permit per actual upstream attempt, including retries and list pages. */
+export interface GtmRequestScheduler {
+  acquire(request: GtmScheduleRequest): Promise<void>;
+}
+
+export function withGtmAbort<T>(
+  promise: Promise<T>,
+  signal: AbortSignal,
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const abort = (): void => {
+      signal.removeEventListener("abort", abort);
+      reject(signal.reason ?? new GtmSchedulingError("cancelled"));
+    };
+    signal.addEventListener("abort", abort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener("abort", abort);
+        resolve(value);
+      },
+      (error) => {
+        signal.removeEventListener("abort", abort);
+        reject(error);
+      },
+    );
+    if (signal.aborted) abort();
+  });
+}
+
+export class GtmSchedulingError extends Error {
+  constructor(
+    public readonly reason: "full" | "deadline" | "cancelled",
+    options?: ErrorOptions,
+  ) {
+    const context =
+      options?.cause instanceof Error
+        ? ` Previous upstream failure: ${options.cause.message}`
+        : "";
+    super(
+      (reason === "full"
+        ? "GTM request queue is full. Try again later."
+        : reason === "deadline"
+          ? "GTM request deadline exceeded while waiting. Try again later."
+          : "GTM request cancelled.") + context,
+      options,
+    );
+  }
+}
+
+interface Waiter {
+  request: GtmScheduleRequest;
+  finish(error?: Error): void;
+}
+
+/** FIFO pacing within one process. Hosted callers share a project coordinator. */
+export class LocalGtmRequestScheduler implements GtmRequestScheduler {
+  private readonly queue: Waiter[] = [];
+  private nextAt = 0;
+  private timer?: ReturnType<typeof setTimeout>;
+  private pumping = false;
+
+  constructor(
+    private readonly options: {
+      intervalMs?: number;
+      maxPending?: number;
+    } = {},
+  ) {
+    if (
+      !Number.isFinite(options.intervalMs ?? GTM_DEFAULT_REQUEST_INTERVAL_MS) ||
+      (options.intervalMs ?? GTM_DEFAULT_REQUEST_INTERVAL_MS) < 1 ||
+      !Number.isInteger(
+        options.maxPending ?? GTM_DEFAULT_REQUEST_MAX_PENDING,
+      ) ||
+      (options.maxPending ?? GTM_DEFAULT_REQUEST_MAX_PENDING) < 1
+    )
+      throw new Error("Invalid GTM scheduler configuration.");
+  }
+
+  acquire(request: GtmScheduleRequest): Promise<void> {
+    if (request.signal?.aborted)
+      return Promise.reject(new GtmSchedulingError("cancelled"));
+    if (!Number.isFinite(request.deadline) || request.deadline <= Date.now())
+      return Promise.reject(new GtmSchedulingError("deadline"));
+    if (
+      this.queue.length >=
+      (this.options.maxPending ?? GTM_DEFAULT_REQUEST_MAX_PENDING)
+    )
+      return Promise.reject(new GtmSchedulingError("full"));
+
+    // Predict the FIFO slot, skipping work that expires before it can run.
+    // Reject now rather than keeping an unserviceable caller until its timeout.
+    let at = Math.max(Date.now(), this.nextAt);
+    for (const waiter of this.queue) {
+      if (!waiter.request.signal?.aborted && waiter.request.deadline > at)
+        at += this.options.intervalMs ?? GTM_DEFAULT_REQUEST_INTERVAL_MS;
+    }
+    if (at >= request.deadline)
+      return Promise.reject(new GtmSchedulingError("deadline"));
+
+    return new Promise<void>((resolve, reject) => {
+      let settled = false;
+      const abort = (): void =>
+        waiter.finish(new GtmSchedulingError("cancelled"));
+      const timeout = setTimeout(
+        () => waiter.finish(new GtmSchedulingError("deadline")),
+        request.deadline - Date.now(),
+      );
+      const waiter: Waiter = {
+        request,
+        finish: (error): void => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          request.signal?.removeEventListener("abort", abort);
+          const index = this.queue.indexOf(waiter);
+          if (index !== -1) this.queue.splice(index, 1);
+          if (error) reject(error);
+          else resolve();
+          this.pump();
+        },
+      };
+      request.signal?.addEventListener("abort", abort, { once: true });
+      this.queue.push(waiter);
+      // Abort may have happened between the initial check and registration.
+      if (request.signal?.aborted) abort();
+      else this.pump();
+    });
+  }
+
+  private pump(): void {
+    if (this.pumping) return;
+    this.pumping = true;
+    clearTimeout(this.timer);
+    this.timer = undefined;
+    try {
+      while (this.queue.length) {
+        const waiter = this.queue[0];
+        if (waiter.request.signal?.aborted) {
+          waiter.finish(new GtmSchedulingError("cancelled"));
+          continue;
+        }
+        const now = Date.now();
+        if (waiter.request.deadline <= now) {
+          waiter.finish(new GtmSchedulingError("deadline"));
+          continue;
+        }
+        if (this.nextAt > now) {
+          this.timer = setTimeout(() => this.pump(), this.nextAt - now);
+          return;
+        }
+        this.nextAt =
+          now + (this.options.intervalMs ?? GTM_DEFAULT_REQUEST_INTERVAL_MS);
+        waiter.finish();
+      }
+    } finally {
+      this.pumping = false;
+    }
+  }
+}

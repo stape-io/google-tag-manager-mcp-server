@@ -11,7 +11,7 @@ export interface GoogleApiStub {
   /** Every request made during the current test, in order. */
   readonly calls: FetchCall[];
   /** Answers each request. Reset to `200 {}` before every test. */
-  respond: (call: FetchCall) => Response;
+  respond: (call: FetchCall) => Response | Promise<Response>;
   /** Calls a tool on a fresh harness whose auth returns TEST_TOKEN by default. */
   callTool(
     name: string,

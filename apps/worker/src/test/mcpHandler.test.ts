@@ -1,3 +1,8 @@
+import type {
+  DiscoverResult,
+  InitializeResult,
+  ListToolsResult,
+} from "@modelcontextprotocol/server";
 import { describe, expect, it } from "vitest";
 import { createMcpApiHandler } from "../mcpHandler";
 
@@ -52,7 +57,13 @@ async function post(
   // `null` means "no props on the ExecutionContext"; `undefined` would silently
   // fall back to the default.
   props: Record<string, unknown> | null = PROPS,
-): Promise<{ status: number; json: any }> {
+): Promise<{
+  status: number;
+  json: {
+    error?: unknown;
+    result?: Partial<DiscoverResult & InitializeResult & ListToolsResult>;
+  };
+}> {
   const headers: Record<string, string> = {
     "content-type": "application/json",
     accept: "application/json, text/event-stream",

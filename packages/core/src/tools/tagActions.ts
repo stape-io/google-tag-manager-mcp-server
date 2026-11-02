@@ -6,8 +6,9 @@ import { TagSchema } from "../schemas/TagSchema.js";
 import {
   createErrorResponse,
   getTagManagerClient,
+  getServerGtmRuntime,
+  getGtmRequestSignal,
   log,
-  paginateArray,
 } from "../utils/index.js";
 import Schema$Tag = tagmanager_v2.Schema$Tag;
 
@@ -23,7 +24,7 @@ const ITEMS_PER_PAGE = 20;
 
 export const tagActions = (
   server: McpServer,
-  { auth }: GtmToolContext,
+  { auth, runtime = getServerGtmRuntime(server) }: GtmToolContext,
 ): void => {
   server.registerTool(
     "gtm_tag",
@@ -59,6 +60,10 @@ export const tagActions = (
           .describe(
             "The fingerprint for optimistic concurrency control. Required for 'update' and 'revert' actions.",
           ),
+        fresh: z
+          .boolean()
+          .default(false)
+          .describe("Bypass the cached list snapshot. Applies only to list."),
         page: z
           .number()
           .min(1)
@@ -76,21 +81,47 @@ export const tagActions = (
           ),
       }),
     },
-    async ({
-      action,
-      accountId,
-      containerId,
-      workspaceId,
-      tagId,
-      createOrUpdateConfig,
-      fingerprint,
-      page,
-      itemsPerPage,
-    }) => {
+    async (
+      {
+        action,
+        accountId,
+        containerId,
+        workspaceId,
+        tagId,
+        createOrUpdateConfig,
+        fingerprint,
+        page,
+        itemsPerPage,
+        fresh,
+      },
+      extra,
+    ) => {
       log(`Running tool: gtm_tag with action ${action}`);
 
+      const invocation = runtime.startCall(
+        auth,
+        "gtm_tag",
+        action,
+        getGtmRequestSignal(extra),
+      );
       try {
-        const tagmanager = await getTagManagerClient(auth);
+        if (action === "list") {
+          const result = await invocation.listPage(
+            `accounts/${accountId}/containers/${containerId}/workspaces/${workspaceId}/tags`,
+            fresh,
+            page,
+            itemsPerPage,
+          );
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(result, null, 2),
+              },
+            ],
+          };
+        }
+        const tagmanager = await getTagManagerClient(auth, invocation);
 
         switch (action) {
           case "create": {
@@ -125,35 +156,6 @@ export const tagActions = (
             return {
               content: [
                 { type: "text", text: JSON.stringify(response.data, null, 2) },
-              ],
-            };
-          }
-          case "list": {
-            let all: Schema$Tag[] = [];
-            let currentPageToken = "";
-
-            do {
-              const response =
-                await tagmanager.accounts.containers.workspaces.tags.list({
-                  parent: `accounts/${accountId}/containers/${containerId}/workspaces/${workspaceId}`,
-                  pageToken: currentPageToken,
-                });
-
-              if (response.data.tag) {
-                all = all.concat(response.data.tag);
-              }
-
-              currentPageToken = response.data.nextPageToken || "";
-            } while (currentPageToken);
-
-            const paginatedResult = paginateArray(all, page, itemsPerPage);
-
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify(paginatedResult, null, 2),
-                },
               ],
             };
           }

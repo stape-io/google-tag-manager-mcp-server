@@ -6,6 +6,8 @@ import { EnvironmentSchema } from "../schemas/EnvironmentSchema.js";
 import {
   createErrorResponse,
   getTagManagerClient,
+  getServerGtmRuntime,
+  getGtmRequestSignal,
   log,
   paginateArray,
 } from "../utils/index.js";
@@ -22,7 +24,7 @@ const ITEMS_PER_PAGE = 50;
 
 export const environmentActions = (
   server: McpServer,
-  { auth }: GtmToolContext,
+  { auth, runtime = getServerGtmRuntime(server) }: GtmToolContext,
 ): void => {
   server.registerTool(
     "gtm_environment",
@@ -76,19 +78,28 @@ export const environmentActions = (
           ),
       }),
     },
-    async ({
-      action,
-      accountId,
-      containerId,
-      environmentId,
-      createOrUpdateConfig,
-      fingerprint,
-      page,
-      itemsPerPage,
-    }) => {
+    async (
+      {
+        action,
+        accountId,
+        containerId,
+        environmentId,
+        createOrUpdateConfig,
+        fingerprint,
+        page,
+        itemsPerPage,
+      },
+      extra,
+    ) => {
       log(`Running tool: gtm_environment with action ${action}`);
+      const invocation = runtime.startCall(
+        auth,
+        "gtm_environment",
+        action,
+        getGtmRequestSignal(extra),
+      );
       try {
-        const tagmanager = await getTagManagerClient(auth);
+        const tagmanager = await getTagManagerClient(auth, invocation);
         switch (action) {
           case "create": {
             if (!createOrUpdateConfig) {

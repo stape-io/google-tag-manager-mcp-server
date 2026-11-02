@@ -1,3 +1,7 @@
+import type {
+  TokenExchangeCallbackOptions,
+  TokenExchangeCallbackResult,
+} from "@cloudflare/workers-oauth-provider";
 import { GOOGLE_TOKEN_URL } from "google-tag-manager-mcp-core";
 import { isShutDown } from "./hostNotice";
 
@@ -237,9 +241,20 @@ const PERMANENT_GOOGLE_ERRORS =
  * Handles the logic for exchanging an OAuth code or refreshing a token.
  */
 export async function handleTokenExchangeCallback(
-  { grantType, props }: { grantType: string; props?: any },
+  {
+    grantType,
+    props,
+  }: {
+    grantType: `${TokenExchangeCallbackOptions["grantType"]}`;
+    props?: unknown;
+  },
   env: Env,
-) {
+): Promise<
+  | (Required<Pick<TokenExchangeCallbackResult, "accessTokenTTL">> & {
+      newProps?: Props;
+    })
+  | undefined
+> {
   const now = Math.floor(Date.now() / 1000);
 
   if (grantType === "authorization_code") {
