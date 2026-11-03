@@ -40,6 +40,16 @@ it("schedules both production hosts against the shared quota project", () => {
   for (const vars of [config.vars, config.env.io.vars]) {
     expect(vars?.GTM_REQUEST_SCHEDULER_ENABLED).toBe("true");
     expect(vars?.GTM_QUOTA_PROJECT_ID).toBe("gtm-mcp");
-    expect(vars?.GTM_REQUEST_INTERVAL_MS).toBe("2500");
   }
+  expect(config.vars?.GTM_REQUEST_INTERVAL_MS).toBe("2000");
+  expect(config.env.io.vars?.GTM_REQUEST_INTERVAL_MS).toBe("3500");
+});
+
+// The project allows 60 requests a minute; keep the shares at 80% of it.
+it("keeps the combined production rate under the project quota", () => {
+  const perMinute = [config.vars, config.env.io.vars].reduce(
+    (sum, vars) => sum + 60_000 / Number(vars?.GTM_REQUEST_INTERVAL_MS),
+    0,
+  );
+  expect(perMinute).toBeLessThanOrEqual(48);
 });
