@@ -57,8 +57,9 @@ Tests use the real MCP dispatch and a fake Google transport. Hosted adapter test
 
 Set `GTM_REQUEST_SCHEDULER_ENABLED=true` and `GTM_QUOTA_PROJECT_ID` to the actual
 Google Cloud project that owns the quota. The `GTM_REQUEST_COORDINATOR` binding
-and v3 migration are included in every environment. The `dev` environment enables
-scheduling; the default and `io` production configurations disable it.
+and v3 migration are included in every environment. Every environment enables
+scheduling; the default and `io` production configurations share the `gtm-mcp`
+project with a static 2.5-second interval each.
 All users and OAuth clients in this deployment sharing a project must use the
 same coordinator namespace and project key. Independent deployments have
 independent namespaces. Deployments sharing a Google quota project need either
