@@ -53,10 +53,12 @@
   "vars": {
     "SHOW_HOST_NOTICE": "true",
     "GTM_SNAPSHOT_CACHE_ENABLED": "true",
-    // Before enabling scheduling, set GTM_QUOTA_PROJECT_ID to the real Google
-    // quota project in this environment (see README, Shared project scheduling).
-    // No dummy project key is supplied: it would create the wrong quota bucket.
-    "GTM_REQUEST_SCHEDULER_ENABLED": "false",
+    // gtm-mcp is the Google project that owns the production OAuth client. Its
+    // 60 requests/minute quota is shared with env.io, so each host gets 24/min
+    // (see docs/gtm-production-rollout.md, Allocate a static budget).
+    "GTM_REQUEST_SCHEDULER_ENABLED": "true",
+    "GTM_QUOTA_PROJECT_ID": "gtm-mcp",
+    "GTM_REQUEST_INTERVAL_MS": "2500",
   },
   "dev": {
     "port": 8788,
@@ -115,10 +117,11 @@
       "vars": {
         "SHOW_HOST_NOTICE": "false",
         "GTM_SNAPSHOT_CACHE_ENABLED": "true",
-        // Before enabling scheduling, set GTM_QUOTA_PROJECT_ID to the real Google
-        // quota project in this environment (see README, Shared project scheduling).
-        // No dummy project key is supplied: it would create the wrong quota bucket.
-        "GTM_REQUEST_SCHEDULER_ENABLED": "false",
+        // Same Google project as the default env, which has the other 24/min
+        // (see docs/gtm-production-rollout.md, Allocate a static budget).
+        "GTM_REQUEST_SCHEDULER_ENABLED": "true",
+        "GTM_QUOTA_PROJECT_ID": "gtm-mcp",
+        "GTM_REQUEST_INTERVAL_MS": "2500",
       },
       // The custom domain creates the DNS record and certificate. The route is
       // needed because the stape.io zone has a catch-all `*/*` route to
