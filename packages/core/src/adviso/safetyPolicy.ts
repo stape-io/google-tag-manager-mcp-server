@@ -159,7 +159,7 @@ function withAddendum(handler: any, text: string): any {
 /** Returns a proxy of `server` that applies the policy to every registerTool call. */
 export function withSafetyPolicy(server: McpServer): McpServer {
   return new Proxy(server, {
-    get(target, prop, receiver) {
+    get(target, prop, receiver): unknown {
       if (prop !== "registerTool") return Reflect.get(target, prop, receiver);
 
       return (name: string, config: any, rawHandler: any): any => {

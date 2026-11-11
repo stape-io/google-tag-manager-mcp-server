@@ -35,7 +35,7 @@
     "name": "gtag_destination"
   },
   {
-    "description": "Performs all account-related operations: get, list, update. Use the 'action' parameter to select the operation.",
+    "description": "Performs all account-related operations: get, list. Use the 'action' parameter to select the operation. Destructive actions are disabled in this Adviso build: ask the user to do them in the GTM UI.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
@@ -44,11 +44,10 @@
           "type": "string"
         },
         "action": {
-          "description": "The account operation to perform. Must be one of: 'get', 'list', 'update'.",
+          "description": "The operation to perform. Must be one of: 'get', 'list'.",
           "enum": [
             "get",
-            "list",
-            "update"
+            "list"
           ],
           "type": "string"
         },
@@ -106,7 +105,7 @@
     "name": "gtm_auth_status"
   },
   {
-    "description": "Performs all built-in variable operations: create, list, remove, revert. The 'list' action returns up to itemsPerPage items per page.",
+    "description": "Performs all built-in variable operations: create, list, revert. The 'list' action returns up to itemsPerPage items per page. Destructive actions are disabled in this Adviso build: ask the user to do them in the GTM UI.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
@@ -115,11 +114,10 @@
           "type": "string"
         },
         "action": {
-          "description": "The built-in variable operation to perform. Must be one of: 'create', 'list', 'remove', 'revert'.",
+          "description": "The operation to perform. Must be one of: 'create', 'list', 'revert'.",
           "enum": [
             "create",
             "list",
-            "remove",
             "revert"
           ],
           "type": "string"
@@ -172,7 +170,7 @@
     "name": "gtm_built_in_variable"
   },
   {
-    "description": "Performs all client operations: create, get, list, update, remove, revert. The 'list' action returns up to itemsPerPage items per page.",
+    "description": "Performs all client operations: create, get, list, update, revert. The 'list' action returns up to itemsPerPage items per page. Destructive actions are disabled in this Adviso build: ask the user to do them in the GTM UI.",
     "inputSchema": {
       "$defs": {
         "__schema0": {
@@ -218,13 +216,12 @@
           "type": "string"
         },
         "action": {
-          "description": "The client operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove', 'revert'.",
+          "description": "The operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'revert'.",
           "enum": [
             "create",
             "get",
             "list",
             "update",
-            "remove",
             "revert"
           ],
           "type": "string"
@@ -307,7 +304,7 @@
     "name": "gtm_client"
   },
   {
-    "description": "Performs all container-related operations: create, get, update, remove, list, combine, lookup, moveTagId, snippet. The 'list' action returns up to itemsPerPage items per page.",
+    "description": "Performs all container-related operations: create, get, update, list, combine, lookup, moveTagId, snippet. The 'list' action returns up to itemsPerPage items per page. Destructive actions are disabled in this Adviso build: ask the user to do them in the GTM UI.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
@@ -316,13 +313,12 @@
           "type": "string"
         },
         "action": {
-          "description": "The container operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove', 'combine', 'lookup', 'moveTagId', 'snippet'.",
+          "description": "The operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'combine', 'lookup', 'moveTagId', 'snippet'.",
           "enum": [
             "create",
             "get",
             "list",
             "update",
-            "remove",
             "combine",
             "lookup",
             "moveTagId",
@@ -546,7 +542,7 @@
     "name": "gtm_container"
   },
   {
-    "description": "Performs all environment operations: create, get, list, update, remove, reauthorize.  The 'list' action returns up to 50 items per page.",
+    "description": "Performs all environment operations: create, get, list, update, reauthorize.  The 'list' action returns up to 50 items per page. Destructive actions are disabled in this Adviso build: ask the user to do them in the GTM UI.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
@@ -555,13 +551,12 @@
           "type": "string"
         },
         "action": {
-          "description": "The environment operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove', 'reauthorize'.",
+          "description": "The operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'reauthorize'.",
           "enum": [
             "create",
             "get",
             "list",
             "update",
-            "remove",
             "reauthorize"
           ],
           "type": "string"
@@ -654,7 +649,7 @@
     "name": "gtm_environment"
   },
   {
-    "description": "Performs all folder operations: create, get, list, update, remove, revert, entities, moveEntitiesToFolder. The 'list' action returns up to 50 items per page.",
+    "description": "Performs all folder operations: create, get, list, update, revert, entities, moveEntitiesToFolder. The 'list' action returns up to 50 items per page. Destructive actions are disabled in this Adviso build: ask the user to do them in the GTM UI.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
@@ -663,13 +658,12 @@
           "type": "string"
         },
         "action": {
-          "description": "The folder operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove', 'revert', 'entities', 'moveEntitiesToFolder'.",
+          "description": "The operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'revert', 'entities', 'moveEntitiesToFolder'.",
           "enum": [
             "create",
             "get",
             "list",
             "update",
-            "remove",
             "revert",
             "entities",
             "moveEntitiesToFolder"
@@ -756,7 +750,7 @@
     "name": "gtm_folder"
   },
   {
-    "description": "Performs all Google tag config operations: create, get, list, update, remove. The 'list' action returns up to itemsPerPage items per page.",
+    "description": "Performs all Google tag config operations: create, get, list, update. The 'list' action returns up to itemsPerPage items per page. Destructive actions are disabled in this Adviso build: ask the user to do them in the GTM UI.",
     "inputSchema": {
       "$defs": {
         "__schema0": {
@@ -802,13 +796,12 @@
           "type": "string"
         },
         "action": {
-          "description": "The Google tag config operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove'.",
+          "description": "The operation to perform. Must be one of: 'create', 'get', 'list', 'update'.",
           "enum": [
             "create",
             "get",
             "list",
-            "update",
-            "remove"
+            "update"
           ],
           "type": "string"
         },
@@ -899,7 +892,7 @@
     "name": "gtm_guide"
   },
   {
-    "description": "Performs all GTM tag operations: create, get, list, update, remove, revert. The 'list' action returns up to 20 items per page.",
+    "description": "Performs all GTM tag operations: create, get, list, update, revert. The 'list' action returns up to 20 items per page. Destructive actions are disabled in this Adviso build: ask the user to do them in the GTM UI.",
     "inputSchema": {
       "$defs": {
         "__schema0": {
@@ -945,13 +938,12 @@
           "type": "string"
         },
         "action": {
-          "description": "The GTM tag operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove', 'revert'.",
+          "description": "The operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'revert'.",
           "enum": [
             "create",
             "get",
             "list",
             "update",
-            "remove",
             "revert"
           ],
           "type": "string"
@@ -1140,7 +1132,7 @@
     "name": "gtm_tag"
   },
   {
-    "description": "Performs all GTM custom template operations: create, get, list, update, remove, revert, importFromGallery. 'importFromGallery' adds a Community Template Gallery template (github.com/<galleryOwner>/<galleryRepository>) to the workspace; the template must support the container's type (web or server). The 'list' action returns up to itemsPerPage items per page.",
+    "description": "Performs all GTM custom template operations: create, get, list, update, revert, importFromGallery. 'importFromGallery' adds a Community Template Gallery template (github.com/<galleryOwner>/<galleryRepository>) to the workspace; the template must support the container's type (web or server). The 'list' action returns up to itemsPerPage items per page. Destructive actions are disabled in this Adviso build: ask the user to do them in the GTM UI.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
@@ -1153,13 +1145,12 @@
           "type": "boolean"
         },
         "action": {
-          "description": "The GTM custom template operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove', 'revert', 'importFromGallery'.",
+          "description": "The operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'revert', 'importFromGallery'.",
           "enum": [
             "create",
             "get",
             "list",
             "update",
-            "remove",
             "revert",
             "importFromGallery"
           ],
@@ -1274,7 +1265,7 @@
     "name": "gtm_template"
   },
   {
-    "description": "Performs all GTM transformation operations: create, get, list, update, remove, revert. The 'list' action returns up to itemsPerPage items per page.",
+    "description": "Performs all GTM transformation operations: create, get, list, update, revert. The 'list' action returns up to itemsPerPage items per page. Destructive actions are disabled in this Adviso build: ask the user to do them in the GTM UI.",
     "inputSchema": {
       "$defs": {
         "__schema0": {
@@ -1320,13 +1311,12 @@
           "type": "string"
         },
         "action": {
-          "description": "The GTM transformation operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove', 'revert'.",
+          "description": "The operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'revert'.",
           "enum": [
             "create",
             "get",
             "list",
             "update",
-            "remove",
             "revert"
           ],
           "type": "string"
@@ -1405,7 +1395,7 @@
     "name": "gtm_transformation"
   },
   {
-    "description": "Performs all GTM trigger operations: create, get, list, update, remove, revert. The 'list' action returns up to 20 items per page.",
+    "description": "Performs all GTM trigger operations: create, get, list, update, revert. The 'list' action returns up to 20 items per page. Destructive actions are disabled in this Adviso build: ask the user to do them in the GTM UI.",
     "inputSchema": {
       "$defs": {
         "__schema0": {
@@ -1451,13 +1441,12 @@
           "type": "string"
         },
         "action": {
-          "description": "The GTM trigger operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove', 'revert'.",
+          "description": "The operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'revert'.",
           "enum": [
             "create",
             "get",
             "list",
             "update",
-            "remove",
             "revert"
           ],
           "type": "string"
@@ -1678,110 +1667,7 @@
     "name": "gtm_trigger"
   },
   {
-    "description": "Performs all user permission operations: create, get, list, update, remove. The 'list' action returns up to 50 items per page.",
-    "inputSchema": {
-      "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "properties": {
-        "accountId": {
-          "description": "The unique ID of the GTM Account containing the user permission.",
-          "type": "string"
-        },
-        "action": {
-          "description": "The user permission operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove'.",
-          "enum": [
-            "create",
-            "get",
-            "list",
-            "update",
-            "remove"
-          ],
-          "type": "string"
-        },
-        "createOrUpdateConfig": {
-          "description": "Configuration for 'create' and 'update' actions. All fields correspond to the GTM user permission resource. 'update' replaces the entire user permission — any field omitted here is deleted. Always run 'get' first and send back the complete object with your modifications applied.",
-          "properties": {
-            "accountAccess": {
-              "description": "GTM Account access permissions.",
-              "properties": {
-                "permission": {
-                  "description": "Whether the user has no access, user access, or admin access to an account.",
-                  "enum": [
-                    "accountPermissionUnspecified",
-                    "noAccess",
-                    "user",
-                    "admin"
-                  ],
-                  "type": "string"
-                }
-              },
-              "type": "object"
-            },
-            "containerAccess": {
-              "description": "GTM Container access permissions.",
-              "items": {
-                "properties": {
-                  "containerId": {
-                    "description": "GTM Container ID.",
-                    "type": "string"
-                  },
-                  "permission": {
-                    "description": "List of Container permissions.",
-                    "enum": [
-                      "containerPermissionUnspecified",
-                      "noAccess",
-                      "read",
-                      "edit",
-                      "approve",
-                      "publish"
-                    ],
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "containerId"
-                ],
-                "type": "object"
-              },
-              "type": "array"
-            },
-            "emailAddress": {
-              "description": "User's email address.",
-              "type": "string"
-            }
-          },
-          "required": [
-            "emailAddress"
-          ],
-          "type": "object"
-        },
-        "itemsPerPage": {
-          "default": 50,
-          "description": "Number of items to return per page (1-50). Default: 50. Use lower values if experiencing response issues.",
-          "maximum": 50,
-          "minimum": 1,
-          "type": "number"
-        },
-        "page": {
-          "default": 1,
-          "description": "Page number for pagination (starts from 1). Each page contains up to itemsPerPage items.",
-          "minimum": 1,
-          "type": "number"
-        },
-        "userPermissionId": {
-          "description": "The unique ID of the user permission. Required for 'get', 'update', and 'remove' actions.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "action",
-        "accountId"
-      ],
-      "type": "object"
-    },
-    "name": "gtm_user_permission"
-  },
-  {
-    "description": "Performs all GTM variable operations: create, get, list, update, remove, revert. The 'list' action returns up to 20 items per page.",
+    "description": "Performs all GTM variable operations: create, get, list, update, revert. The 'list' action returns up to 20 items per page. Destructive actions are disabled in this Adviso build: ask the user to do them in the GTM UI.",
     "inputSchema": {
       "$defs": {
         "__schema0": {
@@ -1827,13 +1713,12 @@
           "type": "string"
         },
         "action": {
-          "description": "The GTM variable operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove', 'revert'.",
+          "description": "The operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'revert'.",
           "enum": [
             "create",
             "get",
             "list",
             "update",
-            "remove",
             "revert"
           ],
           "type": "string"
@@ -1984,7 +1869,7 @@
     "name": "gtm_variable"
   },
   {
-    "description": "Performs all container version operations: get, live, publish, remove, setLatest, undelete, update. For 'get' and 'live' actions, use 'resourceType' to paginate specific resource arrays (up to 20 items per page) to avoid response truncation.",
+    "description": "Performs all container version operations: get, live, setLatest, update. For 'get' and 'live' actions, use 'resourceType' to paginate specific resource arrays (up to 20 items per page) to avoid response truncation. Destructive actions are disabled in this Adviso build: ask the user to do them in the GTM UI.",
     "inputSchema": {
       "$defs": {
         "__schema0": {
@@ -2030,14 +1915,11 @@
           "type": "string"
         },
         "action": {
-          "description": "The container version operation to perform. Must be one of: 'get', 'live', 'publish', 'remove', 'setLatest', 'undelete', 'update'.",
+          "description": "The operation to perform. Must be one of: 'get', 'live', 'setLatest', 'update'.",
           "enum": [
             "get",
             "live",
-            "publish",
-            "remove",
             "setLatest",
-            "undelete",
             "update"
           ],
           "type": "string"
@@ -3247,7 +3129,7 @@
     "name": "gtm_version_header"
   },
   {
-    "description": "Performs various workspace operations including create, get, list, update, remove, createVersion, getStatus, sync, quickPreview, resolveConflict, and bulkUpdate actions. 'bulkUpdate' applies several entity changes atomically in one call. The 'list' action returns up to 50 items per page.",
+    "description": "Performs various workspace operations including create, get, list, update, createVersion, getStatus, sync, quickPreview, resolveConflict, and bulkUpdate actions. 'bulkUpdate' applies several entity changes atomically in one call. The 'list' action returns up to 50 items per page. Destructive actions are disabled in this Adviso build: ask the user to do them in the GTM UI.",
     "inputSchema": {
       "$defs": {
         "GtmEntity": {
@@ -4278,13 +4160,12 @@
           "type": "string"
         },
         "action": {
-          "description": "The workspace operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove', 'createVersion', 'getStatus', 'sync', 'quickPreview', 'resolveConflict', 'bulkUpdate'.",
+          "description": "The operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'createVersion', 'getStatus', 'sync', 'quickPreview', 'resolveConflict', 'bulkUpdate'.",
           "enum": [
             "create",
             "get",
             "list",
             "update",
-            "remove",
             "createVersion",
             "getStatus",
             "sync",
@@ -4306,8 +4187,7 @@
                 "description": "What to do with this entity.",
                 "enum": [
                   "added",
-                  "updated",
-                  "deleted"
+                  "updated"
                 ],
                 "type": "string"
               },
@@ -4382,7 +4262,7 @@
     "name": "gtm_workspace"
   },
   {
-    "description": "Performs various zone operations including create, get, list, update, remove, and revert actions. The 'list' action returns up to 20 items per page.",
+    "description": "Performs various zone operations including create, get, list, update, and revert actions. The 'list' action returns up to 20 items per page. Destructive actions are disabled in this Adviso build: ask the user to do them in the GTM UI.",
     "inputSchema": {
       "$defs": {
         "__schema0": {
@@ -4428,13 +4308,12 @@
           "type": "string"
         },
         "action": {
-          "description": "The zone operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'remove', 'revert'.",
+          "description": "The operation to perform. Must be one of: 'create', 'get', 'list', 'update', 'revert'.",
           "enum": [
             "create",
             "get",
             "list",
             "update",
-            "remove",
             "revert"
           ],
           "type": "string"
