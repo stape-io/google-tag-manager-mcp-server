@@ -236,7 +236,7 @@ describe("scheduled Google transport", () => {
     expect(api.calls).toHaveLength(1);
   });
 
-  it.each(["create", "update", "remove"])(
+  it.each(["create", "update", "revert"])(
     "does not replay %s after an uncertain network failure",
     async (action) => {
       const client = await open();

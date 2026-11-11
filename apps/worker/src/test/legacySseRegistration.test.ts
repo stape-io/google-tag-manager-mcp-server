@@ -54,7 +54,7 @@ it("registers the v2 tool set on a v1 McpServer, as /sse does", async () => {
 
   const { tools } = await client.listTools();
 
-  expect(tools.length).toBeGreaterThanOrEqual(21);
+  expect(tools.length).toBeGreaterThanOrEqual(20); // Adviso: gtm_user_permission removed
   expect(tools.map((tool) => tool.name)).toContain("gtm_remove_session");
   expect(tools.map((tool) => tool.name)).toContain("gtm_auth_status");
 

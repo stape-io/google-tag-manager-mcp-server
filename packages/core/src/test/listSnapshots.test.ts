@@ -207,7 +207,7 @@ describe("snapshot correctness", () => {
     "invalidates all resource snapshots around a mutation (failed=%s)",
     async (failed) => {
       api.respond = ({ method }): Response =>
-        method === "DELETE" && failed
+        method === "PUT" && failed
           ? json({ error: { message: "Rejected" } }, 400)
           : json({});
       const client = await open();
@@ -215,7 +215,13 @@ describe("snapshot correctness", () => {
         await client.callTool({ name: `gtm_${resource}`, arguments: listArgs });
       await client.callTool({
         name: "gtm_container",
-        arguments: { action: "remove", accountId: "1", containerId: "2" },
+        arguments: {
+          action: "update",
+          accountId: "1",
+          containerId: "2",
+          fingerprint: "1",
+          createOrUpdateConfig: { name: "Container" },
+        },
       });
       for (const resource of ["tag", "trigger", "variable"])
         await client.callTool({ name: `gtm_${resource}`, arguments: listArgs });
@@ -244,7 +250,7 @@ describe("snapshot correctness", () => {
       await vi.waitFor(() => expect(api.calls).toHaveLength(1));
       await client.callTool({
         name: "gtm_tag",
-        arguments: { ...listArgs, containerId, action: "remove", tagId: "4" },
+        arguments: { ...listArgs, containerId, action: "revert", tagId: "4" },
       });
       release();
       expect((await pending).isError).not.toBe(true);
@@ -350,7 +356,7 @@ describe("snapshot correctness", () => {
     });
     const result = await client.callTool({
       name: "gtm_tag",
-      arguments: { ...listArgs, action: "remove", tagId: "4" },
+      arguments: { ...listArgs, action: "revert", tagId: "4" },
     });
     expect(result.isError).not.toBe(true);
     expect(api.calls).toHaveLength(1);
@@ -372,7 +378,7 @@ describe("snapshot correctness", () => {
     await vi.waitFor(() => expect(api.calls).toHaveLength(1));
     await client.callTool({
       name: "gtm_tag",
-      arguments: { ...listArgs, action: "remove", tagId: "4" },
+      arguments: { ...listArgs, action: "revert", tagId: "4" },
     });
     release();
     expect((await pending).isError).not.toBe(true);
@@ -443,7 +449,13 @@ describe("snapshot correctness", () => {
     await client.callTool({ name: "gtm_tag", arguments: listArgs });
     await client.callTool({
       name: "gtm_container",
-      arguments: { action: "remove", accountId: "1", containerId: "2" },
+      arguments: {
+        action: "update",
+        accountId: "1",
+        containerId: "2",
+        fingerprint: "1",
+        createOrUpdateConfig: { name: "Container" },
+      },
     });
     await client.callTool({ name: "gtm_tag", arguments: listArgs });
     expect(api.calls.filter((call) => call.method === "GET")).toHaveLength(2);
@@ -459,13 +471,13 @@ describe("snapshot correctness", () => {
       releaseList = resolve;
     });
     api.respond = async ({ method }): Promise<Response> => {
-      await (method === "DELETE" ? deleteGate : listGate);
+      await (method === "POST" ? deleteGate : listGate);
       return json({ tag: [{ name: "listed" }] });
     };
     const client = await open();
     const mutation = client.callTool({
       name: "gtm_tag",
-      arguments: { ...listArgs, action: "remove", tagId: "4" },
+      arguments: { ...listArgs, action: "revert", tagId: "4" },
     });
     await vi.waitFor(() => expect(api.calls).toHaveLength(1));
     const pending = client.callTool({ name: "gtm_tag", arguments: listArgs });
@@ -533,7 +545,7 @@ describe("snapshot correctness", () => {
       const client = await open({ runtime: createGtmRuntime({ backend }) });
       const result = await client.callTool({
         name: "gtm_tag",
-        arguments: { ...listArgs, action: "remove", tagId: "4" },
+        arguments: { ...listArgs, action: "revert", tagId: "4" },
       });
       expect(result.isError).not.toBe(true);
       expect(api.calls).toHaveLength(1);
@@ -566,7 +578,7 @@ describe("snapshot correctness", () => {
             arguments:
               method === "read"
                 ? listArgs
-                : { ...listArgs, action: "remove", tagId: "4" },
+                : { ...listArgs, action: "revert", tagId: "4" },
           },
           { timeout: GTM_CACHE_READ_TIMEOUT_MS + 5000 },
         );

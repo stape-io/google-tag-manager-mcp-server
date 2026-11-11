@@ -1,5 +1,6 @@
 export * from "./auth/index.js";
 export * from "./constants/index.js";
+export * from "./adviso/safetyPolicy.js";
 export * from "./createGtmMcpServer.js";
 export * from "./schemas/index.js";
 export * from "./tools/index.js";

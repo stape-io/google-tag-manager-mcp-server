@@ -1,10 +1,6 @@
 export const GTM_API_SCOPES = [
-  "https://www.googleapis.com/auth/tagmanager.manage.accounts",
   "https://www.googleapis.com/auth/tagmanager.edit.containers",
-  "https://www.googleapis.com/auth/tagmanager.delete.containers",
   "https://www.googleapis.com/auth/tagmanager.edit.containerversions",
-  "https://www.googleapis.com/auth/tagmanager.manage.users",
-  "https://www.googleapis.com/auth/tagmanager.publish",
   "https://www.googleapis.com/auth/tagmanager.readonly",
 ];
 

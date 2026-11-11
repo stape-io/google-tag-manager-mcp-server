@@ -225,7 +225,7 @@ describe("snapshot mutation and isolation safety", () => {
       const pending = harness.client.callTool({
         name: "gtm_tag",
         arguments: {
-          action: "remove",
+          action: "revert",
           accountId: "1",
           containerId: "2",
           workspaceId: "3",
@@ -254,7 +254,7 @@ describe("snapshot mutation and isolation safety", () => {
       });
       let release!: (response: Response) => void;
       api.respond = (call): Response | Promise<Response> =>
-        call.method === "DELETE"
+        call.method === "POST"
           ? new Promise((resolve) => {
               release = resolve;
             })
@@ -278,7 +278,7 @@ describe("snapshot mutation and isolation safety", () => {
       const pending = harness.client.callTool({
         name: "gtm_tag",
         arguments: {
-          action: "remove",
+          action: "revert",
           accountId: "1",
           containerId: "2",
           workspaceId: "3",
